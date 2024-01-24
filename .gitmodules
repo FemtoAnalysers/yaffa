@@ -1,0 +1,3 @@
+[submodule "yaffa/secrets"]
+	path = yaffa/secrets
+	url = https://github.com/FemtoAnalysers/secrets.git
