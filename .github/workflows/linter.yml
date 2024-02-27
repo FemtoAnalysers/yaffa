@@ -26,7 +26,7 @@ jobs:
       - name: Lint Code Base
         uses: github/super-linter@v5
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_PYTHON_PYLINT: true
           DEFAULT_BRANCH: "main"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LOG_LEVEL: WARN

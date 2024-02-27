@@ -1,0 +1,11 @@
+#!/bin/sh
+# Lint the code before the commit
+echo "Start of linting..."
+if git diff --cached --name-only --diff-filter=d | grep '\.py$' | xargs -I{}  pylint --rcfile=.github/linters/.python-lint {};
+
+then
+	echo "Linting done\n"
+else
+	echo "\033[41mYour changes didn't pass the format checks and the commit was aborted. Please fix all the problems above and commit again\033[0m"
+	exit 1
+fi
