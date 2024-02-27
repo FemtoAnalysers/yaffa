@@ -1,0 +1,10 @@
+pair: dPi
+infile: /data/dPi/01_otonsel/data/AnalysisResults.root
+runsuffix: 0
+
+# where to save the output
+odir: ~/an/dPi/01_otonsel/cf
+suffix: '0'
+
+binwidth: 20 # MeV/c
+norm: null

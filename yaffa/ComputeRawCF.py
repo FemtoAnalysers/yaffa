@@ -10,7 +10,7 @@ import os
 import argparse
 import yaml
 
-from ROOT import TFile, TH2F, TH1D
+from ROOT import TFile, TH2F, TH1D  # pylint: disable=import-error
 
 from yaffa import logger as log
 from yaffa.utils.io import Load, GetKeyNames
@@ -56,7 +56,7 @@ for comb in combs:
     iPart2 = int(comb[2])
     oFile.mkdir(comb)
     oFile.cd(comb)
-    
+
     hSE[comb] = {}
     hME[comb] = {}
     hMErew[comb] = {}
@@ -93,11 +93,13 @@ for comb in combs:
             hMEmultk = TH2F('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
 
         nbins = hMEmultk.ProjectionX().GetNbinsX()
-        hMEreweightk = TH1D("MErewdistr", "MErewdistr", nbins, hMEmultk.GetXaxis().GetXmin(), hMEmultk.GetXaxis().GetXmax())
+        minMult = hMEmultk.GetXaxis().GetXmin()
+        maxMult = hMEmultk.GetXaxis().GetXmax()
+        hMEreweightk = TH1D("MErewdistr", "MErewdistr", nbins, minMult, maxMult)
         for iBin in range(hMEmultk.ProjectionY().GetNbinsX() + 2): # Loop over underflow, all bins, and overflow
             hSEbinmult = hSEmultk.ProjectionX(f'{comb}SEdistr', iBin, iBin)
             hMEbinmult = hMEmultk.ProjectionX(f'{comb}MEdistr', iBin, iBin)
-            if(hMEbinmult.Integral() > 0):
+            if hMEbinmult.Integral() > 0:
                 hMEreweightk.Add(hMEbinmult, hSEbinmult.Integral()/hMEbinmult.Integral())
         hMErew[comb][region] = hMEreweightk
 
@@ -114,7 +116,7 @@ for comb in combs:
         hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
         hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
         hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
-        
+
         hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
         hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
         hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
@@ -135,7 +137,7 @@ for comb in combs + ['p02_13', 'p03_12']:
 
         hSE[comb][region].Sumw2()
         hME[comb][region].Sumw2() # Just to trigger the same draw option as for hSE
-        
+
         hCF = norm * hSE[comb][region] / hME[comb][region]
         hCFrew = normrew * hSE[comb][region] / hMErew[comb][region]
 
@@ -149,14 +151,14 @@ for comb in combs + ['p02_13', 'p03_12']:
         hME[comb][region].SetName('hME')
         hME[comb][region].SetTitle(';#it{k}* (GeV/#it{c});Counts')
         hME[comb][region].Write()
-        
+
         hMErew[comb][region].SetName('hMErew')
         hMErew[comb][region].SetTitle(';#it{k}* (GeV/#it{c});Counts')
 
         hCF.SetName('hCF')
         hCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
         hCF.Write()
-        
+
         hCFrew.SetName('hCFrew')
         hCFrew.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
         hCFrew.Write()
