@@ -20,5 +20,4 @@ max-args=10
 max-locals=40
 
 [MESSAGES CONTROL]
-# todo: pylint in docker does not recognise yaml... understand why. For now exclude import errors
-disable=wrong-import-position,invalid-name,unspecified-encoding,import-error
+disable=wrong-import-position,invalid-name,unspecified-encoding
