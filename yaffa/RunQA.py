@@ -142,6 +142,58 @@ leg.AddEntry(hClusterOverFindable1, labels[1])
 leg.Draw('same')
 cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
 
+# TPC dE/dx of Part1+
+hTPCdedx = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/TPCdedx_after')
+hTPCdedx.SetTitle(f'TPCdedx_after {labels[0]}')
+hTPCdedx.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TPC dE/dx of Part1-
+hTPCdedx = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/TPCdedx_after')
+hTPCdedx.SetTitle(f'TPCdedx_after {labels[1]}')
+hTPCdedx.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part1+
+hTOFbeta = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/TOFbeta_after')
+hTOFbeta.SetTitle(f'TOFbeta_after {labels[0]}')
+hTOFbeta.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part1-
+hTOFbeta = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/TOFbeta_after')
+hTOFbeta.SetTitle(f'TOFbeta_after {labels[1]}')
+hTOFbeta.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# nSigmaTPC of Part1+
+hNSigmaTPC = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/NSigTPC_after')
+hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[0]}')
+hNSigmaTPC.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# nSigmaTPC of Part1-
+hNSigmaTPC = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/NSigTPC_after')
+hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[1]}')
+hNSigmaTPC.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part1+
+hNSigTOF = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/NSigTOF_after')
+hNSigTOF.SetTitle(f'NSigTOF_after {labels[0]}')
+hNSigTOF.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part1-
+hNSigTOF = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/NSigTOF_after')
+hNSigTOF.SetTitle(f'NSigTOF_after {labels[1]}')
+hNSigTOF.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
 cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf]'))
 # End of part 1 quality
 
@@ -214,6 +266,58 @@ leg = TLegend(0.6, 0.7, 0.9, 0.9)
 leg.AddEntry(hClusterOverFindable2, labels[2])
 leg.AddEntry(hClusterOverFindable3, labels[3])
 leg.Draw('same')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TPC dE/dx of Part2+
+hTPCdedx = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/TPCdedx_after')
+hTPCdedx.SetTitle(f'TPCdedx_after {labels[2]}')
+hTPCdedx.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TPC dE/dx of Part2-
+hTPCdedx = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/TPCdedx_after')
+hTPCdedx.SetTitle(f'TPCdedx_after {labels[3]}')
+hTPCdedx.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part2+
+hTOFbeta = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/TOFbeta_after')
+hTOFbeta.SetTitle(f'TOFbeta_after {labels[2]}')
+hTOFbeta.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part2-
+hTOFbeta = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/TOFbeta_after')
+hTOFbeta.SetTitle(f'TOFbeta_after {labels[3]}')
+hTOFbeta.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# nSigmaTPC of Part2+
+hNSigmaTPC = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/NSigTPC_after')
+hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[2]}')
+hNSigmaTPC.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# nSigmaTPC of Part2-
+hNSigmaTPC = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/NSigTPC_after')
+hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[3]}')
+hNSigmaTPC.Draw('colz')
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part2+
+hNSigTOF = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/NSigTOF_after')
+hNSigTOF.SetTitle(f'NSigTOF_after {labels[2]}')
+hNSigTOF.Draw('colz')
+cPart.SetLogz()
+cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+
+# TOF beta of Part2-
+hNSigTOF = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/NSigTOF_after')
+hNSigTOF.SetTitle(f'NSigTOF_after {labels[3]}')
+hNSigTOF.Draw('colz')
+cPart.SetLogz()
 cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
 
 cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf]'))
