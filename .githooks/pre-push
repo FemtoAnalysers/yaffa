@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Make sure the style checks pass before the push
+
+exec yaffa-lint
