@@ -1,0 +1,61 @@
+- plot:
+    output: CompareGaus
+
+    input:
+    -   file:  toy/Gaus.root
+        name: fGaus
+        legend: 'function'
+        rebin: 1
+        color: kRed
+        markerstyle: 1
+        normalize: false
+        normalizecf: false  # false or numerical factor for rescaling
+    -   file:  toy/Gaus.root
+        name: hGaus
+        legend: 'histogram'
+        rebin: 1
+        color: kBlue
+        markerstyle: 1
+        normalize: false
+        normalizecf: false  # false or numerical factor for rescaling
+
+    opt:
+        rangex: [-5, 5]
+        rangey: [0, 0.08]
+        rebin: 1
+        logx: false
+        logy: false
+        title: ';variable (units);variable (units)'
+
+        lines: [] # Use lines: [] if you don't want to draw lines
+        ext: [pdf]
+
+        leg:
+            header: ''
+            posx: [0.5, 0.9]
+            posy: [0.7, 0.9]
+            sigma: false
+            mean: false
+
+    ratio:
+        enable: true
+        rangey: [0, 2]
+        rebin: 1
+        logx: false
+        logy: false
+
+    relunc:
+        enable: true
+        rangey: [0, 100]
+        gridx: false
+        gridy: true
+        logx: false
+        logy: false
+
+    pulls:
+        enable: true
+        rangey: [-5, 5]
+        gridx: false
+        gridy: true
+        logx: false
+        logy: false
