@@ -187,3 +187,75 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetTextSize(1)
 
     gROOT.ForceStyle()
+
+
+def SmartLabel(text):
+    '''
+    Convert a text based on the ALICE guidelines for formulas
+
+    Charge combinations:
+    sc: same-charge (pp+mm)
+    oc: opposite-charge (pm+mp)
+    '''
+
+    dPairs2Latex = {
+        # deuteron
+        'dbar': "#bar{d}",
+
+        # D-pion
+        'DP+i+': "D^{+} #pi^{+}",
+        'D-pi-': "D^{#minus} #pi^{#minus}",
+        'D+pi-': "D^{+} #pi^{#minus}",
+        'D-pi+': "D^{#minus} #pi^{+}",
+        'Dpi_sc': "D^{+} #pi^{+} #oplus D^{#minus} #pi^{#minus}",
+        'Dpi_oc': "D^{+} #pi^{#minus} #oplus D^{#minus} #pi^{+}",
+        # D-kaon
+        'D+K+': "D^{+} K^{+}",
+        'D-K-': "D^{#minus} K^{#minus}",
+        'D+K-': "D^{+} K^{#minus}",
+        'D-K+': "D^{#minus} K^{+}",
+        'DK_sc': "D^{+} K^{+} #oplus D^{#minus} K^{#minus}",
+        'DK_oc': "D^{+} K^{#minus} #oplus D^{#minus} K^{+}",
+        # D*-pion
+        'D*P+i+': "D*^{+} #pi^{+}",
+        'D*-pi-': "D*^{#minus} #pi^{#minus}",
+        'D*+pi-': "D*^{+} #pi^{#minus}",
+        'D*-pi+': "D*^{#minus} #pi^{+}",
+        'D*pi_sc': "D*^{+} #pi^{+} #oplus D*^{#minus} #pi^{#minus}",
+        'D*pi_oc': "D*^{+} #pi^{#minus} #oplus D*^{#minus} #pi^{+}",
+        # D*-kaon
+        'D*+K+': "D*^{+} K^{+}",
+        'D*-K-': "D*^{#minus} K^{#minus}",
+        'D*+K-': "D*^{+} K^{#minus}",
+        'D*-K+': "D*^{#minus} K^{+}",
+        'D*K_sc': "D*^{+} K^{+} #oplus D*^{#minus} K^{#minus}",
+        'D*K_oc': "D*^{+} K^{#minus} #oplus D*^{#minus} K^{+}",
+        # axix labels
+        '__invmass_D*__': "#it{M}(K#pi#pi) - #it{M}(K#pi) (GeV/#it{c}^{2})",
+        '__invmass_D__': '#it{M}(K#pi#pi) (GeV/#it{c})^{2}',
+        'MeVc': 'MeV/#it{c}',
+        'GeVc': 'GeV/#it{c}',
+        'GeVc2': 'GeV/#it{c}^{2}',
+        'k*': '#it{k}*',
+    }
+    for key, value in dPairs2Latex.items():
+        if key in text:
+            text = text.replace(key, value)
+    return text
+
+
+def GetNPanels(n):  # pylint: disable=inconsistent-return-statements
+    '''
+    Computes the optimal canvas subdivision.
+    '''
+    if n<=3:
+        return (n, 1)
+    if n == 4:
+        return (2, 2)
+    if n <= 8:
+        return ((n+1)//2, 2)
+    if n <= 12:
+        return ((n+1)//3, 3)
+    if n <= 20:
+        return ((n+1)//5, 4)
+    log.critical('Too many pads')
