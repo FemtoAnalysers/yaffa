@@ -5,6 +5,9 @@
 # Set the git hooks
 git config --local core.hooksPath .githooks/
 
+# Install yaffa
+pip3 install -e .
+
 # Install the executables
 mkdir -p ~/.local/bin/
 
