@@ -10,7 +10,7 @@ import subprocess
 import argparse
 import sys
 
-from testprj import logger as log
+from yaffa import logger as log
 
 parser = argparse.ArgumentParser()
 parser.add_argument('train', help='Name of the train from which file should be downloaded')
