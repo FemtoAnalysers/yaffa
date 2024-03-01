@@ -52,3 +52,5 @@ logger.setLevel(logging.INFO)
 ch = ExitOnExceptionHandler()
 ch.setFormatter(CustomFormatter())
 logger.addHandler(ch)
+
+from . import utils
