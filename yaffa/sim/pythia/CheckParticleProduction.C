@@ -99,7 +99,7 @@ void CheckParticleProduction(int nEvents = 20000,
         }
     }
 
-    TFile oFile(Form("/scratch5/ge86rim/an/LPi/sim/pythia/Nstar/Analysis_Results_%d.root", seed), "recreate");
+    TFile oFile(Form("/scratch5/ge86rim/an/LPi/sim/pythia/Nstar/AnalysisResults_%d.root", seed), "recreate");
     hPt->Write();
     oFile.Close();
 }
