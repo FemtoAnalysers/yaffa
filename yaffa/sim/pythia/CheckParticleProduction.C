@@ -5,19 +5,22 @@
 
 #include "yaml-cpp/yaml.h"
 
-#include "TFile.h"
-#include "TLorentzVector.h"
-#include "TH1F.h"
 #include "Pythia8/Pythia.h"
+#include "TFile.h"
+#include "TH1F.h"
+#include "TLorentzVector.h"
 
 using namespace Pythia8;
 
 enum tunes { kMonash, kCRMode0, kCRMode2, kCRMode3 };
 
-void CheckParticleProduction(int nEvents = 20000,
-                             std::vector<int> pdgs = {102212, 102214, 102216, 112214, 122212, 202212, 202216, 212212,
-                                                      212214},
-                             tunes tune = tunes::kCRMode2, int seed = 52) {
+void CheckParticleProduction(
+    int nEvents = 20000,
+    std::vector<int> pdgs = {102212, 102214, 102216, 112214, 122212, 202212, 202216, 212212,212214},
+    tunes tune = tunes::kCRMode2,
+    std::string oFileName = "AnalysisResults.root",
+    int seed = 52
+) {
     Pythia pythia;
 
     // Set the processes
@@ -99,7 +102,7 @@ void CheckParticleProduction(int nEvents = 20000,
         }
     }
 
-    TFile oFile(Form("/scratch5/ge86rim/an/LPi/sim/pythia/Nstar/AnalysisResults_%d.root", seed), "recreate");
+    TFile oFile(oFileName.data(), "recreate");
     hPt->Write();
     oFile.Close();
 }
