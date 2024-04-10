@@ -1,3 +1,8 @@
 yaffa.egg-info/*
 */__pycache__/*
 *cpython*
+
+# Aux files root
+*_ACLiC_*
+*.d
+*.so
