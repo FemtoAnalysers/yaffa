@@ -65,10 +65,10 @@ def main(stdscr):
         winInfo.addstr(4, 25, f'Your held jobs:    {myHeldJobs:>6} │ ')
 
         # Their jobs
-        theirJobs = output_of_cmd('squeue -u ^$(whoami) -h | wc -l')
-        theirRunningJobs = output_of_cmd('squeue -u ^$(whoami) -h -t R | wc -l')
-        theirPendingJobs = output_of_cmd('squeue -u ^$(whoami) -h -t PD | wc -l')
-        theirHeldJobs = output_of_cmd('squeue -u ^$(whoami) -h | grep JobHeldUser | wc -l')
+        theirJobs = output_of_cmd('squeue -h | grep -v $(whoami) | wc -l')
+        theirRunningJobs = output_of_cmd('squeue -h -t R | grep -v $(whoami) | wc -l')
+        theirPendingJobs = output_of_cmd('squeue -h -t PD | grep -v $(whoami) | wc -l')
+        theirHeldJobs = output_of_cmd('squeue -h | grep -v $(whoami) | grep JobHeldUser | wc -l')
 
         winInfo.addstr(1, 53, f'Their jobs:         {theirJobs:>6}')
         winInfo.addstr(2, 53, f'Their running jobs: {theirRunningJobs:>6}')
