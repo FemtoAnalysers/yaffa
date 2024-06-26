@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 '''
 Application to show the status of the batchfarm.
 '''
