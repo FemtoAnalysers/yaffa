@@ -31,3 +31,7 @@ fi
 pip3 install -e . || pip3 install --user -e .
 
 popd
+cp yaffa/bin/yaffa-farm-tui.py ~/.local/bin/yaffa-farm-tui
+chmod +x ~/.local/bin/yaffa-farm-tui
+
+cd $currentDir
