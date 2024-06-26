@@ -1,5 +1,4 @@
 #!/bin/sh
 
-# Make sure the style checks pass before the push
-
-exec yaffa-lint
+# Prevent the push if the linting fails, but only if you are not on the batchfarm since there docker is not available
+[[ "$(lsb_release -i | awk '{print $3}')" != "AlmaLinux" ]]  && exec yaffa-lint
