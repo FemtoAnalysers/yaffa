@@ -179,8 +179,8 @@ void MakeDistr(
     YAML::Node cfgPart0 = cfg["part0"];
     auto pdg0 = cfgPart0["pdg"].as<int>();
 
-    // Load selections for part 1
-    YAML::Node cfgPart1 = cfg["part1"];
+    // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
+    YAML::Node cfgPart1 = cfg["part1"].IsNull() ? cfg["part0"] : cfg["part1"];
     auto pdg1 = cfgPart1["pdg"].as<int>();
 
     // The number of necessary histogram depends on the nature of the pairs. Possible scenarios:
