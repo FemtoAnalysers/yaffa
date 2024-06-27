@@ -178,10 +178,20 @@ void MakeDistr(
     // Load selections for part 0
     YAML::Node cfgPart0 = cfg["part0"];
     auto pdg0 = cfgPart0["pdg"].as<int>();
+    auto statusrange0 = cfgPart0["status"].IsNull() ? std::array<int, 2>({-300, 300}) : cfgPart0["status"].as<std::array<int, 2>>();
+    auto ptrange0 =     cfgPart0["pt"].IsNull() ? std::array<double, 2>({0, 9.e9}) : cfgPart0["pt"].as<std::array<double, 2>>();
+    auto etarange0 =    cfgPart0["eta"].IsNull() ? std::array<double, 2>({-9.e9, 9.e9}) : cfgPart0["eta"].as<std::array<double, 2>>();
+    auto yrange0 =      cfgPart0["y"].IsNull() ? std::array<double, 2>({-9.e9, 9.e9}) : cfgPart0["y"].as<std::array<double, 2>>();
+    auto prodvtxrange0 = cfgPart0["prodvtx"].IsNull() ? std::array<double, 2>({-1., 9.e9}) : cfgPart0["prodvtx"].as<std::array<double, 2>>();
 
     // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
     YAML::Node cfgPart1 = cfg["part1"].IsNull() ? cfg["part0"] : cfg["part1"];
     auto pdg1 = cfgPart1["pdg"].as<int>();
+    auto statusrange1 = cfgPart1["status"].IsNull() ? std::array<int, 2>({-300, 300}) : cfgPart1["status"].as<std::array<int, 2>>();
+    auto ptrange1 = cfgPart1["pt"].IsNull() ? std::array<double, 2>({0, 9.e9}) : cfgPart1["pt"].as<std::array<double, 2>>();
+    auto etarange1 = cfgPart1["eta"].IsNull() ? std::array<double, 2>({-9.e9, 9.e9}) : cfgPart1["eta"].as<std::array<double, 2>>();
+    auto yrange1 = cfgPart1["y"].IsNull() ? std::array<double, 2>({-9.e9, 9.e9}) : cfgPart1["y"].as<std::array<double, 2>>();
+    auto prodvtxrange1 = cfgPart1["prodvtx"].IsNull() ? std::array<double, 2>({-1., 9.e9}) : cfgPart1["prodvtx"].as<std::array<double, 2>>();
 
     // The number of necessary histogram depends on the nature of the pairs. Possible scenarios:
     //  1) One of the 2 particles is the charge-conjugate of itself (e.g. p-Phi, JPsi-Phi) ==> Only 1 histogram is needed
@@ -218,10 +228,26 @@ void MakeDistr(
 
             if (absPdg == pdg0) {
                 // Selections for part 0
+                if (!(statusrange0[0] <= part.status() && part.status() <= statusrange0[1])) continue;
+                if (!(ptrange0[0] < part.pT() && part.pT() < ptrange0[1])) continue;
+                if (!(etarange0[0] < part.eta() && part.eta() < etarange0[1])) continue;
+                if (!(yrange0[0] < part.y() && part.y() < yrange0[1])) continue;
+                double prodvtx = pow(part.xProd() * part.xProd() + 
+                                     part.yProd() * part.yProd() + 
+                                     part.zProd() * part.zProd(), 0.5);
+                if (!(prodvtxrange0[0] < prodvtx && prodvtx < prodvtxrange0[1])) continue;
 
                 part0.push_back(pythia.event[iPart]);
             } else if (absPdg == pdg1) {
                 // Selections for Part 1
+                if (!(statusrange1[0] <= part.status() && part.status() <= statusrange1[1])) continue;
+                if (!(ptrange1[0] < part.pT() && part.pT() < ptrange1[1])) continue;
+                if (!(etarange1[0] < part.eta() && part.eta() < etarange1[1])) continue;
+                if (!(yrange1[0] < part.y() && part.y() < yrange1[1])) continue;
+                double prodvtx = pow(part.xProd() * part.xProd() + 
+                                     part.yProd() * part.yProd() + 
+                                     part.zProd() * part.zProd(), 0.5);
+                if (!(prodvtxrange1[0] < prodvtx && prodvtx < prodvtxrange1[1])) continue;
 
                 part1.push_back(pythia.event[iPart]);
             }
