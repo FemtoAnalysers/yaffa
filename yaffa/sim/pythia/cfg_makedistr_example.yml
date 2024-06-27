@@ -1,0 +1,23 @@
+# Generator setup
+nevts: 100
+sqrts: 13 # um = TeV
+tune: CRMode2
+process: NonDiffractive
+trigger: MB # todo: not implemented
+
+# Selection of particle 0
+part0: # Put here the heaviest of the two particles
+    pdg: 333
+    yrange: null # todo: not implemented
+    etarange: [-0.8, 0.8] # todo: not implemented
+    pt: [0.3, 999] # todo: not implemented
+
+# Selection of particle 1
+part1: # Use null if same as part 1 # todo: not implemented
+    pdg: 111
+    yrange: null # todo: not implemented
+    etarange: [-0.8, 0.8] # todo: not implemented
+    pt: [0.3, 999] # todo: not implemented
+
+# Femtoscopy
+mixdepth: 10
