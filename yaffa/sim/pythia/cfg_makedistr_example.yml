@@ -1,5 +1,5 @@
 # Generator setup
-nevts: 100
+nevts: 3000
 sqrts: 13 # um = TeV
 tune: CRMode2
 process: NonDiffractive
@@ -7,17 +7,23 @@ trigger: MB # todo: not implemented
 
 # Selection of particle 0
 part0: # Put here the heaviest of the two particles
-    pdg: 2212
-    yrange: null # todo: not implemented
-    etarange: [-0.8, 0.8] # todo: not implemented
-    pt: [0.3, 999] # todo: not implemented
+    pdg: 211
+    status: [81, 89] # NB: extremes are included
+    y: null
+    eta: [-0.8, 0.8]
+    pt: [0, 999]
+    prodvtx: [-1, 0.5]
+    
 
 # Selection of particle 1
-part1: null # Use null if same as part 1
-    # pdg: 111
-    # yrange: null # todo: not implemented
-    # etarange: [-0.8, 0.8] # todo: not implemented
-    # pt: [0.3, 999] # todo: not implemented
+part1: # Use null if same as part 1
+    pdg: 333
+    status: [-89, -81] # NB: extremes are included. Negative values if the particle decays
+    y: null
+    eta: null
+    pt: null
+    prodvtx: [-1, 0.5] # Don't use 0 as lower value
 
 # Femtoscopy
 mixdepth: 10
+# todo: implement rejection of events without pairs
