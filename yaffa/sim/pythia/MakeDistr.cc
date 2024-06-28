@@ -6,7 +6,6 @@ Script to compute the same- and mixed event distributions from pythia events.
 #include <array>
 #include <deque>
 #include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -18,7 +17,6 @@ Script to compute the same- and mixed event distributions from pythia events.
 #include "TDatabasePDG.h"
 #include "TFile.h"
 #include "TH1.h"
-// #include "Math/Vector3D.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
 #include "TRandom3.h"
