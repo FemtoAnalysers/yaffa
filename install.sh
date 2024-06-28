@@ -2,7 +2,12 @@
 
 # Script to install yaffa
 
-if [ $YAFFA == '']; then
+if [[ $ALIENVLVL == '' ]]; then
+    echo -e "\033[31mError: this script must be run inside the ALICE environment. Exit!\033[0m"
+    exit 1
+fi
+
+if [[ $YAFFA == '' ]]; then
     echo -e "\033[31mError: the path to yaffa was not found. Add `export YAFFA=/path/to/yaffa` to your .bashrc. Exit!\033[0m"
     exit 1
 fi
