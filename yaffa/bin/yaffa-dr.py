@@ -10,8 +10,6 @@ import subprocess
 import argparse
 import sys
 
-from yaffa import logger as log
-
 parser = argparse.ArgumentParser()
 parser.add_argument('train', help='Name of the train from which file should be downloaded')
 parser.add_argument('run', help='Number of the run')
@@ -20,20 +18,27 @@ args = parser.parse_args()
 train = args.train
 run = args.run
 
+if not os.environ.get('ALIENVLVL'):
+    print("This script needs to be run from within the ALICE environment (AliPhysics/O2/O2Physics). Exit!")
+    sys.exit(1)
+
 # Check that the train is valid
 if 'CF' in train:
     pwg = 'CF'
 elif 'D2H' in train:
     pwg = 'HF'
 else:
-    log.critical('Unknown train')
+    print('Unknown train. Exit!')
+    sys.exit(1)
 
 # Search the files
 path = f'/alice/cern.ch/user/a/alitrain/PWG{pwg}/{train}/{run}_.*'
 try:
     files = subprocess.check_output(f'alien_find -r "{path}/AnalysisResults.root"', shell=True, universal_newlines='\n')
 except subprocess.CalledProcessError:
-    log.critical('No files found in %s', path)
+    print('No files found in %s. Exit!', path)
+    sys.exit(1)
+
 files = str(files).split('\n')
 files.remove('')
 
