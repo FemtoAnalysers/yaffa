@@ -75,6 +75,28 @@ float ComputeKstar(Pythia8::Particle part1, Pythia8::Particle part2) {
     return ComputeKstar(p1, p2);
 }
 
+// Return true if the PDG code corresponds to a charged and long-lived particle
+bool IsDetectable(const int &pdg) {
+    int absPdg = std::abs(pdg);
+
+    return absPdg == 11 ||   // electrons
+           absPdg == 13 ||   // muons
+           absPdg == 211 ||  // pions
+           absPdg == 321 ||  // kaons
+           absPdg == 2212;   // protons
+}
+
+// Compute the multiplicity of charged particles in the TPC acceptance
+int ComputeMultTPC(const Pythia8::Pythia &pythia) {
+    int mult = 0;
+    for (int iPart = 3; iPart < pythia.event.size(); iPart++) {
+        Pythia8::Particle part = pythia.event[iPart];
+
+        if (part.isFinal() && std::abs(part.eta()) < 0.8 && IsDetectable(part.id())) mult++;
+    }
+    return mult;
+}
+
 
 void MakeDistr(
     std::string oFileName = "Distr.root",
@@ -86,6 +108,7 @@ void MakeDistr(
     YAML::Node cfg = YAML::LoadFile(cfgFile.data());
     size_t nEvents = cfg["nevts"].as<unsigned int>();
     unsigned int md = cfg["mixdepth"].as<int>();
+    bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
 
     Pythia8::Pythia pythia;
 
@@ -191,6 +214,9 @@ void MakeDistr(
     auto yrange1 = cfgPart1["y"].IsNull() ? std::array<double, 2>({-9.e9, 9.e9}) : cfgPart1["y"].as<std::array<double, 2>>();
     auto prodvtxrange1 = cfgPart1["prodvtx"].IsNull() ? std::array<double, 2>({-1., 9.e9}) : cfgPart1["prodvtx"].as<std::array<double, 2>>();
 
+    // QA histograms
+    TH1D * hEvtMult = new TH1D("hEvtMult", ";#it{N}_{ch}|_{|#eta|<0.8};Counts", 100, 0., 100);
+
     // The number of necessary histogram depends on the nature of the pairs. Possible scenarios:
     //  1) One of the 2 particles is the charge-conjugate of itself (e.g. p-Phi, JPsi-Phi) ==> Only 1 histogram is needed
     //  2) Both particles are different from their charge-conjugate (e.g. p-Lambda, p-p) ==> 2 histograms are needed
@@ -253,6 +279,9 @@ void MakeDistr(
 
         DEBUG("n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
+        int mult = ComputeMultTPC(pythia);
+        hEvtMult->Fill(mult);
+
         // Same event
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = part0[i0];
@@ -294,6 +323,7 @@ void MakeDistr(
     }
 
     TFile *oFile = new TFile(oFileName.data(), "recreate");
+    hEvtMult->Write();
     oFile->mkdir("p00");
     oFile->cd("p00");
     hSE["p00"]->Write("hSE");
