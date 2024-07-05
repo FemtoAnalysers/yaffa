@@ -17,6 +17,7 @@ Script to compute the same- and mixed event distributions from pythia events.
 #include "TDatabasePDG.h"
 #include "TFile.h"
 #include "TH1.h"
+#include "TH2D.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
 #include "TRandom3.h"
@@ -223,6 +224,8 @@ void MakeDistr(
     std::map<std::string, TH1D *> hSE = {{"p00", new TH1D("hSE00", ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}};
     std::map<std::string, TH1D *> hME = {{"p00", new TH1D("hME00", ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}};
 
+    std::map<std::string, TH2D *> hPairMultSE = {{"p00", new TH2D("hPairMultSE00", ";#it{N}_{0};#it{N}_{1};Counts", 31, -0.5, 30.5, 31, -0.5, 30.5)}};
+
     // Check if there is at least one particle that is the charge-conjugate of itself
     auto PDG = TDatabasePDG::Instance();
     bool isSelfCC = !(PDG->GetParticle(pdg0)->AntiParticle() && PDG->GetParticle(pdg1)->AntiParticle());
@@ -230,6 +233,8 @@ void MakeDistr(
     if (!isSelfCC) {
         hSE.insert({"p01", new TH1D("hSE01", ";#it{k}* (GeV/#it{c});Counts", 2000, 0., 2.)});
         hME.insert({"p01", new TH1D("hME01", ";#it{k}* (GeV/#it{c});Counts", 2000, 0., 2.)});
+
+        hPairMultSE.insert({"p01", new TH2D("hPairMultSE01", ";#it{N}_{0};#it{N}_{1};Counts", 31, -0.5, 30.5, 31, -0.5, 30.5)});
     }
 
     std::vector<Pythia8::Particle> part0{};
@@ -282,6 +287,29 @@ void MakeDistr(
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
 
+        // The single-particle multiplicities are computed differently depending on the type of pair
+        if (isSelfCC) { // At least one of the particles is its charge-conjugate e.g. phi-p, phi-Pi0
+            hPairMultSE["p00"]->Fill(part0.size(), part1.size());
+        } else {
+            int mult0plus = std::count_if(part0.begin(), part0.end(), [](auto p) { return p.id() > 0; });
+            int mult0minus = part0.size() - mult0plus;
+
+            if (pdg0 == pdg1) { // Same particle femto e.g. p-p or Lambda-Lambda
+                hPairMultSE["p00"]->Fill(mult0plus, mult0plus);
+                hPairMultSE["p00"]->Fill(mult0minus, mult0minus);
+
+                hPairMultSE["p01"]->Fill(mult0plus, mult0minus);
+            } else { // Different particle femto e.g. p-Pi, Lambda-K
+                int mult1plus = std::count_if(part1.begin(), part1.end(), [](auto p) { return p.id() > 0; });
+                int mult1minus = part1.size() - mult1plus;
+
+                hPairMultSE["p00"]->Fill(mult0plus, mult1plus);
+                hPairMultSE["p00"]->Fill(mult0minus, mult1minus);
+                hPairMultSE["p01"]->Fill(mult0plus, mult1minus);
+                hPairMultSE["p01"]->Fill(mult0minus, mult1plus);
+            }
+        }
+
         // Same event
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = part0[i0];
@@ -328,12 +356,14 @@ void MakeDistr(
     oFile->cd("p00");
     hSE["p00"]->Write("hSE");
     hME["p00"]->Write("hME");
+    hPairMultSE["p00"]->Write("hPairMult");
 
     if (!isSelfCC) {
         oFile->mkdir("p01");
         oFile->cd("p01");
         hSE["p01"]->Write("hSE");
         hME["p01"]->Write("hME");
+        hPairMultSE["p01"]->Write("hPairMult");
     }
 
     oFile->Close();
