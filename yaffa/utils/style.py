@@ -2,7 +2,7 @@
 Set the style of figures.
 '''
 
-from ROOT import gStyle, gROOT, EColor  # pylint: disable=import-error
+from ROOT import gStyle, gROOT, TGaxis, EColor  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -123,7 +123,7 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetOptLogz(0)
     gStyle.SetOptStat(0)
     gStyle.SetOptTitle(0)
-    gStyle.SetPadBorderMode(1)
+    gStyle.SetPadBorderMode(0)
     gStyle.SetPadBorderSize(1)
     gStyle.SetPadBottomMargin(kwargs.get('bottomMargin', 0.11))
     gStyle.SetPadColor(19)
@@ -133,7 +133,7 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetPadRightMargin(kwargs.get('rightMargin', 0.02))
     gStyle.SetPadTickX(1)
     gStyle.SetPadTickY(1)
-    gStyle.SetPadTopMargin(kwargs.get('topMargin', 0.02))
+    gStyle.SetPadTopMargin(kwargs.get('topMargin', 0.05))
     gStyle.SetPaintTextFormat('g')
     gStyle.SetPalette(55)
     gStyle.SetScreenFactor(1)
@@ -185,6 +185,9 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetTextColorAlpha(1, 1)
     gStyle.SetTextFont(42)
     gStyle.SetTextSize(1)
+
+    # TAxis
+    TGaxis.SetMaxDigits(3)
 
     gROOT.ForceStyle()
 
