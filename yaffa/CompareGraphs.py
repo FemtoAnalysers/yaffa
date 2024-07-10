@@ -7,6 +7,7 @@ import os
 import yaml
 from rich import print  # pylint: disable=redefined-builtin
 
+# pylint: disable=no-name-in-module
 from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1
 
 from yaffa import logger as log
@@ -98,6 +99,10 @@ for plot in cfg:
             lastBin = inObj.FindBin(plot['opt']['rangex'][1]*0.9999)
             inObj.GetXaxis().SetRange(firstBin, lastBin)
             print(f'{legend}: mean = {inObj.GetMean()} sigma = {inObj.GetStdDev()}')
+            if plot['opt']['leg']['yield']:
+                legend += f';  Y={inObj.GetEntries():.1e}'
+            if plot['opt']['leg']['relyield']:
+                legend += f';  ({inObj.GetEntries() / inObjs[0].GetEntries() * 100:.1f}%)'
             if plot['opt']['leg']['mean']:
                 legend += f';  #mu={inObj.GetMean():.3f}'
             if plot['opt']['leg']['sigma']:
