@@ -1,0 +1,11 @@
+data:
+    file: /home/daniel/an/LPi/AnalysisResultsData.root
+    se_path: HMResults1001/HMResults1001/Particle0_Particle2/SEDist_Particle0_Particle2
+    me_path: HMResults1001/HMResults1001/Particle0_Particle2/MEDist_Particle0_Particle2
+
+mc:
+    file: /home/daniel/an/LPi/AnalysisResultsMC.root
+    se_path: HMResults0/HMResults0/Particle0_Particle2/SEDist_Particle0_Particle2
+    me_path: HMResults0/HMResults0/Particle0_Particle2/MEDist_Particle0_Particle2
+
+norm_range: [800, 1000]
