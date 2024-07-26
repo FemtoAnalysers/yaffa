@@ -1,0 +1,16 @@
+odir: /home/daniel/an/dPi/templatefit/deuteron
+suffix: ''
+
+pt_mins: [0.5, 0.9]
+pt_maxs: [0.9, 1.4]
+rebin_dca: 0.05 # um = cm
+contrib:
+    data:
+        file: /data/dPi/01_otonsel/data/AnalysisResults.root
+        path: HMDeuteronDCA0/HMDeuteronDCA0/DCAXYPtBinningTot
+    prim:
+        file: /data/dPi/01_otonsel/data/AnalysisResults.root
+        path: HMAntiDeuteronDCA0/HMAntiDeuteronDCA0/DCAXYPtBinningTot
+    mat:
+        file: /data/dPi/02_template/mc/AnalysisResults.root
+        path: HMDeuteronDCA0/HMDeuteronDCA0/DCAXYPtBinningTot
