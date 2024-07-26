@@ -2,6 +2,7 @@ yaffa.egg-info/*
 */__pycache__/*
 *cpython*
 build/**
+.vscode
 
 # Aux files root
 *_ACLiC_*
