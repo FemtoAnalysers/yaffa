@@ -19,7 +19,7 @@ cd $YAFFA
 git config --local core.hooksPath .githooks/
 
 # Install yaffa
-pip3 install --user -e .
+pip3 install -e . || pip3 install --user -e .
 
 # Install the executables
 mkdir -p ~/.local/bin/
