@@ -36,6 +36,8 @@
             posy: [0.7, 0.9]
             sigma: false
             mean: false
+            yield: false
+            relyield: false
 
     ratio:
         enable: true
