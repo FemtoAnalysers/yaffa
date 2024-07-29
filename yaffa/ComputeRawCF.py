@@ -130,10 +130,17 @@ for comb in combs + ['p02_13', 'p03_12']:
         hMErew[comb][region].Rebin(rebin)
 
         if cfg['norm'] is None:  # if not specified, normalize to the yields
-            norm = hME[comb][region].GetEntries() / hSE[comb][region].GetEntries()
-            normrew = hMErew[comb][region].GetEntries() / hSE[comb][region].GetEntries()
+            firstBinNorm = 1
+            lastBinNorm = hMErew[comb][region].GetNbinsX()
+        elif isinstance(cfg['norm'], list):
+            firstBinNorm = hSE[comb][region].FindBin(cfg['norm'][0]*1.0001)
+            lastBinNorm = hSE[comb][region].FindBin(cfg['norm'][1]*0.9999)
         else:
             log.critical('Normalization method not implemented')
+
+        YieldSE = hSE[comb][region].Integral(firstBinNorm, lastBinNorm)
+        norm = hME[comb][region].Integral(firstBinNorm, lastBinNorm) / YieldSE
+        normrew = hMErew[comb][region].Integral(firstBinNorm, lastBinNorm) / YieldSE
 
         hSE[comb][region].Sumw2()
         hME[comb][region].Sumw2() # Just to trigger the same draw option as for hSE
