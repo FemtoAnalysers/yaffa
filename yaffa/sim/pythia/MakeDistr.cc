@@ -284,6 +284,9 @@ void MakeDistr(
 
         DEBUG("n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
+        // Skip events without pairs
+        if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
+
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
 
