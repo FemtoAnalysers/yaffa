@@ -46,6 +46,16 @@
         logx: false
         logy: false
 
+    spread:
+        enable: true
+        rangey: [0, 1]
+        rebin: 1
+        mode: percentage
+        gridx: false
+        gridy: true
+        logx: false
+        logy: false
+
     relunc:
         enable: true
         rangey: [0, 100]
