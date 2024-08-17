@@ -6,6 +6,7 @@ import argparse
 import os
 import yaml
 from rich import print  # pylint: disable=redefined-builtin
+import numpy as np
 
 # pylint: disable=no-name-in-module
 from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1
@@ -33,6 +34,8 @@ for plot in cfg:
     panels = {'default': 1}
     if plot['ratio']['enable']:
         panels['ratio'] = len(panels)+1
+    if plot['spread']['enable']:
+        panels['spread'] = len(panels)+1
     if plot['relunc']['enable']:
         panels['relunc'] = len(panels)+1
     if plot.get('pulls').get('enable'):
@@ -107,7 +110,9 @@ for plot in cfg:
                 legend += f';  #mu={inObj.GetMean():.3f}'
             if plot['opt']['leg']['sigma']:
                 legend += f';  #sigma={inObj.GetStdDev():.3f}'
-        leg.AddEntry(inObj, legend, 'lp')
+        if legend:
+            leg.AddEntry(inObj, legend, 'lp')
+
     for line in plot['opt']['lines']:
         x1 = plot['opt']['rangex'][0] if(line['coordinates'][0] == 'min') else line['coordinates'][0]
         y1 = plot['opt']['rangey'][0] if(line['coordinates'][1] == 'min') else line['coordinates'][1]
@@ -152,6 +157,42 @@ for plot in cfg:
         line.SetLineColor(13)
         line.SetLineStyle(7)
         line.Draw('same pe')
+
+    if plot['spread']['enable']:
+        # Calcualate the spread around the first oject
+        if not isinstance(inObj, TH1):
+            log.error('Spread for type %s is not implemented. Skipping this object', type(inObj))
+            continue
+
+        x1 = plot['opt']['rangex'][0]
+        y1 = plot['spread']['rangey'][0]
+        x2 = plot['opt']['rangex'][1]
+        y2 = plot['spread']['rangey'][1]
+
+        pad = cPlot.cd(panels['spread'])
+        pad.SetLogx(plot['spread']['logx'])
+        pad.SetLogy(plot['spread']['logy'])
+        frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
+        title = 'relative spread #sigma/#mu'
+        if plot['spread']['mode'] == 'percentage':
+            title += ' (%)'
+        frame.GetYaxis().SetTitle(title)
+
+        hSpread = inObjs[0].Clone('hSpread')
+        hSpread.Reset()
+
+        for iBin in range(hSpread.GetXaxis().FindBin(x1 * 1.0001), hSpread.GetXaxis().FindBin(x2 * 0.9999)):
+            yValues = np.array([obj.GetBinContent(iBin + 1) for obj in inObjs[1:]])
+            spread = np.std(yValues) / inObjs[0].GetBinContent(iBin + 1)
+            if plot['spread']['mode'] == 'relative':
+                pass
+            elif plot['spread']['mode'] == 'percentage':
+                spread *= 100
+            else:
+                log.critical('Not implemented')
+            hSpread.SetBinContent(iBin + 1, spread)
+
+        hSpread.Draw('same')
 
     # Compute the relative uncertainties
     if plot['relunc']['enable']:
