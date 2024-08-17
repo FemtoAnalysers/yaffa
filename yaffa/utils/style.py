@@ -191,6 +191,42 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
 
     gROOT.ForceStyle()
 
+def Format(text):
+    '''
+    Format a string according to ROOT standards.
+
+    Parameters
+    ----------
+    test : str
+        The text to format
+
+    Returns
+    -------
+    string
+        The formatted text
+
+    Examples
+    -------
+        Format('k* (MeV/c)') # returns: '#it{k}* (GeV/#it{c})'
+    '''
+
+    dTranslations = {
+        # Kinematics
+        'C(k*)': "#it{C}(#it{k}*)",
+        'k*': "#it{k}*",
+        'p_T': "#it{p}_{T}",
+        'p_{T}': "#it{p}_{T}",
+
+        # Units
+        'MeV/c': "MeV/#it{c}",
+        'GeV/c': "GeV/#it{c}",
+    }
+
+    for key, value in dTranslations.items():
+        if key in text:
+            text = text.replace(key, value)
+    return text
+
 
 def SmartLabel(text):
     '''
