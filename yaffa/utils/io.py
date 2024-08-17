@@ -4,7 +4,7 @@ Utility functions for i/o operations on root files
 
 import os
 
-from ROOT import TDirectoryFile, TList # pylint: disable=import-error
+from ROOT import TFile, TDirectoryFile, TList # pylint: disable=import-error
 
 import yaffa
 
@@ -54,6 +54,74 @@ def Load(container, path):
 
     yaffa.logger.debug('The object %s:%s was succesfully loaded', container.GetName(), path)
     return obj
+
+
+def LoadCF(pair, **kwargs):
+    '''
+    Load a correlation function from `secrets`
+
+    Parameters
+    ----------
+    pair : str
+        the name of the partice pair
+    author : str, optional
+        The (first) author of the publication
+    method : str, optional
+        The method used to obtain the CF
+    version : str, optional
+        The version of the calculation
+
+    Returns
+    -------
+    TGraph
+        The loaded CF
+    '''
+
+    author = kwargs['author']
+    method = kwargs['method']
+    version = kwargs['version']
+    name = '_'.join([pair, author, method, version])
+    inFile = TFile(f'{os.environ.get("YAFFA")}/yaffa/secrets/theory/cf/{pair}.root')
+    gCF = inFile.Get(f'g{name}')
+    return gCF
+
+
+def LoadResolutionMatrix(pair, **kwargs):
+    '''
+    Load a correlation function from `secrets`
+
+    Parameters
+    ----------
+    pair : str
+        the name of the partice pair
+    dataset : str, optional
+        dataset from which to take the resolution matrix (e.g HMpp13TeV)
+    NanoAOD : bool, optional
+        use NanoAOD resolution matrix
+    version : str, optional
+        The version of the calculation
+
+    Returns
+    -------
+    TGraph
+        The loaded CF
+    '''
+
+    dataset = kwargs['dataset']
+    NanoAOD = 'NanoAOD' if kwargs['NanoAOD'] else ''
+    version = kwargs['version']
+
+    name = '_'.join(filter(None, ['ResolutionMatrix', pair, dataset, NanoAOD, version]))
+    inFile = TFile(f'{os.environ.get("YAFFA")}/yaffa/secrets/resolution/{name}.root')
+
+    dResMat = {}
+    combs = ('02', '13')
+    for comb in combs:
+        dResMat[f'p{comb}'] = Load(inFile, f'p{comb}/hResolutionMatrixME')
+        dResMat[f'p{comb}'].SetDirectory(0)
+
+
+    return dResMat
 
 
 def GetHistNames(rdir):
