@@ -9,7 +9,7 @@ from rich import print  # pylint: disable=redefined-builtin
 import numpy as np
 
 # pylint: disable=no-name-in-module
-from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1
+from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1, gROOT
 
 from yaffa import logger as log
 from yaffa import utils
@@ -17,7 +17,10 @@ from yaffa import utils
 
 parser = argparse.ArgumentParser(description='Arguments')
 parser.add_argument('cfg')
+parser.add_argument('-b', action='store_true', default=False, help='Run in batch mode')
 args = parser.parse_args()
+
+gROOT.SetBatch(args.b)
 
 # Load configuration file
 with open(args.cfg, "r") as stream:
