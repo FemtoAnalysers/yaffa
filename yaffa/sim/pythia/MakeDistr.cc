@@ -218,7 +218,7 @@ void MakeDistr(
     int nPart0 = PDG->GetParticle(pdg0)->AntiParticle() && pdg0 != pdg1 ? 2 : 1;
     int nPart1 = PDG->GetParticle(pdg1)->AntiParticle() ? 2 : 1;
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
-        for (int iPart1 = nPart0; iPart1 < nPart0 + nPart1; iPart1++) {
+        for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
             std::pair<int, int> pair = {iPart0, iPart1};
             DEBUG("Inserting histograms for pair (%d, %d)\n", iPart0, iPart1);
             hSE.insert({pair, new TH1D(Form("hSE%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
@@ -272,22 +272,34 @@ void MakeDistr(
             }
         }
 
-        DEBUG("n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
+        DEBUG("Particles found for pdg0=%d: %zu\n", pdg0, part0.size());
+        for (size_t iPart = 0; iPart < part0.size(); iPart++) {
+            auto part = part0[iPart];
+            DEBUG("    %zu: pdg=%d  px=%.4f\n", iPart, part.id(), part.px());
+        }
+        DEBUG("Particles found for pdg1=%d: %zu\n", pdg1, part1.size());
+        for (size_t iPart = 0; iPart < part1.size(); iPart++) {
+            auto part = part1[iPart];
+            DEBUG("    %zu: pdg=%d  px=%.4f\n", iPart, part.id(), part.px());
+        }
 
-        // Skip events without pairs
-        if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
+        // Skip events without pairs // todo: reimplement
+        // if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
 
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
 
         int mult0plus = std::count_if(part0.begin(), part0.end(), [](auto p) { return p.id() > 0; });
         int mult1plus = std::count_if(part1.begin(), part1.end(), [](auto p) { return p.id() > 0; });
-        hPairMultSE[std::pair<int, int>({0, nPart0})]->Fill(mult0plus, mult1plus);
-        if (nPart0>1) hPairMultSE[std::pair<int, int>({1, nPart0})]->Fill(part0.size() - mult0plus, mult1plus);
-        if (nPart1>1) hPairMultSE[std::pair<int, int>({0, nPart0 + 1})]->Fill(mult0plus, part1.size() - mult1plus);
-        if (nPart0 > 1 && nPart1 > 1) hPairMultSE[std::pair<int, int>({1, nPart0 + 1})]->Fill(part0.size() - mult0plus, part1.size() - mult1plus);
+        hPairMultSE[std::pair<int, int>({0, 0})]->Fill(mult0plus, mult1plus);
+        if (nPart0>1) hPairMultSE[std::pair<int, int>({1, 0})]->Fill(part0.size() - mult0plus, mult1plus);
+        if (nPart1>1) hPairMultSE[std::pair<int, int>({0, 1})]->Fill(mult0plus, part1.size() - mult1plus);
+        if (nPart0 > 1 && nPart1 > 1) hPairMultSE[std::pair<int, int>({1, 1})]->Fill(part0.size() - mult0plus, part1.size() - mult1plus);
+
+        DEBUG("Particle multiplicities in this event: n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
         // Same event
+        DEBUG("Start same-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = part0[i0];
 
@@ -297,14 +309,15 @@ void MakeDistr(
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
                 const auto p1 = buffer[i1];
                 double kStar = ComputeKstar(p0, p1);
-                std::pair<int, int> pair = {p0.id() < 0, nPart0 + int(p1.id() < 0)};
-                DEBUG("SE(%zu, %zu): pdg0: %d pdg1: %d   (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
+                std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
+                DEBUG("    SE(idx=%zu, idx=%zu): pdg0=%d pdg1=%d  --->  (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                 hSE[pair]->Fill(kStar);
             }
         }
 
         // Mixed event
+        DEBUG("Start mixed-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = part0[i0];
 
@@ -312,8 +325,8 @@ void MakeDistr(
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
                     const auto p1 = partBuffer[iME][i1];
                     double kStar = ComputeKstar(p0, p1);
-                    std::pair<int, int> pair = {p0.id() < 0, nPart0 + int(p1.id() < 0)};
-                    DEBUG("ME(%zu, %zu, %zu): pdg0: %d pdg1: %d   (%d %d)\n", i0, iME, i1, p0.id(), p1.id(), pair.first, pair.second);
+                    std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
+                    DEBUG("    ME(idx0=%zu, iMix=%zu, idx1=%zu): pdg0=%d pdg1=%d   (%d, %d)\n", i0, iME, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                     hME[pair]->Fill(kStar);
                 }
@@ -329,7 +342,7 @@ void MakeDistr(
     hEvtMult->Write();
 
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
-        for (int iPart1 = nPart0; iPart1 < nPart0 + nPart1; iPart1++) {
+        for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
             std::pair<int, int> pair = {iPart0, iPart1};
             std::string pairName = Form("p%d%d", iPart0, iPart1);
             oFile->mkdir(pairName.data());
@@ -341,4 +354,5 @@ void MakeDistr(
     }
 
     oFile->Close();
+    std::cout << "Output saved in " << oFileName << std::endl;
 }
