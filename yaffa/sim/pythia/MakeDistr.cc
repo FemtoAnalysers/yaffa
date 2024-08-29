@@ -208,23 +208,23 @@ void MakeDistr(
     // QA histograms
     TH1D * hEvtMult = new TH1D("hEvtMult", ";#it{N}_{ch}|_{|#eta|<0.8};Counts", 100, 0., 100);
 
-    // The number of necessary histogram depends on the nature of the pairs. Possible scenarios:
-    //  1) One of the 2 particles is the charge-conjugate of itself (e.g. p-Phi, JPsi-Phi) ==> Only 1 histogram is needed
-    //  2) Both particles are different from their charge-conjugate (e.g. p-Lambda, p-p) ==> 2 histograms are needed
-    std::map<std::string, TH1D *> hSE = {{"p00", new TH1D("hSE00", ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}};
-    std::map<std::string, TH1D *> hME = {{"p00", new TH1D("hME00", ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}};
+    // Pairs
+    std::map<std::pair<int, int>, TH1D *> hSE, hME;
+    
+    // Pair QA
+    std::map<std::pair<int, int>, TH2D *> hPairMultSE;
 
-    std::map<std::string, TH2D *> hPairMultSE = {{"p00", new TH2D("hPairMultSE00", ";#it{N}_{0};#it{N}_{1};Counts", 31, -0.5, 30.5, 31, -0.5, 30.5)}};
-
-    // Check if there is at least one particle that is the charge-conjugate of itself
     auto PDG = TDatabasePDG::Instance();
-    bool isSelfCC = !(PDG->GetParticle(pdg0)->AntiParticle() && PDG->GetParticle(pdg1)->AntiParticle());
-
-    if (!isSelfCC) {
-        hSE.insert({"p01", new TH1D("hSE01", ";#it{k}* (GeV/#it{c});Counts", 2000, 0., 2.)});
-        hME.insert({"p01", new TH1D("hME01", ";#it{k}* (GeV/#it{c});Counts", 2000, 0., 2.)});
-
-        hPairMultSE.insert({"p01", new TH2D("hPairMultSE01", ";#it{N}_{0};#it{N}_{1};Counts", 31, -0.5, 30.5, 31, -0.5, 30.5)});
+    int nPart0 = PDG->GetParticle(pdg0)->AntiParticle() && pdg0 != pdg1 ? 2 : 1;
+    int nPart1 = PDG->GetParticle(pdg1)->AntiParticle() ? 2 : 1;
+    for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
+        for (int iPart1 = nPart0; iPart1 < nPart0 + nPart1; iPart1++) {
+            std::pair<int, int> pair = {iPart0, iPart1};
+            DEBUG("Inserting histograms for pair (%d, %d)\n", iPart0, iPart1);
+            hSE.insert({pair, new TH1D(Form("hSE%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
+            hME.insert({pair, new TH1D(Form("hME%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
+            hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
+        }
     }
 
     std::vector<Pythia8::Particle> part0{};
@@ -280,28 +280,12 @@ void MakeDistr(
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
 
-        // The single-particle multiplicities are computed differently depending on the type of pair
-        if (isSelfCC) { // At least one of the particles is its charge-conjugate e.g. phi-p, phi-Pi0
-            hPairMultSE["p00"]->Fill(part0.size(), part1.size());
-        } else {
-            int mult0plus = std::count_if(part0.begin(), part0.end(), [](auto p) { return p.id() > 0; });
-            int mult0minus = part0.size() - mult0plus;
-
-            if (pdg0 == pdg1) { // Same particle femto e.g. p-p or Lambda-Lambda
-                hPairMultSE["p00"]->Fill(mult0plus, mult0plus);
-                hPairMultSE["p00"]->Fill(mult0minus, mult0minus);
-
-                hPairMultSE["p01"]->Fill(mult0plus, mult0minus);
-            } else { // Different particle femto e.g. p-Pi, Lambda-K
-                int mult1plus = std::count_if(part1.begin(), part1.end(), [](auto p) { return p.id() > 0; });
-                int mult1minus = part1.size() - mult1plus;
-
-                hPairMultSE["p00"]->Fill(mult0plus, mult1plus);
-                hPairMultSE["p00"]->Fill(mult0minus, mult1minus);
-                hPairMultSE["p01"]->Fill(mult0plus, mult1minus);
-                hPairMultSE["p01"]->Fill(mult0minus, mult1plus);
-            }
-        }
+        int mult0plus = std::count_if(part0.begin(), part0.end(), [](auto p) { return p.id() > 0; });
+        int mult1plus = std::count_if(part1.begin(), part1.end(), [](auto p) { return p.id() > 0; });
+        hPairMultSE[std::pair<int, int>({0, nPart0})]->Fill(mult0plus, mult1plus);
+        if (nPart0>1) hPairMultSE[std::pair<int, int>({1, nPart0})]->Fill(part0.size() - mult0plus, mult1plus);
+        if (nPart1>1) hPairMultSE[std::pair<int, int>({0, nPart0 + 1})]->Fill(mult0plus, part1.size() - mult1plus);
+        if (nPart0 > 1 && nPart1 > 1) hPairMultSE[std::pair<int, int>({1, nPart0 + 1})]->Fill(part0.size() - mult0plus, part1.size() - mult1plus);
 
         // Same event
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
@@ -312,10 +296,9 @@ void MakeDistr(
             auto buffer = pdg0 == pdg1 ? part0 : part1;
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
                 const auto p1 = buffer[i1];
-
                 double kStar = ComputeKstar(p0, p1);
-                std::string pair = p0.id() * p1.id() > 0 || isSelfCC ? "p00" : "p01";
-                DEBUG("SE(%zu, %zu): pdg0: %d pdg1: %d   %s\n", i0, i1, p0.id(), p1.id(), pair.data());
+                std::pair<int, int> pair = {p0.id() < 0, nPart0 + int(p1.id() < 0)};
+                DEBUG("SE(%zu, %zu): pdg0: %d pdg1: %d   (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                 hSE[pair]->Fill(kStar);
             }
@@ -328,11 +311,10 @@ void MakeDistr(
             for (size_t iME = 0; iME < partBuffer.size(); iME++) {
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
                     const auto p1 = partBuffer[iME][i1];
-
                     double kStar = ComputeKstar(p0, p1);
-                    std::string pair = p0.id() * p1.id() > 0 || isSelfCC ? "p00" : "p01";
+                    std::pair<int, int> pair = {p0.id() < 0, nPart0 + int(p1.id() < 0)};
+                    DEBUG("ME(%zu, %zu, %zu): pdg0: %d pdg1: %d   (%d %d)\n", i0, iME, i1, p0.id(), p1.id(), pair.first, pair.second);
 
-                    DEBUG("ME(%zu, %zu, %zu): pdg0: %d pdg1: %d   %s\n", i0, iME, i1, p0.id(), p1.id(), pair.data());
                     hME[pair]->Fill(kStar);
                 }
             }
@@ -345,18 +327,17 @@ void MakeDistr(
 
     TFile *oFile = new TFile(oFileName.data(), "recreate");
     hEvtMult->Write();
-    oFile->mkdir("p00");
-    oFile->cd("p00");
-    hSE["p00"]->Write("hSE");
-    hME["p00"]->Write("hME");
-    hPairMultSE["p00"]->Write("hPairMult");
 
-    if (!isSelfCC) {
-        oFile->mkdir("p01");
-        oFile->cd("p01");
-        hSE["p01"]->Write("hSE");
-        hME["p01"]->Write("hME");
-        hPairMultSE["p01"]->Write("hPairMult");
+    for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
+        for (int iPart1 = nPart0; iPart1 < nPart0 + nPart1; iPart1++) {
+            std::pair<int, int> pair = {iPart0, iPart1};
+            std::string pairName = Form("p%d%d", iPart0, iPart1);
+            oFile->mkdir(pairName.data());
+            oFile->cd(pairName.data());
+            hSE[pair]->Write("hSE");
+            hME[pair]->Write("hME");
+            hPairMultSE[pair]->Write("hPairMult");
+        }
     }
 
     oFile->Close();
