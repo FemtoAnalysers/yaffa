@@ -65,7 +65,17 @@ for plot in cfg:
         inObj.SetLineColor(utils.style.GetColor(inputCfg['color']))
         inObj.SetMarkerColor(utils.style.GetColor(inputCfg['color']))
         inObj.SetLineWidth(inputCfg.get('thickness', 1))
-        drawOpts.append(inputCfg.get('drawopt', 'p' if isinstance(inObj, TH1) else 'pe'))
+        if isinstance(inObj, TH1):
+            default = 'pe'
+        elif isinstance(inObj, TGraph):
+            default = 'p'
+        elif isinstance(inObj, (TGraphErrors, TGraphAsymmErrors)):
+            default = 'pe'
+        elif isinstance(inObj, TF1):
+            default = 'l'
+        else:
+            default = ''
+        drawOpts.append(inputCfg.get('drawopt'), default)
         inObj.SetMarkerStyle(inputCfg['markerstyle'])
         inObjs.append(inObj)
         legends.append(inputCfg['legend'])
@@ -90,14 +100,8 @@ for plot in cfg:
     legy2 = plot['opt']['leg']['posy'][1]
     leg = TLegend(legx1, legy1, legx2, legy2)
 
-    for iObj, (inObj, legend) in enumerate(zip(inObjs, legends)):
-        if isinstance(inObj, TGraph):
-            inObj.Draw('same p')
-        elif isinstance(inObj, TH1):
-            inObj.Draw("same pe")
-
-        elif isinstance(inObj, TF1):
-            inObj.Draw("same")
+    for iObj, (inObj, legend, drawOpt) in enumerate(zip(inObjs, legends, drawOpts)):
+        inObj.Draw('same' + drawOpt)
 
         # Compute statistics for hist in the displayed range
         if isinstance(inObj, TH1):
