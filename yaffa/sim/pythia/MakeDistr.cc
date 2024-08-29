@@ -25,7 +25,6 @@ Script to compute the same- and mixed event distributions from pythia events.
 // ALICE libraries
 #include "Pythia8/Pythia.h"
 
-
 #if false
 #define DEBUG(msg, ...) do { printf(msg, ##__VA_ARGS__); } while(0)
 #define DEBUG_VAR(var) do { std::cerr << #var << ": " << var << std::endl; } while (0)
@@ -34,15 +33,6 @@ Script to compute the same- and mixed event distributions from pythia events.
 #define DEBUG_VAR(var)
 #endif
 
-
-// todo: not implemented
-enum tunes { kMonash = 0, kCRMode0, kCRMode2, kCRMode3 };
-std::map<tunes, const char*> tuneNames = {
-    {kMonash, "Monash"},
-    {kCRMode0, "CRMode0"},
-    {kCRMode2, "CRMode2"},
-    {kCRMode3, "CRMode3"},
-};
 
 enum processes { kSoftQCD = 0, kNonDiffractive, kHardQCD };
 std::map<processes, const char*> processNames = {
