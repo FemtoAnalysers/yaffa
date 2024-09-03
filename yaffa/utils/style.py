@@ -44,12 +44,18 @@ def GetColor(color:str):
     >>> GetColor('kRed-3')
     629
     '''
-    value=None
+    found = False
+    name, value = None, None
     for name, value in colors.items():
         if name == color:
             return value
         if name in color:
+            found = True
             break
+
+    if not found:
+        log.warning('Color %s was not be recognized. Using kBlack instead.', color)
+        return EColor.kBlack
 
     for shade in range(0, 11):
         if f'+{shade}' in color or f' + {shade}' in color or f' +{shade}' in color or f'+ {shade}' in color:
