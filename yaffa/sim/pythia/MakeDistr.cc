@@ -262,8 +262,8 @@ void MakeDistr(
         }
     }
 
-    std::vector<Pythia8::Particle> part0{};
-    std::vector<Pythia8::Particle> part1{};
+    std::vector<int> part0{};
+    std::vector<int> part1{};
     std::deque<std::vector<Pythia8::Particle>> partBuffer{};
 
     for (size_t iEvent = 0; iEvent < nEvents; iEvent++) {
@@ -281,21 +281,10 @@ void MakeDistr(
             int absPdg = std::abs(pdg);
 
             if (absPdg == pdg0 && IsSelected(pythia, iPart, cfgPart0)) {
-                part0.push_back(pythia.event[iPart]);
+                part0.push_back(iPart);
             } else if (absPdg == pdg1 && IsSelected(pythia, iPart, cfgPart1)) {
-                part1.push_back(pythia.event[iPart]);
+                part1.push_back(iPart);
             }
-        }
-
-        DEBUG("Particles found for pdg0=%d: %zu\n", pdg0, part0.size());
-        for (size_t iPart = 0; iPart < part0.size(); iPart++) {
-            auto part = part0[iPart];
-            DEBUG("    %zu: pdg=%d  px=%.4f\n", iPart, part.id(), part.px());
-        }
-        DEBUG("Particles found for pdg1=%d: %zu\n", pdg1, part1.size());
-        for (size_t iPart = 0; iPart < part1.size(); iPart++) {
-            auto part = part1[iPart];
-            DEBUG("    %zu: pdg=%d  px=%.4f\n", iPart, part.id(), part.px());
         }
 
         // Skip events without pairs // todo: reimplement
@@ -304,8 +293,8 @@ void MakeDistr(
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
 
-        int mult0plus = std::count_if(part0.begin(), part0.end(), [](auto p) { return p.id() > 0; });
-        int mult1plus = std::count_if(part1.begin(), part1.end(), [](auto p) { return p.id() > 0; });
+        int mult0plus = std::count_if(part0.begin(), part0.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
+        int mult1plus = std::count_if(part1.begin(), part1.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
         hPairMultSE[std::pair<int, int>({0, 0})]->Fill(mult0plus, mult1plus);
         if (nPart0>1) hPairMultSE[std::pair<int, int>({1, 0})]->Fill(part0.size() - mult0plus, mult1plus);
         if (nPart1>1) hPairMultSE[std::pair<int, int>({0, 1})]->Fill(mult0plus, part1.size() - mult1plus);
@@ -316,13 +305,13 @@ void MakeDistr(
         // Same event
         DEBUG("Start same-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
-            const auto p0 = part0[i0];
+            const auto p0 = pythia.event[part0[i0]];
 
             // don't pair twice in case of same-part femto
             int start = pdg0 == pdg1 ? i0 + 1 : 0;
             auto buffer = pdg0 == pdg1 ? part0 : part1;
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
-                const auto p1 = buffer[i1];
+                const auto p1 = pythia.event[buffer[i1]];
                 double kStar = ComputeKstar(p0, p1);
                 std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
                 DEBUG("    SE(idx=%zu, idx=%zu): pdg0=%d pdg1=%d  --->  (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
@@ -334,7 +323,7 @@ void MakeDistr(
         // Mixed event
         DEBUG("Start mixed-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
-            const auto p0 = part0[i0];
+            const auto p0 = pythia.event[part0[i0]];
 
             for (size_t iME = 0; iME < partBuffer.size(); iME++) {
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
@@ -349,7 +338,9 @@ void MakeDistr(
         }
 
         // todo: check if the buffer type(0 or 1) changes anything
-        partBuffer.push_back(pdg0 == pdg1 ? part0 : part1);
+        auto partX = pdg0 == pdg1 ? part0 : part1;
+        partBuffer.push_back({});
+        for (const auto &iPart : partX) partBuffer[partBuffer.size() - 1].push_back(pythia.event[iPart]);
         if (partBuffer.size() > md) partBuffer.pop_front();
     }
 
