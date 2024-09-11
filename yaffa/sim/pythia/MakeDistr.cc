@@ -155,6 +155,7 @@ void MakeDistr(
     auto pdg1 = cfgPart1["pdg"].as<int>();
 
     Pythia8::Pythia pythia;
+    pythia.readString("Next:numberShowEvent = 0");
 
     // Set process
     if (cfg["process"].as<std::string>() == kSoftQCD) {
