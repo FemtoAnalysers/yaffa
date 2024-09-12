@@ -8,8 +8,9 @@ Usage:
 python3 ComputeRawCF.py cfg.yml
 
 '''
-import os
 import argparse
+import os
+import re
 import yaml
 from rich import print # pylint: disable=redefined-builtin
 
@@ -67,8 +68,6 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
                 iMt += 1
 
     return hDistr
-
-
 
 
 def LoadMultVsKstarFemtoDream(inFile, **kwargs):
@@ -146,13 +145,14 @@ def LoadMultVsKstar(inFile, **kwargs):
     #     nbins = hSE[comb][region].GetNbinsX()
     #     xMin = hSE[comb][region].GetXaxis().GetXmin()
     #     xMax = hSE[comb][region].GetXaxis().GetXmax()
-    #     hSE[comb][region] = TH2F('hSEMult', '', nbins, xMin, xMax, 200, 0, 200)
-    #     hME[comb][region] = TH2F('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
+    #     hSE[comb][region] = TH2D('hSEMult', '', nbins, xMin, xMax, 200, 0, 200)
+    #     hME[comb][region] = TH2D('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
 
     else:
         raise NotImplementedError("Only femto dream input is supported.")
 
     return hSE, hME
+
 
 def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
     '''reweight'''
@@ -211,6 +211,7 @@ def ProjectDistr(hDistrMult):
 
     return hDistr
 
+
 def main(cfg): # pylint: disable=too-many-statements
     '''
     main function
@@ -220,7 +221,9 @@ def main(cfg): # pylint: disable=too-many-statements
     '''
 
     regions = ['sgn']
-    combs = ['p02', 'p03', 'p12', 'p13']
+    combs = [comb for comb in GetKeyNames(inFile) if re.match('p[0-9][0-9]', comb)]
+    if not combs:
+        combs = ['p02', 'p03', 'p12', 'p13']
 
     # Define the output file
     oFileBaseName = 'RawCF'
@@ -375,6 +378,7 @@ def main(cfg): # pylint: disable=too-many-statements
     hFemtoPairs.Write()
     oFile.Close()
     print(f'output saved in {oFileName}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
