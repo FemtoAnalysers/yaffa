@@ -6,11 +6,12 @@ Usage:
 python3 ComputeRawCF.py cfg.yml
 
 '''
-import os
 import argparse
+import os
+import re
 import yaml
 
-from ROOT import TFile, TH2F, TH1D  # pylint: disable=import-error
+from ROOT import TFile, TH2F, TH1D  # pylint: disable=no-name-in-module
 
 from yaffa import logger as log
 from yaffa.utils.io import Load, GetKeyNames
@@ -31,10 +32,15 @@ with open(args.cfg, "r") as stream:
         log.critical('Yaml configuration could not be loaded. Is it properly formatted?')
 
 regions = ['sgn']
-combs = ['p02', 'p03', 'p12', 'p13']
 
 # Load input file with same- and mixed-event distributions
 inFile = TFile(cfg['infile'])
+
+combs = [comb for comb in GetKeyNames(inFile) if re.match('p[0-9][0-9]', comb)]
+if not combs:
+    combs = ['p02', 'p03', 'p12', 'p13']
+
+print(combs)
 
 # Define the output file
 oFileBaseName = 'RawCF'
@@ -62,6 +68,7 @@ for comb in combs:
     hMErew[comb] = {}
     for region in regions:
         runSuffix = cfg['runsuffix']
+
         if f'HMResults{runSuffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
             fdcomb = f'Particle{iPart1}_Particle{iPart2}'
             # The histograms are casted to TH1D with TH1::Copy to avoid NotImplementedError when computing hSE/hME
@@ -91,6 +98,8 @@ for comb in combs:
             xMax = hSE[comb][region].GetXaxis().GetXmax()
             hSEmultk = TH2F('hSEMult', '', nbins, xMin, xMax, 200, 0, 200)
             hMEmultk = TH2F('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
+        else:
+            log.critical("Not implemented.")
 
         nbins = hMEmultk.ProjectionX().GetNbinsX()
         minMult = hMEmultk.GetXaxis().GetXmin()
@@ -104,25 +113,25 @@ for comb in combs:
         hMErew[comb][region] = hMEreweightk
 
 # Sum pair and antipair
-for comb in combs:
-    hSE['p02_13'] = {}
-    hSE['p03_12'] = {}
-    hME['p02_13'] = {}
-    hME['p03_12'] = {}
-    hMErew['p02_13'] = {}
-    hMErew['p03_12'] = {}
+# for comb in combs:
+#     hSE['p02_13'] = {}
+#     hSE['p03_12'] = {}
+#     hME['p02_13'] = {}
+#     hME['p03_12'] = {}
+#     hMErew['p02_13'] = {}
+#     hMErew['p03_12'] = {}
 
-    for region in regions:
-        hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
-        hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
-        hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
+#     for region in regions:
+#         hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
+#         hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
+#         hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
 
-        hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
-        hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
-        hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
+#         hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
+#         hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
+#         hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
 
 # Compute the CF and write to file
-for comb in combs + ['p02_13', 'p03_12']:
+for comb in combs: # + ['p02_13', 'p03_12']:
     for region in regions:
         rebin = round(float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000))
         hSE[comb][region].Rebin(rebin)
