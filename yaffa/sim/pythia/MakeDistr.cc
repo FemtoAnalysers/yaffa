@@ -92,24 +92,19 @@ int ComputeMultTPC(const Pythia8::Pythia &pythia) {
 
 // Set the default selections
 template<typename T1, typename T2>
-void SetDefault(YAML::Node node, T1 min, T2 max) {
+void SetDefault(YAML::Node &&node, T1 min, T2 max) {
     if (node.IsNull()) {
         node.push_back(min);
         node.push_back(max);
     }
 }
 
-
-YAML::Node ApplyDefaults(const YAML::Node &cfg) {
-    YAML::Node cfgNew = cfg;
-
-    SetDefault(cfgNew["status"], -300, 300);
-    SetDefault(cfgNew["pt"], 0, 100);
-    SetDefault(cfgNew["eta"], -10, 10);
-    SetDefault(cfgNew["y"], -10, 10);
-    SetDefault(cfgNew["prodvtx"], -1., 1000);
-
-    return cfgNew;
+void SetDefaults(YAML::Node &cfg) {
+    SetDefault(cfg["status"], -300, 300);
+    SetDefault(cfg["pt"], 0, 100);
+    SetDefault(cfg["eta"], -10, 10);
+    SetDefault(cfg["y"], -10, 10);
+    SetDefault(cfg["prodvtx"], -1., 1000);
 }
 
 
@@ -162,11 +157,26 @@ void MakeDistr(
     bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
 
     // Load selections for part 0
-    cfgPart0 = ApplyDefaults(cfg["part0"]);
-    auto pdg0 = cfgPart0["pdg"].as<int>();
-
+    cfgPart0 = cfg["part0"];
     // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
-    cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : ApplyDefaults(cfg["part1"]);
+    cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : cfg["part1"];
+
+    std::cout << "\033[34mParticle selections before defaults (part0)\033[0m" << std::endl;
+    std::cout << cfgPart0<< std::endl;
+
+    std::cout << "\033[34mParticle selections before defaults (part1)\033[0m" << std::endl;
+    std::cout << cfgPart1<< std::endl;
+
+    SetDefaults(cfgPart0);
+    SetDefaults(cfgPart1);
+
+    std::cout << "\033[34mParticle selections after defaults (part0)\033[0m" << std::endl;
+    std::cout << cfgPart0<< std::endl;
+
+    std::cout << "\033[34mParticle selections after defaults (part1)\033[0m" << std::endl;
+    std::cout << cfgPart1<< std::endl;
+
+    auto pdg0 = cfgPart0["pdg"].as<int>();
     auto pdg1 = cfgPart1["pdg"].as<int>();
 
     Pythia8::Pythia pythia;
