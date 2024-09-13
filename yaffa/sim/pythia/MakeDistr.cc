@@ -133,6 +133,21 @@ bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgS
     return true;
 }
 
+std::string GetDaughters(YAML::Node cfg) {
+    // Check if the "daus" key exists and is a sequence
+    if (!cfg["daus"].IsDefined() || !cfg["daus"].IsSequence() || cfg["daus"].size() == 0) return "";
+
+    // Check if "pdg" is valid
+    if (!cfg["pdg"].IsScalar()) return "";
+
+    // Gather the daughter particles into a string
+    std::string daus;
+    for (const auto &dau : cfg["daus"]) {
+        daus += " " + dau["pdg"].as<std::string>();
+    }
+
+    return daus;
+}
 
 void MakeDistr(
     std::string oFileName = "Distr.root",
@@ -229,6 +244,18 @@ void MakeDistr(
     } else {
         std::cout << "\033[31mError: Tune not implemented. Exit!\033[0m" << std::endl;
         exit(1);
+    }
+
+    // Set decay channel for part0
+    if (std::string daus = GetDaughters(cfgPart0); daus != ""){
+        pythia.readString(std::to_string(pdg0) + ":onMode = off");
+        pythia.readString(std::to_string(pdg0) + ":onIfMatch =" + daus);
+    }
+
+    // Set decay channel for part1
+    if (std::string daus = GetDaughters(cfgPart1); daus != ""){
+        pythia.readString(std::to_string(pdg1) + ":onMode = off");
+        pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
     }
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
