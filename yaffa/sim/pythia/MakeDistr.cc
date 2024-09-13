@@ -105,6 +105,13 @@ void SetDefaults(YAML::Node &cfg) {
     SetDefault(cfg["eta"], -10, 10);
     SetDefault(cfg["y"], -10, 10);
     SetDefault(cfg["prodvtx"], -1., 1000);
+
+    // Apply defaults to the daughters
+    if (cfg["daus"].IsDefined() && cfg["daus"].IsSequence() && cfg["daus"].size() > 0) {
+        for (auto &&node : cfg["daus"]) {
+            SetDefaults(node);
+        }
+    }
 }
 
 
@@ -124,6 +131,13 @@ bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgS
     if (!IsSelected(part.y(), cfgSelections["y"])) return false;
     double prodvtx = pow(part.xProd() * part.xProd() + part.yProd() * part.yProd() + part.zProd() * part.zProd(), 0.5);
     if (!IsSelected(prodvtx, cfgSelections["prodvtx"])) return false;
+
+    if (cfgSelections["daus"].IsDefined() && cfgSelections["daus"].IsSequence() && cfgSelections["daus"].size() > 0) {
+        auto dauIdx = part.daughterList();
+        for (int iDau = 0; iDau < dauIdx.size(); iDau++) {
+            if (!IsSelected(pythia, dauIdx[iDau], cfgSelections["daus"][iDau])) return false;
+        }
+    }
 
     return true;
 }
