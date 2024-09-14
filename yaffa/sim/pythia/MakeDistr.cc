@@ -134,7 +134,7 @@ bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgS
 
     if (cfgSelections["daus"].IsDefined() && cfgSelections["daus"].IsSequence() && cfgSelections["daus"].size() > 0) {
         auto dauIdx = part.daughterList();
-        for (int iDau = 0; iDau < dauIdx.size(); iDau++) {
+        for (long unsigned int iDau = 0; iDau < dauIdx.size(); iDau++) {
             if (!IsSelected(pythia, dauIdx[iDau], cfgSelections["daus"][iDau])) return false;
         }
     }
