@@ -113,25 +113,20 @@ for comb in combs:
         hMErew[comb][region] = hMEreweightk
 
 # Sum pair and antipair
-# for comb in combs:
-#     hSE['p02_13'] = {}
-#     hSE['p03_12'] = {}
-#     hME['p02_13'] = {}
-#     hME['p03_12'] = {}
-#     hMErew['p02_13'] = {}
-#     hMErew['p03_12'] = {}
+for comb, recipe in cfg['sumrecipe'].items():
+    hSE[comb] = {}
+    hME[comb] = {}
+    hMErew[comb] = {}
 
-#     for region in regions:
-#         hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
-#         hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
-#         hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
+    for region in regions:
+        hSE[comb][region] = hSE[recipe[0]][region] + hSE[recipe[1]][region]
+        hME[comb][region] = hME[recipe[0]][region] + hME[recipe[1]][region]
+        hMErew[comb][region] = hMErew[recipe[0]][region] + hMErew[recipe[1]][region]
 
-#         hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
-#         hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
-#         hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
+    combs.append(comb)
 
 # Compute the CF and write to file
-for comb in combs: # + ['p02_13', 'p03_12']:
+for comb in combs:
     for region in regions:
         rebin = round(float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000))
         hSE[comb][region].Rebin(rebin)
