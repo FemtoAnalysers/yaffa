@@ -333,10 +333,24 @@ void MakeDistr(
             int pdg = part.id();
             int absPdg = std::abs(pdg);
 
-            if (IsSelected(pythia, iPart, cfgPart0)) {
-                part0.push_back(iPart);
-            } else if (IsSelected(pythia, iPart, cfgPart1)) {
-                part1.push_back(iPart);
+            if (cfg["mother"].IsDefined()) {
+                int pdgMother = cfg["mother"]["pdg"].as<int>();
+                if (absPdg != std::abs(pdgMother)) continue;
+
+                auto dauIndices = part.daughterList();
+                for (const auto &dauIdx : dauIndices) {
+                    if (IsSelected(pythia, dauIdx, cfgPart0)) {
+                        part0.push_back(dauIdx);
+                    } else if (IsSelected(pythia, dauIdx, cfgPart1)) {
+                        part1.push_back(dauIdx);
+                    }
+                }
+            } else {
+                if (IsSelected(pythia, iPart, cfgPart0)) {
+                    part0.push_back(iPart);
+                } else if (IsSelected(pythia, iPart, cfgPart1)) {
+                    part1.push_back(iPart);
+                }
             }
         }
 
