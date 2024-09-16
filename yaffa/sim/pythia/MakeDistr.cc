@@ -125,6 +125,7 @@ bool IsSelected(T value, const YAML::Node node, bool includeExtremes = false) {
 bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgSelections) {
     auto& part = pythia.event[iPart];
 
+    if (std::abs(part.id()) != cfgSelections["pdg"].as<int>()) return false;
     if (!IsSelected(part.status(), cfgSelections["status"], true)) return false;
     if (!IsSelected(part.pT(), cfgSelections["pt"])) return false;
     if (!IsSelected(part.eta(), cfgSelections["eta"])) return false;
@@ -332,9 +333,9 @@ void MakeDistr(
             int pdg = part.id();
             int absPdg = std::abs(pdg);
 
-            if (absPdg == pdg0 && IsSelected(pythia, iPart, cfgPart0)) {
+            if (IsSelected(pythia, iPart, cfgPart0)) {
                 part0.push_back(iPart);
-            } else if (absPdg == pdg1 && IsSelected(pythia, iPart, cfgPart1)) {
+            } else if (IsSelected(pythia, iPart, cfgPart1)) {
                 part1.push_back(iPart);
             }
         }
