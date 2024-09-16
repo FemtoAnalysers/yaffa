@@ -159,6 +159,46 @@ std::string GetDaughters(YAML::Node cfg) {
     return daus;
 }
 
+void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfg, std::vector<int> &part0, std::vector<int> &part1) {
+    const auto& mom = pythia.event[iPart];
+
+    // Check that the number of daughters is right
+    if (mom.daughter2() - mom.daughter1() + 1 != cfg.size()) {
+        part0.clear();
+        part1.clear();
+        return;
+    }
+
+    // Match decay channel
+    std::multiset<int> chn = {};
+    std::multiset<int> chnTarget = {};
+    for (int iDau = 0; iDau < cfg.size(); iDau++) {
+        chn.insert(std::abs(pythia.event[mom.daughter1() + iDau].id()));
+        chnTarget.insert(cfg[iDau]["pdg"].as<int>());
+    }
+    if (chn != chnTarget) {
+        part0.clear();
+        part1.clear();
+        return;
+    }
+
+    // Check that the decay channel matches
+    for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
+        int pdg = pythia.event[iDau].id();
+
+        for (const auto &node : cfg) {
+            if (IsSelected(pythia, iDau, cfgPart0)) {
+                part0.push_back(iDau);
+                break;
+            } else if (IsSelected(pythia, iDau, cfgPart1)) {
+                part1.push_back(iDau);
+                break;
+            }
+        }
+    }
+}
+
+
 void MakeDistr(
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
@@ -333,18 +373,12 @@ void MakeDistr(
             int pdg = part.id();
             int absPdg = std::abs(pdg);
 
-            if (cfg["mother"].IsDefined()) {
-                int pdgMother = cfg["mother"]["pdg"].as<int>();
+            if (cfg["decaychain"]["enable"].as<bool>()) {
+                int pdgMother = cfg["decaychain"]["pdg"].as<int>();
                 if (absPdg != std::abs(pdgMother)) continue;
 
-                auto dauIndices = part.daughterList();
-                for (const auto &dauIdx : dauIndices) {
-                    if (IsSelected(pythia, dauIdx, cfgPart0)) {
-                        part0.push_back(dauIdx);
-                    } else if (IsSelected(pythia, dauIdx, cfgPart1)) {
-                        part1.push_back(dauIdx);
-                    }
-                }
+                GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1);
+                break;
             } else {
                 if (IsSelected(pythia, iPart, cfgPart0)) {
                     part0.push_back(iPart);
