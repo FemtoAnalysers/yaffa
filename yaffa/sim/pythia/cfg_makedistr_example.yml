@@ -1,31 +1,80 @@
+# A summary of the status code of particels is reported below.
+# Note: Particles that decay have a negative status.
+# For details see: https://pythia.org/latest-manual/ParticleProperties.html
+# 11 - 19 : beam particles
+# 21 - 29 : particles of the hardest subprocess
+# 31 - 39 : particles of subsequent subprocesses
+# 41 - 49 : particles produced by initial-state-showers
+# 51 - 59 : particles produced by final-state-showers
+# 61 - 69 : particles produced by beam-remnant treatment
+# 71 - 79 : partons in preparation of hadronization process
+# 81 - 89 : primary hadrons produced by hadronization process
+# 91 - 99 : particles produced in decay process, or by Bose-Einstein effects
+# 101 - 109 : particles in the handling of R-hadron production and decay, i.e. long-lived (or stable) particles containing a very heavy flavour
+# 121 - 129 : other special hadron production mechanisms
+# 150 - 159 : new hadrons or hadrons with changed momentum due to hadron (re)scattering
+# 181 - 189 : reserved for the tracking of a cascade through a medium. Is not (yet) used in the core code, but only in the main483 example
+# 100 - 199 : reserved for future expansion
+# 201 - : free to be used by anybody.
+
 # Generator setup
-nevts: 1000
+nevts: 10000
 sqrts: 13 # um = TeV
-tune: CRMode2
+tune: Monash
 process: NonDiffractive
 trigger: MB # todo: not implemented
 
 # Selection of particle 0
 part0: # Put here the heaviest of the two particles
-    pdg: 2212
-    status: [81, 89] # NB: extremes are included
+    pdg: 3122
+    status: null # NB: extremes are included
     y: null
-    eta: [-2, 2]
+    eta: null
     pt: null
-    prodvtx: [-1, 0.5] # um = mm
-    dauintpc: true
+    prodvtx: [-1, 0.1] # um = mm
+    daus:
+      - pdg: 2212
+        status: null # NB: extremes are included
+        y: null
+        eta: null
+        pt: null
+        prodvtx: null # um = mm
+      - pdg: 211
+        status: null # NB: extremes are included
+        y: null
+        eta: null
+        pt: null
+        prodvtx: null # um = mm
 
 # Selection of particle 1
-part1: null # Use null if same as part 1
-    # pdg: 211
-    # status: [81, 89] # NB: extremes are included. Negative values if the particle decays
-    # y: null
-    # eta: [-2, 2]
-    # pt: null
-    # prodvtx: [-1, 0.5] # Don't use 0 as lower value
-    # dauintpc: true
+part1: # Use null if same as part 1
+    pdg: 211
+    status: null # NB: extremes are included. Negative values if the particle decays
+    y: null
+    eta: null
+    pt: null
+    prodvtx: [-1, 0.1] # Don't use 0 as lower value
+    dauintpc: null
+
+# Only one chain/evt
+decaychain:
+    enable: true
+    pdg: 3224 # Sigma*+(1385)
+    use: false
+    daus:
+      - pdg: 211 # Pi+
+        use: true
+        daus: null
+      - pdg: 3212 # Sigma0
+        use: false
+        daus:
+          - pdg: 22 # gamma
+            use: false
+            daus: null
+          - pdg: 3122 # Lambda
+            use: true
+            daus: null
 
 # Femtoscopy
 mixdepth: 10
 rejevtwopairs: true
-# todo: implement rejection of events without pairs
