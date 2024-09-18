@@ -114,7 +114,6 @@ void SetDefaults(YAML::Node &cfg) {
     }
 }
 
-
 template<typename T>
 bool IsSelected(T value, const YAML::Node node, bool includeExtremes = false) {
     std::array<T, 2> range = node.as<std::array<T, 2>>();
@@ -159,164 +158,52 @@ std::string GetDaughters(YAML::Node cfg) {
     return daus;
 }
 
-    // printf("Looking for decays of (%d,%d)\n", iPart, mom.id());
-
-    // if (cfg["daus"].IsNull()) return;
-
-
-
-
 void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
-    
     const auto& mom = pythia.event[iPart];
-    printf("mom: %d %d\n", iPart, mom.id());
-    std::cout << "CONFIG: " << std::endl << cfgMom << std::endl;
 
-    printf("Start analyzing daus:\n");
+    DEBUG("Start analyzing the decay tree of pdg=%d idx=%d\n", iPart, mom.id());
+    DEBUG("Start analyzing daus:\n");
     for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
         auto dau = pythia.event[iDau];
 
-        printf("    Current dau: %d (%d)\n", dau.id(), iDau);
+        DEBUG("    Checking now daughter with pdg=%d, idx=%d\n", dau.id(), iDau);
         // find the corresponding particle in the cfg file
         int dauCfgIdx = -1;
         for (int iCfg = 0; iCfg < cfgMom.size(); iCfg++) {
-            printf("        Scaning cfg n %d/%d\n", iCfg+1, cfgMom.size());
+            DEBUG("        Check if compatible with config n. %d/%d\n", iCfg+1, cfgMom.size());
             if (std::abs(dau.id()) == cfgMom[iCfg]["pdg"].as<int>()) {
-                printf("        eureka\n");
+                DEBUG("        --> Match in configuration!\n");
                 dauCfgIdx = iCfg;
                 break;
             }
         }
 
         if (dauCfgIdx == -1) {
-            printf("Dau not found. Return.\n");
+            DEBUG("    Daughter not found. Stop here.\n");
             return;
         }
-        
-        printf("    Found config:\n");
+
+        DEBUG("    Found matching configuration:\n");
         const YAML::Node& dauCfg = cfgMom[dauCfgIdx];
         std::cout << dauCfg << std::endl;
 
         if (dauCfg["daus"].IsNull()) {
-            printf("Daus are null. daupdg = %d cfg0=%d cfg1=%d\n", dau.id(), cfgPart0["pdg"].as<int>(), cfgPart1["pdg"].as<int>());
+            DEBUG("Daus are null. daupdg = %d cfg0=%d cfg1=%d\n", dau.id(), cfgPart0["pdg"].as<int>(), cfgPart1["pdg"].as<int>());
+            if (!dauCfg["use"].as<bool>()) continue;
+
             if (std::abs(dau.id()) == cfgPart0["pdg"].as<int>()) {
-                printf("push 0\n");
+                DEBUG("push-back in part0\n");
                 part0.push_back(iDau);
             } else if  (std::abs(dau.id()) == cfgPart1["pdg"].as<int>()) {
-                printf("push 1\n");
+                DEBUG("push-back in part1\n");
                 part1.push_back(iDau);
             }
         } else if (dauCfg["daus"].IsSequence()) {
-            printf("Recursive\n");
+            DEBUG("Recursively looking into the daughters\n");
             GetParticlesInDecayChain(pythia, iDau, dauCfg["daus"], part0, part1);
         }
-    
-        // // match to cfg
-        // for (const auto &cfgDau : cfgMom) {
-
-        //     if (cfgDau["pdg"].as<int>() != std::abs(dau.id())) return;
-
-        //     if (std::abs(dau.id()) == cfgPart0["pdg"].as<int>()) {
-        //         std::cout << "reco p0" << std::endl;
-        //         part0.push_back(iDau);
-        //         break;
-        //     } else if (std::abs(dau.id()) == cfgPart1["pdg"].as<int>()) {
-        //         std::cout << "reco p1" << std::endl;
-        //         part1.push_back(iDau);
-        //         break;
-        //     } else if (cfgDau["daus"].IsSequence()) {
-        //         std::cout << "reco cascade" << std::endl;
-
-        //         for (const auto &cfgDauDau : cfgDau["daus"]) {
-        //             GetParticlesInDecayChain(pythia, iDau, cfgDauDau["daus"], part0, part1);
-        //         }
-        //     } else {
-        //         cerr << "Error in configuration. Exit!" << std::endl;
-        //         exit(1);
-        //     }
-        // }
     }
 }
-
-
-
-
-void GetParticlesInDecayChain2(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
-    const auto& mom = pythia.event[iPart];
-
-    for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
-        auto dau = pythia.event[iDau];
-
-        printf("DAU: %d %d\n", iDau, dau.id());
-        std::cout <<"Node config" << std::endl << cfgMom << std::endl << std::endl;
-
-        // match to cfg
-        for (const auto &cfgDau : cfgMom) {
-
-            if (cfgDau["pdg"].as<int>() != std::abs(dau.id())) return;
-
-            if (std::abs(dau.id()) == cfgPart0["pdg"].as<int>()) {
-                std::cout << "reco p0" << std::endl;
-                part0.push_back(iDau);
-                break;
-            } else if (std::abs(dau.id()) == cfgPart1["pdg"].as<int>()) {
-                std::cout << "reco p1" << std::endl;
-                part1.push_back(iDau);
-                break;
-            } else if (cfgDau["daus"].IsSequence()) {
-                std::cout << "reco cascade" << std::endl;
-
-                for (const auto &cfgDauDau : cfgDau["daus"]) {
-                    GetParticlesInDecayChain(pythia, iDau, cfgDauDau["daus"], part0, part1);
-                }
-            } else {
-                cerr << "Error in configuration. Exit!" << std::endl;
-                exit(1);
-            }
-        }
-    }
-}
-
-
-void GetParticlesInDecayChainOld(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfg, std::vector<int> &part0, std::vector<int> &part1) {
-    const auto& mom = pythia.event[iPart];
-
-    // Check that the number of daughters is right
-    if (mom.daughter2() - mom.daughter1() + 1 != cfg.size()) {
-        part0.clear();
-        part1.clear();
-        return;
-    }
-
-    // Match decay channel
-    std::multiset<int> chn = {};
-    std::multiset<int> chnTarget = {};
-    for (int iDau = 0; iDau < cfg.size(); iDau++) {
-        chn.insert(std::abs(pythia.event[mom.daughter1() + iDau].id()));
-        chnTarget.insert(cfg[iDau]["pdg"].as<int>());
-    }
-    if (chn != chnTarget) {
-        part0.clear();
-        part1.clear();
-        return;
-    }
-
-    // Check that the decay channel matches
-    for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
-        int pdg = pythia.event[iDau].id();
-
-        for (const auto &node : cfg) {
-            if (IsSelected(pythia, iDau, cfgPart0)) {
-                part0.push_back(iDau);
-                break;
-            } else if (IsSelected(pythia, iDau, cfgPart1)) {
-                part1.push_back(iDau);
-                break;
-            }
-        }
-    }
-}
-
 
 void MakeDistr(
     std::string oFileName = "Distr.root",
