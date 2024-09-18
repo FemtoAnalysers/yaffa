@@ -397,8 +397,8 @@ void MakeDistr(
             }
         }
 
-        // Skip events without pairs // todo: reimplement
-        // if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
+        // Skip events without pairs
+        if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
 
         int mult = ComputeMultTPC(pythia);
         hEvtMult->Fill(mult);
