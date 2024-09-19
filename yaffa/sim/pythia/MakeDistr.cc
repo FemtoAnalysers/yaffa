@@ -169,8 +169,8 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
         DEBUG("    Checking now daughter with pdg=%d, idx=%d\n", dau.id(), iDau);
         // find the corresponding particle in the cfg file
         int dauCfgIdx = -1;
-        for (int iCfg = 0; iCfg < cfgMom.size(); iCfg++) {
-            DEBUG("        Check if compatible with config n. %d/%d\n", iCfg+1, cfgMom.size());
+        for (size_t iCfg = 0; iCfg < cfgMom.size(); iCfg++) {
+            DEBUG("        Check if compatible with config n. %d/%lu\n", iCfg+1, cfgMom.size());
             if (std::abs(dau.id()) == cfgMom[iCfg]["pdg"].as<int>()) {
                 DEBUG("        --> Match in configuration!\n");
                 dauCfgIdx = iCfg;
@@ -391,7 +391,7 @@ void MakeDistr(
 
                 DEBUG("\n\n==========================================================================================================\n");
                 GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1);
-                DEBUG("size after loading particles: %d %d\n", part0.size(), part1.size());
+                DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
 
                 break;
             } else {
