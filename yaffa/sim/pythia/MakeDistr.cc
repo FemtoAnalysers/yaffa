@@ -327,6 +327,14 @@ void MakeDistr(
         pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
     }
 
+    std::cout << "Applying the following customization to pythia:" << std::endl;
+    for (const auto &line : cfg["customization"]) {
+        std::string lineStr = line.as<std::string>();
+        std::cout << "   * " << lineStr << std::endl;
+        pythia.readString(lineStr.data());
+    }
+    std::cout << "End of customization." << std::endl;
+
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
     pythia.readString(Form("Random:seed = %d", seed));
