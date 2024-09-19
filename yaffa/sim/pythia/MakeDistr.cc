@@ -183,9 +183,7 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
             return;
         }
 
-        DEBUG("    Found matching configuration:\n");
         const YAML::Node& dauCfg = cfgMom[dauCfgIdx];
-        std::cout << dauCfg << std::endl;
 
         if (dauCfg["daus"].IsNull()) {
             DEBUG("Daus are null. daupdg = %d cfg0=%d cfg1=%d\n", dau.id(), cfgPart0["pdg"].as<int>(), cfgPart1["pdg"].as<int>());
@@ -383,9 +381,9 @@ void MakeDistr(
                 int pdgMother = cfg["decaychain"]["pdg"].as<int>();
                 if (absPdg != std::abs(pdgMother)) continue;
 
-                printf("\n\n==========================================================================================================\n");
+                DEBUG("\n\n==========================================================================================================\n");
                 GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1);
-                printf("size after loading particles: %d %d\n", part0.size(), part1.size());
+                DEBUG("size after loading particles: %d %d\n", part0.size(), part1.size());
 
                 break;
             } else {
