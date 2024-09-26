@@ -18,6 +18,7 @@ Script to compute the same- and mixed event distributions from pythia events.
 #include "TFile.h"
 #include "TH1.h"
 #include "TH2D.h"
+#include "TMath.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
 #include "TRandom3.h"
@@ -32,6 +33,8 @@ Script to compute the same- and mixed event distributions from pythia events.
 #define DEBUG(msg, ...)
 #define DEBUG_VAR(var)
 #endif
+
+const double HBARC =  197.3269804; // um=MeV*fm
 
 static YAML::Node cfgPart0;
 static YAML::Node cfgPart1;
@@ -170,7 +173,7 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
         // find the corresponding particle in the cfg file
         int dauCfgIdx = -1;
         for (size_t iCfg = 0; iCfg < cfgMom.size(); iCfg++) {
-            DEBUG("        Check if compatible with config n. %d/%lu\n", iCfg+1, cfgMom.size());
+            DEBUG("        Check if compatible with config n. %lu/%lu\n", iCfg+1, cfgMom.size());
             if (std::abs(dau.id()) == cfgMom[iCfg]["pdg"].as<int>()) {
                 DEBUG("        --> Match in configuration!\n");
                 dauCfgIdx = iCfg;
@@ -327,6 +330,23 @@ void MakeDistr(
         pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
     }
 
+    for (const auto &part : cfg["injection"]) {
+        int myPdg = part["pdg"].as<int>();
+        std::string name = part["name"].as<std::string>();
+        std::string antiname = part["antiname"].as<std::string>();
+        int spin = part["spin"].as<int>();
+        int charge = part["charge"].as<int>();
+        int color = 0;
+        int mass = part["mass"].as<double>();
+        double width = part["width"].as<double>();
+        double tau0 = HBARC / width * 1.e-12; // Conversion fm -> mm
+        double mMin = mass * 0.5;
+        double mMax = 0; // If mMax < mMin then no upper limit is imposed
+
+        pythia.particleData.addParticle(myPdg, name, antiname, spin, charge, color, mass, width, mMin, mMax, tau0);
+        pythia.particleData.readString(Form("%d:addChannel = 1 1 0 %s", myPdg, part["daus"].as<std::string>().data()));
+    }
+
     std::cout << "Applying the following customization to pythia:" << std::endl;
     for (const auto &line : cfg["customization"]) {
         std::string lineStr = line.as<std::string>();
@@ -376,10 +396,52 @@ void MakeDistr(
         part1.clear();
 
         DEBUG("\n\nGenerating a new event\n");
-        pythia.next();
+        if (cfg["injection"].IsDefined() && cfg["injection"].IsSequence() && cfg["injection"].size() == 0) {
+            pythia.next();
+        } else if (cfg["injection"].IsDefined() && cfg["injection"].IsSequence() && cfg["injection"].size() > 0) {
+            pythia.event.reset();
 
-        // Part 0 is the event, 1 and 2 the beams ==> start from 3
-        for (int iPart = 3; iPart < pythia.event.size(); iPart++) {
+            for (const auto& inj : cfg["injection"]) {
+                DEBUG("\n\nInjecting a new particle\n");
+
+                int myPdg = inj["pdg"].as<int>();
+                double mass = inj["mass"].as<double>();
+                double pt = gRandom->Exp(1);
+                double y = gRandom->Gaus();
+                double phi = gRandom->Uniform(2 * TMath::Pi());
+                double tau = gRandom->Exp(1);
+                double mt = TMath::Sqrt(mass * mass + pt * pt);
+                double pz = TMath::SinH(y) * mt;
+
+                Pythia8::Particle myPart;
+                myPart.id(myPdg);
+                myPart.status(81);
+                myPart.m(mass);
+                myPart.xProd(0.);
+                myPart.yProd(0.);
+                myPart.zProd(0.);
+                myPart.tProd(0.);
+                myPart.e(TMath::Sqrt(mt * mt + pz * pz));
+                myPart.px(pt * TMath::Cos(phi));
+                myPart.py(pt * TMath::Sin(phi));
+                myPart.pz(pz);
+                myPart.tau(tau);
+
+                std::cout << "part: " << myPdg << std::endl;
+
+                // remove all particles generated in the event and append the Lambda(1520)
+                pythia.event.append(myPart);
+                pythia.particleData.mayDecay(myPdg, true);
+            }
+            
+            // force the decay of the Lambda
+            pythia.moreDecays();
+        } else {
+            cerr << "Error in injection configuration" << std::endl;
+        }
+
+        // Part 0 is the event, 1 and 2 the beams. In case the hadrons are injected there are no beam particles
+        for (int iPart = 1; iPart < pythia.event.size(); iPart++) {
             auto &part = pythia.event[iPart];
 
             int pdg = part.id();
