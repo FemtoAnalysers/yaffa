@@ -427,8 +427,6 @@ void MakeDistr(
                 myPart.pz(pz);
                 myPart.tau(tau);
 
-                std::cout << "part: " << myPdg << std::endl;
-
                 // remove all particles generated in the event and append the Lambda(1520)
                 pythia.event.append(myPart);
                 pythia.particleData.mayDecay(myPdg, true);
