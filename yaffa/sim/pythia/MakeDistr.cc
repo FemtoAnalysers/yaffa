@@ -452,6 +452,9 @@ void MakeDistr(
 
                 DEBUG("\n\n==========================================================================================================\n");
                 GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1);
+                part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
+                part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
+
                 DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
 
                 break;
