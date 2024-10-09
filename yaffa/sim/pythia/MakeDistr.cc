@@ -405,7 +405,7 @@ void MakeDistr(
                 DEBUG("\n\nInjecting a new particle\n");
 
                 int myPdg = inj["pdg"].as<int>();
-                double mass = inj["mass"].as<double>();
+                double mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
                 double pt = gRandom->Exp(1);
                 double y = gRandom->Gaus();
                 double phi = gRandom->Uniform(2 * TMath::Pi());
