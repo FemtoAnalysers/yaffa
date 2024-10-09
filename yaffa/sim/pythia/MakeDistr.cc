@@ -164,7 +164,7 @@ std::string GetDaughters(YAML::Node cfg) {
 void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
     const auto& mom = pythia.event[iPart];
 
-    DEBUG("Start analyzing the decay tree of pdg=%d idx=%d\n", iPart, mom.id());
+    DEBUG("Start analyzing the decay tree of pdg=%d idx=%d\n", mom.id(), iPart);
     DEBUG("Start analyzing daus:\n");
     for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
         auto dau = pythia.event[iDau];
