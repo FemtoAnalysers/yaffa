@@ -184,6 +184,8 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
 
         if (dauCfgIdx == -1) {
             DEBUG("    Daughter not found. Stop here.\n");
+            part0.clear();
+            part1.clear();
             return;
         }
 
