@@ -435,7 +435,8 @@ void MakeDistr(
             // force the decay of the Lambda
             pythia.moreDecays();
         } else {
-            cerr << "Error in injection configuration" << std::endl;
+            cerr << "Error in injection configuration. Exit!" << std::endl;
+            exit(1);
         }
 
         // Part 0 is the event, 1 and 2 the beams. In case the hadrons are injected there are no beam particles
