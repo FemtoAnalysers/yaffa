@@ -365,19 +365,21 @@ void MakeDistr(
 
     // Compute the minimum mass that a resonance modelled with a Breit-Wigner can have
     double minBWMass=1.e12;
-    auto particleEntry = pythia.particleData.particleDataEntryPtr(cfg["injection"][0]["pdg"].as<int>());
-    for (int iDecChn = 0; iDecChn < particleEntry->sizeChannels(); iDecChn++) {
-        auto channel = particleEntry->channel(iDecChn);
+    if (cfg["injection"].size() > 0) {
+        auto particleEntry = pythia.particleData.particleDataEntryPtr(cfg["injection"][0]["pdg"].as<int>());
+        for (int iDecChn = 0; iDecChn < particleEntry->sizeChannels(); iDecChn++) {
+            auto channel = particleEntry->channel(iDecChn);
 
-        // Loop over the daughters in the decay channel
-        double sum = 0;
-        for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
-            int dauPdg = channel.product(iDau);
-            sum += PDG->GetParticle(dauPdg)->Mass();
+            // Loop over the daughters in the decay channel
+            double sum = 0;
+            for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
+                int dauPdg = channel.product(iDau);
+                sum += PDG->GetParticle(dauPdg)->Mass();
+            }
+            if (sum < minBWMass) minBWMass = sum;   
         }
-        if (sum < minBWMass) minBWMass = sum;   
+        printf("Mass limit: %.3f GeV\n", minBWMass);
     }
-    printf("Mass limit:. %.3f", minBWMass);
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
