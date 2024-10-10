@@ -1,5 +1,8 @@
 /*
 Script to compute the same- and mixed event distributions from pythia events.
+IMPORTANT: this script must be run with Pthia 8.310 as other versions were found to fail.
+    * 8.304 sometimes fails to force the decay channels of some hadrons like Delta- and Sigma(1385)-
+    * 8.312 was observed to crash during color reconnection mode runs with exit code 11 (segmentation violation)
 */
 
 // C++ libraries
