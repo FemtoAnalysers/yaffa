@@ -25,6 +25,7 @@ Script to compute the same- and mixed event distributions from pythia events.
 
 // ALICE libraries
 #include "Pythia8/Pythia.h"
+#include "Pythia8/ParticleData.h"
 
 #if false
 #define DEBUG(msg, ...) do { printf(msg, ##__VA_ARGS__); } while(0)
@@ -211,8 +212,10 @@ void MakeDistr(
     std::string cfgFile = "cfg_makedistr_example.yml",
     int seed = 31
     ) {
-    // Load simulation settings
+    // Load PDG
+    auto PDG = TDatabasePDG::Instance();
 
+    // Load simulation settings
     YAML::Node cfg = YAML::LoadFile(cfgFile.data());
     size_t nEvents = cfg["nevts"].as<unsigned int>();
     unsigned int md = cfg["mixdepth"].as<int>();
@@ -330,6 +333,11 @@ void MakeDistr(
         pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
     }
 
+    if (cfg["injection"].size() > 1) {
+        printf("Error. The BW mass limit is not implemented for more than 1 injection. Exit!");
+        exit(1);
+    }
+
     for (const auto &part : cfg["injection"]) {
         int myPdg = part["pdg"].as<int>();
         std::string name = part["name"].as<std::string>();
@@ -355,6 +363,22 @@ void MakeDistr(
     }
     std::cout << "End of customization." << std::endl;
 
+    // Compute the minimum mass that a resonance modelled with a Breit-Wigner can have
+    double minBWMass=1.e12;
+    auto particleEntry = pythia.particleData.particleDataEntryPtr(cfg["injection"][0]["pdg"].as<int>());
+    for (int iDecChn = 0; iDecChn < particleEntry->sizeChannels(); iDecChn++) {
+        auto channel = particleEntry->channel(iDecChn);
+
+        // Loop over the daughters in the decay channel
+        double sum = 0;
+        for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
+            int dauPdg = channel.product(iDau);
+            sum += PDG->GetParticle(dauPdg)->Mass();
+        }
+        if (sum < minBWMass) minBWMass = sum;   
+    }
+    printf("Mass limit:. %.3f", minBWMass);
+
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
     pythia.readString(Form("Random:seed = %d", seed));
@@ -374,7 +398,6 @@ void MakeDistr(
     // Pair QA
     std::map<std::pair<int, int>, TH2D *> hPairMultSE;
 
-    auto PDG = TDatabasePDG::Instance();
     int nPart0 = PDG->GetParticle(pdg0)->AntiParticle() && pdg0 != pdg1 ? 2 : 1;
     int nPart1 = PDG->GetParticle(pdg1)->AntiParticle() ? 2 : 1;
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
@@ -405,7 +428,11 @@ void MakeDistr(
                 DEBUG("\n\nInjecting a new particle\n");
 
                 int myPdg = inj["pdg"].as<int>();
-                double mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
+                double mass;
+                do {
+                    mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
+                } while (mass < minBWMass*1.001); // Correction factor needed for precision issues
+
                 double pt = gRandom->Exp(1);
                 double y = gRandom->Gaus();
                 double phi = gRandom->Uniform(2 * TMath::Pi());
