@@ -260,9 +260,8 @@ void MakeDistr(
 
     Pythia8::Pythia pythia;
     pythia.readString("Next:numberShowEvent = 0");
-
     // Set process
-    if (cfg["process"].as<std::string>() == kSoftQCD) {
+    if (cfg["process"].as<std::string>() == "SoftQCD") {
         pythia.readString("SoftQCD:all = on");
     } else if (cfg["process"].as<std::string>() == "HardQCD") {
         pythia.readString("HardQCD:hardccbar = on");
