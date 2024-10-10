@@ -162,8 +162,20 @@ std::string GetDaughters(YAML::Node cfg) {
     return daus;
 }
 
-void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
+int GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
     const auto& mom = pythia.event[iPart];
+
+    std::multiset<int> daughters;
+    for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
+        auto dau = pythia.event[iDau];
+        daughters.insert(std::abs(dau.id()));
+    }
+    std::multiset<int> daughtersTarget;
+    for (size_t iCfg = 0; iCfg < cfgMom.size(); iCfg++) {
+        daughtersTarget.insert(cfgMom[iCfg]["pdg"].as<int>());
+    }
+
+    if (daughters != daughtersTarget) return 0;
 
     DEBUG("Start analyzing the decay tree of pdg=%d idx=%d\n", mom.id(), iPart);
     DEBUG("Start analyzing daus:\n");
@@ -184,9 +196,7 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
 
         if (dauCfgIdx == -1) {
             DEBUG("    Daughter not found. Stop here.\n");
-            part0.clear();
-            part1.clear();
-            return;
+            return 0;
         }
 
         const YAML::Node& dauCfg = cfgMom[dauCfgIdx];
@@ -204,9 +214,11 @@ void GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::No
             }
         } else if (dauCfg["daus"].IsSequence()) {
             DEBUG("Recursively looking into the daughters\n");
-            GetParticlesInDecayChain(pythia, iDau, dauCfg["daus"], part0, part1);
+            if (!GetParticlesInDecayChain(pythia, iDau, dauCfg["daus"], part0, part1)) return 0;
         }
     }
+
+    return 1;
 }
 
 void MakeDistr(
@@ -482,13 +494,16 @@ void MakeDistr(
                 if (absPdg != std::abs(pdgMother)) continue;
 
                 DEBUG("\n\n==========================================================================================================\n");
-                GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1);
+                if (GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1)) {
                 part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
                 part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
 
                 DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
-
                 break;
+                } else {
+                    part0.clear();
+                    part1.clear();
+                }
             } else {
                 if (IsSelected(pythia, iPart, cfgPart0)) {
                     part0.push_back(iPart);
