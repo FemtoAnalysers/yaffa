@@ -14,6 +14,41 @@ from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGra
 from yaffa import logger as log
 from yaffa import utils
 
+def CopyHistInSubrange(hist, xMin, xMax):
+    '''
+    Crop a 1-dimentional constant-binning histogram in a specified subrange. Useful to ensure that histograms with
+    different number of bins but same bin widths can still be compared and operations can be performed on them, like
+    divisions.
+
+    Parameters
+    ----------
+    hist : TH1
+        The histogram to be cropped
+    xMin : float
+        lower limit. The histogram is copied from xMin * 1.0001 to avoid problems related to compiler precision which
+        could result in selecting the wrong bin.
+    cMax : float
+        upper limit. The histogram is copied from xMax * 0.9999 to avoid problems related to compiler precision which
+        could result in selecting the wrong bin.
+
+    Returns
+    -------
+    TH1
+        The cropped histogram
+    '''
+
+    fromBin = hist.FindBin(xMin * 1.0001)
+    toBin = hist.FindBin(xMax * 0.9999)
+    N = toBin - fromBin + 1
+
+    hNew = TH1D(f'{hist.GetName()}_new', hist.GetTitle(), N, xMin, xMax)
+
+    for i in range(N):
+        hNew.SetBinContent(i + 1, hist.GetBinContent(i + fromBin))
+        hNew.SetBinError(i + 1, hist.GetBinError(i + fromBin))
+    hNew.SetDirectory(0)
+    return hNew
+
 
 parser = argparse.ArgumentParser(description='Arguments')
 parser.add_argument('cfg')
@@ -44,6 +79,12 @@ for plot in cfg:
     if plot.get('pulls').get('enable'):
         panels['pulls'] = len(panels)+1
 
+    # Frame Coordinates
+    fx1 = plot['opt']['rangex'][0]
+    fy1 = plot['opt']['rangey'][0]
+    fx2 = plot['opt']['rangex'][1]
+    fy2 = plot['opt']['rangey'][1]
+
     # Load the objects to draw
     inObjs = []
     legends = []
@@ -56,6 +97,7 @@ for plot in cfg:
         if isinstance(inObj, TH1):
             inObj.SetDirectory(0)
             inObj.Rebin(inputCfg['rebin'])
+            inObj = CopyHistInSubrange(inObj, fx1, fx2)
 
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
@@ -75,7 +117,7 @@ for plot in cfg:
             default = 'l'
         else:
             default = ''
-        drawOpts.append(inputCfg.get('drawopt'), default)
+        drawOpts.append(inputCfg.get('drawopt', default))
         inObj.SetMarkerStyle(inputCfg['markerstyle'])
         inObjs.append(inObj)
         legends.append(inputCfg['legend'])
@@ -87,11 +129,6 @@ for plot in cfg:
     pad = cPlot.cd(1)
     pad.SetLogx(plot["opt"]["logx"])
     pad.SetLogy(plot["opt"]["logy"])
-
-    fx1 = plot['opt']['rangex'][0]
-    fy1 = plot['opt']['rangey'][0]
-    fx2 = plot['opt']['rangex'][1]
-    fy2 = plot['opt']['rangey'][1]
     pad.DrawFrame(fx1, fy1, fx2, fy2, utils.style.SmartLabel(plot['opt']['title']))
 
     legx1 = plot['opt']['leg']['posx'][0]
@@ -213,6 +250,7 @@ for plot in cfg:
         x2 = plot['opt']['rangex'][1]
         y2 = plot['relunc']['rangey'][1]
         pad.SetLeftMargin(0.16)
+        pad.SetRightMargin(0.1)
         frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
         frame.GetYaxis().SetTitle('Relative uncertainty (%)')
 
