@@ -454,10 +454,14 @@ void MakeDistr(
 
     // Single-particle QA for Mother particle
     int pdgMother = cfg["decaychain"]["pdg"].as<int>();
-    mass = PDG->GetParticle(pdgMother)->Mass();
+    if (cfg["injection"].size() > 0) {
+        mass = cfg["injection"][0]["mass"].as<double>();
+    } else {
+        mass = PDG->GetParticle(pdgMother)->Mass();
+    }
     std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQAMother = {
-        {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+        {"mass", new TH1D("hMassMother", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
     };
 
     std::vector<int> part0{};
