@@ -224,6 +224,16 @@ int GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Nod
     return 1;
 }
 
+std::tuple<int, double, double> ComputeBinning(double xMin, double xMax, int precision=3) {
+    double mul = std::pow(10, precision);
+    int xMinMul = (int) (xMin * mul);
+    int xMaxMul = (int) (xMax * mul);
+
+    int nBins = xMaxMul - xMinMul;
+
+    return {nBins, xMinMul / mul, xMaxMul / mul};
+}
+
 void MakeDistr(
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
@@ -428,6 +438,28 @@ void MakeDistr(
         }
     }
 
+    // Single-particle QA for part 0
+    double mass = PDG->GetParticle(pdg0)->Mass();
+    auto [nBins, massMin, massMax] = ComputeBinning(mass*0.7, mass*1.3);
+    std::map<std::string, TH1*> hQA0 = {
+        {"mass", new TH1D("hMass0", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+    };
+
+    // Single-particle QA for part 1
+    mass = PDG->GetParticle(pdg1)->Mass();
+    std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
+    std::map<std::string, TH1*> hQA1 = {
+        {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+    };
+
+    // Single-particle QA for Mother particle
+    int pdgMother = cfg["decaychain"]["pdg"].as<int>();
+    mass = PDG->GetParticle(pdgMother)->Mass();
+    std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
+    std::map<std::string, TH1*> hQAMother = {
+        {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+    };
+
     std::vector<int> part0{};
     std::vector<int> part1{};
     std::deque<std::vector<Pythia8::Particle>> partBuffer{};
@@ -500,6 +532,9 @@ void MakeDistr(
                 part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
                 part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
 
+                // Fill QA
+                hQAMother["mass"]->Fill(part.m());
+
                 DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
                 break;
                 } else {
@@ -513,6 +548,16 @@ void MakeDistr(
                     part1.push_back(iPart);
                 }
             }
+        }
+
+        // Fill QA for Part0
+        for (const int& i0 : part0) {
+            hQA0["mass"]->Fill(pythia.event[i0].m());
+        }
+
+        // Fill QA for Part1
+        for (const int& i1 : part1) {
+            hQA1["mass"]->Fill(pythia.event[i1].m());
         }
 
         // Skip events without pairs
@@ -574,6 +619,22 @@ void MakeDistr(
 
     TFile *oFile = new TFile(oFileName.data(), "recreate");
     hEvtMult->Write();
+
+    oFile->mkdir("qa0");
+    oFile->cd("qa0");
+    for (const auto &[key, hist] : hQA0) {
+        hist->Write();
+    }
+    oFile->mkdir("qa1");
+    oFile->cd("qa1");
+    for (const auto &[key, hist] : hQA1) {
+        hist->Write();
+    }
+    oFile->mkdir("qaMother");
+    oFile->cd("qaMother");
+    for (const auto &[key, hist] : hQAMother) {
+        hist->Write();
+    }
 
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
         for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
