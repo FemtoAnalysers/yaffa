@@ -82,8 +82,8 @@ for plot in cfg:
     # Frame Coordinates
     fx1 = plot['opt']['rangex'][0]
     fy1 = plot['opt']['rangey'][0]
-    fx2 = plot['opt']['rangex'][1]
-    fy2 = plot['opt']['rangey'][1]
+    fx2 = plot['opt']['rangex'][1] * 0.999
+    fy2 = plot['opt']['rangey'][1] * 0.999
 
     # Load the objects to draw
     inObjs = []
@@ -176,11 +176,9 @@ for plot in cfg:
         pad = cPlot.cd(panels['ratio'])
         pad.SetLogx(plot['ratio']['logx'])
         pad.SetLogy(plot['ratio']['logy'])
-        x1 = plot['opt']['rangex'][0]
         y1 = plot['ratio']['rangey'][0]
-        x2 = plot['opt']['rangex'][1]
         y2 = plot['ratio']['rangey'][1]
-        frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
+        frame = pad.DrawFrame(fx1, y1, fx2, y2, utils.style.SmartLabel(plot['opt']['title']))
         frame.GetYaxis().SetTitle('Ratio')
         hDen = inObjs[0].Clone()
         if isinstance(hDen, TH1):
@@ -208,15 +206,13 @@ for plot in cfg:
             log.error('Spread for type %s is not implemented. Skipping this object', type(inObj))
             continue
 
-        x1 = plot['opt']['rangex'][0]
         y1 = plot['spread']['rangey'][0]
-        x2 = plot['opt']['rangex'][1]
         y2 = plot['spread']['rangey'][1]
 
         pad = cPlot.cd(panels['spread'])
         pad.SetLogx(plot['spread']['logx'])
         pad.SetLogy(plot['spread']['logy'])
-        frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
+        frame = pad.DrawFrame(fx1, y1, fx2, y2, utils.style.SmartLabel(plot['opt']['title']))
         title = 'relative spread #sigma/#mu'
         if plot['spread']['mode'] == 'percentage':
             title += ' (%)'
@@ -245,13 +241,11 @@ for plot in cfg:
         pad.SetGridy(plot['relunc']['gridy'])
         pad.SetLogx(plot["relunc"]["logx"])
         pad.SetLogy(plot["relunc"]["logy"])
-        x1 = plot['opt']['rangex'][0]
         y1 = plot['relunc']['rangey'][0]
-        x2 = plot['opt']['rangex'][1]
         y2 = plot['relunc']['rangey'][1]
         pad.SetLeftMargin(0.16)
         pad.SetRightMargin(0.1)
-        frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
+        frame = pad.DrawFrame(fx1, y1, fx2, y2, utils.style.SmartLabel(plot['opt']['title']))
         frame.GetYaxis().SetTitle('Relative uncertainty (%)')
 
         for iObj, inObj in enumerate(inObjs):
@@ -302,12 +296,10 @@ for plot in cfg:
         pad.SetGridy(plot['pulls']['gridy'])
         pad.SetLogx(plot["pulls"]["logx"])
         pad.SetLogy(plot["pulls"]["logy"])
-        x1 = plot['opt']['rangex'][0]
         y1 = plot['pulls']['rangey'][0]
-        x2 = plot['opt']['rangex'][1]
         y2 = plot['pulls']['rangey'][1]
         pad.SetLeftMargin(0.16)
-        frame = pad.DrawFrame(x1, y1, x2, y2, utils.style.SmartLabel(plot['opt']['title']))
+        frame = pad.DrawFrame(fx1, y1, fx2, y2, utils.style.SmartLabel(plot['opt']['title']))
         frame.GetYaxis().SetTitle('Pulls')
         refObj = inObjs[0].Clone()
         if isinstance(inObjs[0], TF1):
