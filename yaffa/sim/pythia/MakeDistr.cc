@@ -400,7 +400,13 @@ void MakeDistr(
             double sum = 0;
             for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
                 int dauPdg = channel.product(iDau);
-                sum += PDG->GetParticle(dauPdg)->Mass();
+
+                auto partData = PDG->GetParticle(dauPdg);
+                if (!partData) {
+                    printf("Error: particle with PDG code %d is not in the database. Exit!\n", dauPdg);
+                    exit(1);
+                }
+                sum += partData->Mass();
             }
             if (sum < minBWMass) minBWMass = sum;   
         }
