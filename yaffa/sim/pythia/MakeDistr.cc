@@ -21,6 +21,7 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include "TFile.h"
 #include "TH1.h"
 #include "TH2D.h"
+#include "TF1.h"
 #include "TMath.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
@@ -414,7 +415,7 @@ void MakeDistr(
     }
 
     // Load Pt and y distributions
-    TF1 *fPt = new TF1("fPt", cfg["decaychain"]["ptshape"].as<std::string>().data(), 0, 100);
+    TF1 *fPt = new TF1("fPt", cfg["decaychain"]["ptshape"].as<std::string>().data(), 0, 10);
     TF1 *fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
