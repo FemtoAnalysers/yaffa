@@ -99,7 +99,6 @@ def BuildCocktail():
 
         hCocktail = templates[0]['template'].Clone(f'hCocktail{iBR}')
         hCocktail.Reset()
-        print(templates)
         for template, bratio in zip(templates, br):
             hCocktail.Add(template['template'], bratio)
 
