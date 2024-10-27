@@ -20,7 +20,7 @@ for FILE in $STAGED_FILES; do
     git show ":$FILE" > "$TEMP_FILE"
 
     # Run pylint on the staged content and capture the output
-    pylint_output=$(pylint --rcfile=.github/linters/.python-lint "$TEMP_FILE")
+    pylint_output=$(python3 -m pylint --rcfile=.github/linters/.python-lint "$TEMP_FILE")
     pylint_exit_code=$?
 
     # Display the pylint output
