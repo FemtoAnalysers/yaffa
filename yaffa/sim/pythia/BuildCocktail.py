@@ -10,7 +10,7 @@ import itertools
 import math
 import yaml
 
-from ROOT import TFile  # pylint: disable=no-name-in-module
+from ROOT import TFile, TCanvas  # pylint: disable=no-name-in-module
 
 from yaffa import logger as log
 
@@ -90,6 +90,9 @@ def BuildCocktail():
         cfg['cocktail'][iEntry]['bratio'] = [math.prod(br) for br in brs]
 
     oFile = TFile(cfg['ofile'], 'recreate')
+
+    cSummary = TCanvas("cSummary", "", 600, 600)
+    cSummary.DrawFrame(0, 0, 2, 3e5)
     # Make cocktails
     for iBR, br in enumerate(itertools.product(*(comp['bratio'] for comp in cfg['cocktail']))):
         print('Making cocktail with BRs:', br)
@@ -100,7 +103,9 @@ def BuildCocktail():
         for template, bratio in zip(templates, br):
             hCocktail.Add(template['template'], bratio)
 
+        hCocktail.DrawClone("same")
         hCocktail.Write()
+    cSummary.Write()
     oFile.Close()
 
 if __name__ == '__main__':
