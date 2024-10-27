@@ -9,8 +9,9 @@ import argparse
 import itertools
 import math
 import yaml
+import numpy as np
 
-from ROOT import TFile, TCanvas  # pylint: disable=no-name-in-module
+from ROOT import TFile, TGraphErrors, TCanvas  # pylint: disable=no-name-in-module
 
 from yaffa import logger as log
 
@@ -95,7 +96,7 @@ def BuildCocktail():
     oFile = TFile(cfg['ofile'], 'recreate')
 
     cSummary = TCanvas("cSummary", "", 600, 600)
-    cSummary.DrawFrame(0, 0, 2, 3e5)
+    variations = []
     # Make cocktails
     for iBR, br in enumerate(itertools.product(*(comp['bratio'] for comp in cfg['cocktail']))):
         print('Making cocktail with BRs:', br)
@@ -105,8 +106,21 @@ def BuildCocktail():
         for template, bratio in zip(templates, br):
             hCocktail.Add(template['template'], bratio)
 
-        hCocktail.DrawClone("same")
+        variations.append([hCocktail.GetBinContent(iBin + 1) for iBin in range(hCocktail.GetNbinsX())])
         hCocktail.Write()
+
+    gSummary = TGraphErrors(1)
+    gSummary.SetName('gSummary')
+    gSummary.SetFillColor(4)
+
+    averages = np.mean(np.array(variations), axis=0)
+    errors = np.std(np.array(variations), axis=0)
+    for iPoint, (avg, error) in enumerate(zip(averages, errors)):
+        gSummary.SetPoint(iPoint, hCocktail.GetBinCenter(iPoint + 1), avg)
+        gSummary.SetPointError(iPoint, 0, error)
+
+    gSummary.Write()
+    gSummary.Draw("a3")
     cSummary.Write()
     oFile.Close()
 
