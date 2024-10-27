@@ -55,6 +55,7 @@ def BuildCocktail():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='')
+    parser.add_argument('--central', default=False, action='store_true')
     args = parser.parse_args()
 
     # Load yaml file
@@ -75,6 +76,8 @@ def BuildCocktail():
     # Convert BR from percentage to absolute values
     for iEntry, entry in enumerate(cfg['cocktail']):
         for iChn, chn in enumerate(entry['bratio']):
+            if args.central:
+                cfg['cocktail'][iEntry]['bratio'][iChn] = [cfg['cocktail'][iEntry]['bratio'][iChn][0]]
             cfg['cocktail'][iEntry]['bratio'][iChn] = [value / 100 for value in cfg['cocktail'][iEntry]['bratio'][iChn]]
 
     # Convert BR uncertainty to upper and lower values
