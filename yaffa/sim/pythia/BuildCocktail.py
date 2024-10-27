@@ -14,7 +14,7 @@ from ROOT import TFile  # pylint: disable=no-name-in-module
 
 from yaffa import logger as log
 
-def ApplyUncertainty(*args):
+def ApplyUncertainty(*args): # pylint: disable=inconsistent-return-statements
     '''
     Applies the uncertainty to a value
 
@@ -39,15 +39,14 @@ def ApplyUncertainty(*args):
         asymmetric uncertainty: [10, 1, 2] -> [10, 9, 12]
     '''
 
-    ans = args
+    if len(args) == 1:
+        return args
     if len(args) == 2:
-        ans = args[0], args[0] - abs(args[1]), args[0] + abs(args[1])
-    elif len(args) == 3:
-        ans = args[0], args[0] - abs(args[1]), args[0] + abs(args[2])
-    else:
-        log.critical('Invalid number of parameters')
+        return args[0], args[0] - abs(args[1]), args[0] + abs(args[1])
+    if len(args) == 3:
+        return args[0], args[0] - abs(args[1]), args[0] + abs(args[2])
 
-    return ans
+    log.critical('Invalid number of parameters')
 
 def BuildCocktail():
     '''
