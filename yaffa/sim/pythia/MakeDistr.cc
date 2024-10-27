@@ -235,13 +235,48 @@ std::tuple<int, double, double> ComputeBinning(double xMin, double xMax, int pre
     return {nBins, xMinMul / mul, xMaxMul / mul};
 }
 
+static TDatabasePDG *PDG;
+
+/* If the particle with pdg `pdg` is not in ROOT's TDatabasePDG it is added based on the information in pythia.
+If already present it doesn'to anything. Returns the pdg code of the particle. */
+int AddToDatabase(int pdg, Pythia8::Pythia &pythia) {
+    auto part = PDG->GetParticle(pdg);
+    if (!part) {
+        printf("Info: adding particle %d to ROOT's database using pythia's information.\n", pdg);
+
+        // // Check if the particle is in pythia
+        // if (!pythia.particleData.exists(pdg)) {
+        //     printf("Error: particle not in pythia. Exit!\n");
+        //     exit(1);
+        // }
+
+        // Get particle information from pythia
+        auto pde = pythia.particleData.particleDataEntryPtr(pdg);
+
+        if (!pde) {
+            printf("Error: particle entry is null. Exit!\n");
+            exit(1);
+        }
+        const std::string& name = pde->name();         // Particle name
+        double mass = pde->m0();                       // Particle mass (GeV)
+        double charge = pde->charge();                 // Particle charge (e.g., +1 or -1)
+        int spin = static_cast<int>(pde->spinType());  // Particle spin (integer form)
+        double width = pde->mWidth();                  // Decay width
+        bool stable = pde->isResonance() ? false : true; // Stability
+
+        // Add the particle to ROOT's TDatabasePDG
+        PDG->AddParticle(name.c_str(), name.c_str(), mass, stable, width, charge, "", pdg, 0, 0);
+    }
+    return pdg;
+}
+
 void MakeDistr(
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
     int seed = 31
     ) {
     // Load PDG
-    auto PDG = TDatabasePDG::Instance();
+    PDG = TDatabasePDG::Instance();
 
     // Load simulation settings
     YAML::Node cfg = YAML::LoadFile(cfgFile.data());
@@ -400,16 +435,12 @@ void MakeDistr(
             // Loop over the daughters in the decay channel
             double sum = 0;
             for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
-                int dauPdg = channel.product(iDau);
+                int dauPdg = AddToDatabase(channel.product(iDau), pythia);
 
                 auto partData = PDG->GetParticle(dauPdg);
-                if (!partData) {
-                    printf("Error: particle with PDG code %d is not in the database. Exit!\n", dauPdg);
-                    exit(1);
-                }
                 sum += partData->Mass();
             }
-            if (sum < minBWMass) minBWMass = sum;   
+            if (sum < minBWMass) minBWMass = sum;
         }
         printf("Mass limit: %.3f GeV\n", minBWMass);
     }
