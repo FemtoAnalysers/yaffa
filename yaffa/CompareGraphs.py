@@ -113,6 +113,7 @@ for plot in cfg:
                 inObj.Scale(inputCfg['normalizecf'])
 
         inObj.SetLineColor(utils.style.GetColor(inputCfg['color']))
+        inObj.SetFillColorAlpha(utils.style.GetColor(inputCfg['color']), inputCfg['fillalpha'])
         inObj.SetMarkerColor(utils.style.GetColor(inputCfg['color']))
         inObj.SetLineWidth(inputCfg.get('thickness', 1))
         if isinstance(inObj, TH1):

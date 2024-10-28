@@ -100,8 +100,6 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetGridColor(0)
     gStyle.SetGridStyle(3)
     gStyle.SetGridWidth(1)
-    gStyle.SetHistFillColor(1)
-    gStyle.SetHistFillStyle(0)
     gStyle.SetHistLineColor(1)
     gStyle.SetHistLineStyle(0)
     gStyle.SetHistLineWidth(1)
