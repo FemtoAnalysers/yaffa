@@ -7,9 +7,11 @@ python3 BuildCocktail.py cfg.yml
 
 import argparse
 import itertools
+import random
 import math
 import yaml
 import numpy as np
+
 
 from ROOT import TFile, TCanvas  # pylint: disable=no-name-in-module
 
@@ -49,7 +51,7 @@ def ApplyUncertainty(*args): # pylint: disable=inconsistent-return-statements
 
     log.critical('Invalid number of parameters')
 
-def BuildCocktail():
+def BuildCocktail(): # pylint: disable=too-many-statements
     '''
     Function to build a cocktail using different tempalates and weighting factors.
     '''
@@ -57,6 +59,7 @@ def BuildCocktail():
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='')
     parser.add_argument('--central', default=False, action='store_true')
+    parser.add_argument('--fast', default=False, action='store_true')
     args = parser.parse_args()
 
     # Load yaml file
@@ -101,8 +104,14 @@ def BuildCocktail():
 
     cSummary = TCanvas("cSummary", "", 600, 600)
     variations = []
+
+    # Subsample
+    bratios = list(itertools.product(*(comp['bratio'] for comp in cfg['cocktail'])))
+    if args.fast:
+        bratios = random.sample(bratios, 1000)
+
     # Make cocktails
-    for iBR, br in enumerate(itertools.product(*(comp['bratio'] for comp in cfg['cocktail']))):
+    for iBR, br in enumerate(bratios):
         print('Making cocktail with BRs:', br)
 
         hCocktail = templates[0]['template'].Clone(f'hCocktail{iBR}')
