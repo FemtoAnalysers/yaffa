@@ -11,7 +11,7 @@ import math
 import yaml
 import numpy as np
 
-from ROOT import TFile, TGraphErrors, TCanvas  # pylint: disable=no-name-in-module
+from ROOT import TFile, TCanvas  # pylint: disable=no-name-in-module
 
 from yaffa import logger as log
 
@@ -73,6 +73,7 @@ def BuildCocktail():
         templates.append({})
         templates[-1]['template'] = inFile.Get(entry['name'])
         templates[-1]['template'].SetDirectory(0)
+        templates[-1]['template'].Rebin(cfg['rebin'])
         templates[-1]['template'].Scale(1./templates[-1]['template'].GetEntries())
         templates[-1]['weight'] = entry['weight']
         templates[-1]['acceptance'] = entry['acceptance']
@@ -112,25 +113,23 @@ def BuildCocktail():
         variations.append([hCocktail.GetBinContent(iBin + 1) for iBin in range(hCocktail.GetNbinsX())])
         hCocktail.Write()
 
-    gSummary = TGraphErrors(1)
-    gSummary.SetName('gSummary')
-    gSummary.SetFillColor(4)
-
     hSummary = hCocktail.Clone('hSummary')
     hSummary.Reset()
+    hSummary.SetFillColor(4)
+    hSummary.SetLineColor(4)
+    hSummary.SetMarkerColor(4)
 
     averages = np.mean(np.array(variations), axis=0)
     errors = np.std(np.array(variations), axis=0)
     for iPoint, (avg, error) in enumerate(zip(averages, errors)):
-        gSummary.SetPoint(iPoint, hCocktail.GetBinCenter(iPoint + 1), avg)
-        gSummary.SetPointError(iPoint, 0, error)
         hSummary.SetBinContent(iPoint + 1, avg)
         hSummary.SetBinError(iPoint + 1, error)
-    gSummary.Write()
-    gSummary.Draw("a3")
     hSummary.Write()
+    hSummary.Draw('e3')
     cSummary.Write()
     oFile.Close()
+
+    print(f'Output saved in {cfg["ofile"]}')
 
 if __name__ == '__main__':
     BuildCocktail()
