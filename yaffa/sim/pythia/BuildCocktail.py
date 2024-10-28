@@ -116,14 +116,19 @@ def BuildCocktail():
     gSummary.SetName('gSummary')
     gSummary.SetFillColor(4)
 
+    hSummary = hCocktail.Clone('hSummary')
+    hSummary.Reset()
+
     averages = np.mean(np.array(variations), axis=0)
     errors = np.std(np.array(variations), axis=0)
     for iPoint, (avg, error) in enumerate(zip(averages, errors)):
         gSummary.SetPoint(iPoint, hCocktail.GetBinCenter(iPoint + 1), avg)
         gSummary.SetPointError(iPoint, 0, error)
-
+        hSummary.SetBinContent(iPoint + 1, avg)
+        hSummary.SetBinError(iPoint + 1, error)
     gSummary.Write()
     gSummary.Draw("a3")
+    hSummary.Write()
     cSummary.Write()
     oFile.Close()
 
