@@ -109,6 +109,8 @@ for plot in cfg:
 
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
+            if inputCfg['scale']:
+                inObj.Scale(inputCfg['scale'])
             if inputCfg['normalizecf']:
                 inObj.Scale(inputCfg['normalizecf'])
 
