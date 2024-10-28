@@ -199,6 +199,10 @@ for plot in cfg:
                 hRatio.Rebin(plot['ratio']['rebin'])
                 hRatio.Divide(hDen)
                 hRatio.Draw('same pe')
+        elif isinstance(inObj, TGraphErrors):
+            for inObj in inObjs[1:]:
+                hRatio = utils.analysis.Divide(inObj, hDen)
+                hRatio.Draw('same pe')
         else:
             log.error('Ratio for type %s is not implemented. Skipping this object', type(inObj))
             continue

@@ -1,8 +1,11 @@
 '''
 Module that contains various functions useful for the post-processing of the data.
 '''
+import math
 
-from ROOT import TH1F, TH2D, TGraph  # pylint: disable=import-error
+from ROOT import TH1F, TH2D, TGraph, TGraphErrors, TH1  # pylint: disable=import-error
+
+from yaffa import logger as log
 
 def ChangeUnits(hist, multiplier, name=None, title=''):
     '''
@@ -140,3 +143,62 @@ def SmearGraph(graph, matrix, name=None, title=''):
         iPoint += 1
 
     return gSmeared
+
+def Divide(num, den): #pylint: disable=inconsistent-return-statements
+    '''
+    Divide two quantities.
+    Implemented types:
+
+    +---------------+-----+-------------+
+    | den \\ num    | TH1 | TGraphErrors |
+    +=========+=======+=================+
+    | TH1          |  ✘  | ✔            |
+    +---------+-------+-----------------+
+    | TGraphErrors |  ✘  | ✘            |
+    +---------+-------+-----------------+
+
+    Parameters
+    ----------
+    num : ROOT object
+        numerator.
+    den : ROOT object
+        denominator.
+
+    Returns
+    -------
+    TH1
+        the division between num and den.
+    '''
+
+    if isinstance(num, TGraphErrors):
+        if isinstance(den, TH1):
+            nBins = den.GetNbinsX()
+            if nBins != num.GetN():
+                log.critical("You you are trying to divide two objects with different number of bins/points.")
+            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
+                log.critical("The binnings are not aligned.")
+
+            hRatio = den.Clone(f'{den.GetName()}_ratio')
+            hRatio.Reset()
+
+            for iBin in range(nBins):
+                x = num.GetPointX(iBin)
+                y = num.GetPointY(iBin)
+                ey = num.GetErrorY(iBin)
+
+                bin_idx = den.FindBin(x)
+                binContent = den.GetBinContent(bin_idx)
+                binError = den.GetBinError(bin_idx)
+
+                if binContent > 0 and y > 0:
+                    ratio = y / binContent
+                    ratioUnc = ratio * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+
+                    hRatio.SetBinContent(iBin + 1, ratio)
+                    hRatio.SetBinError(iBin + 1, ratioUnc)
+                else:
+                    hRatio.SetBinContent(iBin + 1, 0)
+                    hRatio.SetBinError(iBin + 1, 0)
+
+            return hRatio
+    log.critical("Division of %s by %s is not implemented.", type(num), type(den))
