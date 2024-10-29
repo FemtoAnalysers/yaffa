@@ -77,6 +77,9 @@ utils.style.SetStyle()
 for plot in cfg:
     plot = plot["plot"]
 
+    if 'root' in plot["opt"]["ext"]:
+        oFile = TFile(f'{os.path.splitext(plot["output"])[0]}.root', 'recreate')
+
     panels = {'default': 1}
     if plot['ratio']['enable']:
         panels['ratio'] = len(panels)+1
@@ -147,7 +150,13 @@ for plot in cfg:
     legy2 = plot['opt']['leg']['posy'][1]
     leg = TLegend(legx1, legy1, legx2, legy2)
 
+    if 'root' in plot["opt"]["ext"]:
+        oFile.cd()
+
     for iObj, (inObj, legend, drawOpt) in enumerate(zip(inObjs, legends, drawOpts)):
+        if 'root' in plot["opt"]["ext"]:
+            inObj.Write()
+
         inObj.Draw('same' + drawOpt)
 
         # Compute statistics for hist in the displayed range
@@ -197,13 +206,16 @@ for plot in cfg:
 
         if isinstance(inObj, TH1):
             for inObj in inObjs[1:]:
-                hRatio = inObj.Clone()
+                hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
                 hRatio.Rebin(plot['ratio']['rebin'])
                 hRatio.Divide(hDen)
                 hRatio.Draw('same pe')
         else:
             log.error('Ratio for type %s is not implemented. Skipping this object', type(inObj))
             continue
+
+        if 'root' in plot["opt"]["ext"]:
+            hRatio.Write()
 
         line = TLine(plot['opt']['rangex'][0], 1, plot['opt']['rangex'][1], 1)
         line.SetLineColor(13)
@@ -299,6 +311,9 @@ for plot in cfg:
             elif isinstance(inObj, TGraph):
                 hRelUnc.Draw('same p')
 
+            if 'root' in plot["opt"]["ext"]:
+                hRelUnc.Write()
+
     # Compute the relative uncertainties
     if plot.get('pulls').get('enable'):
         pad = cPlot.cd(panels['pulls'])
@@ -353,4 +368,7 @@ for plot in cfg:
 
     # save canvas
     for ext in plot["opt"]["ext"]:
+        if ext == 'root':
+            oFile.Close()
+            continue
         cPlot.SaveAs(f'{os.path.splitext(plot["output"])[0]}.{ext}')
