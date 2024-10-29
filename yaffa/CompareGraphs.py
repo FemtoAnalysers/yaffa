@@ -214,6 +214,7 @@ for plot in cfg:
         elif isinstance(inObj, TGraphErrors):
             for inObj in inObjs[1:]:
                 hRatio = utils.analysis.Divide(inObj, hDen)
+                hRatio.SetName(f'{inObj.GetName()}_ratio')
                 hRatio.Draw('same pe')
         else:
             log.error('Ratio for type %s is not implemented. Skipping this object', type(inObj))
