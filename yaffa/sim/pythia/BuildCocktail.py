@@ -77,7 +77,7 @@ def BuildCocktail(): # pylint: disable=too-many-statements
         templates[-1]['template'] = inFile.Get(entry['name'])
         templates[-1]['template'].SetDirectory(0)
         templates[-1]['template'].Rebin(cfg['rebin'])
-        templates[-1]['template'].Scale(entry['weight'] / entry['nevts'])
+        templates[-1]['template'].Scale(entry['scale'] * entry['weight'] / entry['nevts'])
 
     # Convert BR from percentage to absolute values
     for iEntry, entry in enumerate(cfg['cocktail']):
