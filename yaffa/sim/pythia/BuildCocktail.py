@@ -77,9 +77,7 @@ def BuildCocktail(): # pylint: disable=too-many-statements
         templates[-1]['template'] = inFile.Get(entry['name'])
         templates[-1]['template'].SetDirectory(0)
         templates[-1]['template'].Rebin(cfg['rebin'])
-        templates[-1]['template'].Scale(1./templates[-1]['template'].GetEntries())
-        templates[-1]['weight'] = entry['weight']
-        templates[-1]['acceptance'] = entry['acceptance']
+        templates[-1]['template'].Scale(entry['weight'] / entry['nevts'])
 
     # Convert BR from percentage to absolute values
     for iEntry, entry in enumerate(cfg['cocktail']):
@@ -117,7 +115,7 @@ def BuildCocktail(): # pylint: disable=too-many-statements
         hCocktail = templates[0]['template'].Clone(f'hCocktail{iBR}')
         hCocktail.Reset()
         for template, bratio in zip(templates, br):
-            hCocktail.Add(template['template'], bratio * template['weight'] * template['acceptance'])
+            hCocktail.Add(template['template'], bratio)
 
         variations.append([hCocktail.GetBinContent(iBin + 1) for iBin in range(hCocktail.GetNbinsX())])
         hCocktail.Write()
