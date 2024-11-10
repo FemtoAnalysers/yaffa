@@ -533,7 +533,7 @@ void MakeDistr(
                 double mass;
                 do {
                     mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
-                } while (mass < minBWMass*1.001); // Correction factor needed for precision issues
+                } while (mass < minBWMass);
 
                 double pt = fPt->GetRandom();
                 double y = fY->GetRandom();
