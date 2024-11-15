@@ -449,7 +449,7 @@ void MakeDistr(
             }
             if (sum < minBWMass) minBWMass = sum;
         }
-        printf("Mass limit: %.3f GeV\n", minBWMass);
+        printf("Mass limit: %.6f GeV\n", minBWMass);
     }
 
     // Load Pt and y distributions
@@ -495,6 +495,9 @@ void MakeDistr(
     auto [nBins, massMin, massMax] = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQA0 = {
         {"mass", new TH1D("hMass0", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+        {"pt", new TH1D("hPt0", ";#it{p}_{T} (GeV/#it{c});Counts", 1000, 0, 10)},
+        {"y", new TH1D("hY0", ";#it{y};Counts", 200, -5, 5)},
+        {"eta", new TH1D("hEta0", ";#eta;Counts", 200, -5, 5)},
     };
 
     // Single-particle QA for part 1
@@ -502,6 +505,9 @@ void MakeDistr(
     std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQA1 = {
         {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
+        {"pt", new TH1D("hPt1", ";#it{p}_{T} (GeV/#it{c});Counts", 1000, 0, 10)},
+        {"y", new TH1D("hY1", ";#it{y};Counts", 200, -5, 5)},
+        {"eta", new TH1D("hEta1", ";#eta;Counts", 200, -5, 5)},
     };
 
     // Single-particle QA for Mother particle
@@ -617,11 +623,17 @@ void MakeDistr(
         // Fill QA for Part0
         for (const int& i0 : part0) {
             hQA0["mass"]->Fill(pythia.event[i0].m());
+            hQA0["pt"]->Fill(pythia.event[i0].pT());
+            hQA0["y"]->Fill(pythia.event[i0].y());
+            hQA0["eta"]->Fill(pythia.event[i0].eta());
         }
 
         // Fill QA for Part1
         for (const int& i1 : part1) {
             hQA1["mass"]->Fill(pythia.event[i1].m());
+            hQA1["pt"]->Fill(pythia.event[i1].pT());
+            hQA1["y"]->Fill(pythia.event[i1].y());
+            hQA1["eta"]->Fill(pythia.event[i1].eta());
         }
 
         // Skip events without pairs
