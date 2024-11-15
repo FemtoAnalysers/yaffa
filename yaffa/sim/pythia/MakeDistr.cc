@@ -28,8 +28,15 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include "TRandom3.h"
 
 // ALICE libraries
+#define PYTHIA_V 8312
+
+#if PYTHIA_V == 8312
 #include "Pythia8/Pythia.h"
 #include "Pythia8/ParticleData.h"
+#else
+#include "TPythia.h"
+#include "TParticleData.h"
+#endif
 
 #if false
 #define DEBUG(msg, ...) do { printf(msg, ##__VA_ARGS__); } while(0)
