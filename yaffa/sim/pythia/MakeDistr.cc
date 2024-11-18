@@ -496,8 +496,8 @@ void MakeDistr(
     std::map<std::string, TH1*> hQA0 = {
         {"mass", new TH1D("hMass0", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
         {"pt", new TH1D("hPt0", ";#it{p}_{T} (GeV/#it{c});Counts", 1000, 0, 10)},
-        {"y", new TH1D("hY0", ";#it{y};Counts", 200, -5, 5)},
-        {"eta", new TH1D("hEta0", ";#eta;Counts", 200, -5, 5)},
+        {"y", new TH1D("hY0", ";#it{y};Counts", 200, -10, 10)},
+        {"eta", new TH1D("hEta0", ";#eta;Counts", 200, -10, 10)},
     };
 
     // Single-particle QA for part 1
@@ -506,12 +506,11 @@ void MakeDistr(
     std::map<std::string, TH1*> hQA1 = {
         {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
         {"pt", new TH1D("hPt1", ";#it{p}_{T} (GeV/#it{c});Counts", 1000, 0, 10)},
-        {"y", new TH1D("hY1", ";#it{y};Counts", 200, -5, 5)},
-        {"eta", new TH1D("hEta1", ";#eta;Counts", 200, -5, 5)},
+        {"y", new TH1D("hY1", ";#it{y};Counts", 200, -10, 10)},
+        {"eta", new TH1D("hEta1", ";#eta;Counts", 200, -10, 10)},
     };
 
     // Single-particle QA for Mother particle
-    int pdgMother = cfg["decaychain"]["pdg"].as<int>();
     if (cfg["injection"].size() > 0) {
         mass = cfg["injection"][0]["mass"].as<double>();
     } else {
@@ -521,8 +520,8 @@ void MakeDistr(
     std::map<std::string, TH1*> hQAMother = {
         {"mass", new TH1D("hMassMother", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
         {"pt", new TH1D("hPtMother", ";#it{p}_{T} (GeV/#it{c});Counts", 1000, 0, 10)},
-        {"y", new TH1D("hYMother", ";#it{y};Counts", 200, -5, 5)},
-        {"eta", new TH1D("hEtaMother", ";#eta;Counts", 200, -5, 5)},
+        {"y", new TH1D("hYMother", ";#it{y};Counts", 200, -10, 10)},
+        {"eta", new TH1D("hEtaMother", ";#eta;Counts", 200, -10, 10)},
     };
 
     std::vector<int> part0{};
