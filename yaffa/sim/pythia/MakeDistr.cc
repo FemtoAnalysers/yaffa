@@ -65,6 +65,66 @@ std::map<triggers, const char*> triggerNames = {
     {kHM, "HM"},
 };
 
+/*
+Integral for Blast Wave. Taken from AliPWGFunc.
+    r = x[0]
+    mass = par[0]
+    beta = par[1]
+    temp = par[2]
+    n = par[3]
+    norm = par[4]
+*/
+double BlasWaveIntegrand(const double *x, const double *par) {
+    double r = x[0];
+
+    double mass = par[0];
+    double pT = par[1];
+    double beta_max = par[2];
+    double temp = par[3];
+    double n = par[4];
+
+    // Keep beta within reasonable limits
+    double beta = beta_max * TMath::Power(r, n);
+    if (beta > 0.9999999999999999) beta = 0.9999999999999999;
+
+    double mT = TMath::Sqrt(mass * mass + pT * pT);
+
+    double rho0 = TMath::ATanH(beta);
+    double arg00 = pT * TMath::SinH(rho0) / temp;
+    if (arg00 > 700.) arg00 = 700.;  // Avoid Floating Point Exception
+    double arg01 = mT * TMath::CosH(rho0) / temp;
+    double f0 = r * mT * TMath::BesselI0(arg00) * TMath::BesselK1(arg01);
+
+    return f0;
+}
+
+/*
+Blast Wave. Taken from AliPWGFunc.
+    pT = x[0]
+
+    mass = par[0]
+    beta = par[1]
+    temp = par[2]
+    n = par[3]
+    norm = par[4]
+*/
+double BlastWave(const double *x, const double *par) {
+    double pT = x[0];
+
+    double mass = par[0];
+    double beta = par[1];
+    double temp = par[2];
+    double n = par[3];
+    double norm = par[4];
+
+    static TF1 *fIntBG = new TF1("fIntBG", BlasWaveIntegrand, 0, 1, 5);
+    fIntBG->SetNpx(1000);
+    fIntBG->SetParameters(mass, pT, beta, temp, n);
+    double result = fIntBG->Integral(0, 1);
+
+    return x[0] * result * norm;
+}
+
 float ComputeKstar(ROOT::Math::PxPyPzMVector part1, ROOT::Math::PxPyPzMVector part2) {
     ROOT::Math::PxPyPzMVector trackSum = part1 + part2;
     ROOT::Math::Boost boostv12{trackSum.BoostToCM()};
@@ -453,7 +513,40 @@ void MakeDistr(
     }
 
     // Load Pt and y distributions
-    TF1 *fPt = new TF1("fPt", cfg["decaychain"]["ptshape"].as<std::string>().data(), 0, 10);
+    int pdgMother = cfg["decaychain"]["pdg"].as<int>();
+
+    std::string ptshape = cfg["decaychain"]["ptshape"].as<std::string>();
+    if (cfg["injection"].size() == 0 && ptshape != "") {
+        printf("\033[33mWarning: you are specifying a pt-shape but the mother particle is not injected. Set ptshape: '' to silence this warning.\033[0m\n");
+    }
+
+    TF1 *fPt;
+    if (ptshape == "blastwave") {
+        double mass;
+        if (cfg["injection"].size() > 0) {
+            mass = cfg["injection"][0]["mass"].as<double>();
+        } else {
+            mass = PDG->GetParticle(pdgMother)->Mass();
+        }
+
+        // The following values are take from peripheral pPb collisions. See Tab 5 of PLB 728 (2014) 25-38
+        double beta = 0.26;
+        double Tkin = 0.166;
+        double n = 3.9;
+        fPt = new TF1("fPt", BlastWave, 0, 10, 5);
+        fPt->SetParameter(0, mass);
+        fPt->SetParameter(1, beta);
+        fPt->SetParameter(2, Tkin);
+        fPt->SetParameter(3, n);
+        fPt->SetParameter(4, 1);
+    } else {
+        fPt = new TF1("fPt", ptshape.data(), 0, 10);
+    }
+
+    std::string yshape = cfg["decaychain"]["yshape"].as<std::string>();
+    if (cfg["injection"].size() == 0 && yshape != "") {
+        printf("\033[33mWarning: you are specifying a y-shape but the mother particle is not injected. Set yshape: '' to silence this warning.\033[0m\n");
+    }
     TF1 *fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
