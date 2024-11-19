@@ -11,7 +11,7 @@ import random
 import math
 import yaml
 import numpy as np
-
+import numexpr
 
 from ROOT import TFile, TCanvas  # pylint: disable=no-name-in-module
 
@@ -77,7 +77,8 @@ def BuildCocktail(): # pylint: disable=too-many-statements
         templates[-1]['template'] = inFile.Get(entry['name'])
         templates[-1]['template'].SetDirectory(0)
         templates[-1]['template'].Rebin(cfg['rebin'])
-        templates[-1]['template'].Scale(entry['scale'] * entry['weight'] / entry['nevts'])
+        scaleFactor = numexpr.literal_eval(str(entry['scale']))
+        templates[-1]['template'].Scale(scaleFactor * entry['weight'] / entry['nevts'])
 
     # Convert BR from percentage to absolute values
     for iEntry, entry in enumerate(cfg['cocktail']):

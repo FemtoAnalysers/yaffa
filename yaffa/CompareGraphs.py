@@ -7,6 +7,7 @@ import os
 import yaml
 from rich import print  # pylint: disable=redefined-builtin
 import numpy as np
+import numexpr
 
 # pylint: disable=no-name-in-module
 from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1, gROOT
@@ -113,7 +114,7 @@ for plot in cfg:
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
             if inputCfg['scale']:
-                inObj.Scale(inputCfg['scale'])
+                inObj.Scale(numexpr.evaluate(str(inputCfg['scale'])))
             if inputCfg['normalizecf']:
                 inObj.Scale(inputCfg['normalizecf'])
 
