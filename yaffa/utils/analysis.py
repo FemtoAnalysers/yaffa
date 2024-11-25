@@ -3,7 +3,7 @@ Module that contains various functions useful for the post-processing of the dat
 '''
 import math
 
-from ROOT import TH1F, TH2D, TGraph, TGraphErrors, TH1, TH2  # pylint: disable=import-error
+from ROOT import TH1F, TH2D, TGraph, TGraphErrors, TH1, TH2, TF1 # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -114,30 +114,39 @@ def IsBinningCompatible(*args): # pylint: disable=inconsistent-return-statements
     log.critical('Not implemented for more than two histograms')
 
 
-def WeightedAverage(graph, weights):
+def WeightedAverage(inObj, weights):
     '''
     Compute the weighted average of a graph with an histogram (TH1)
 
     Parameters
     ----------
-    graph : TGraph
+    inObj : TGraph, TH1, TF1
         The graph to be reweighted
     weights : TH1
         The weights to be applied
 
     Returns
     -------
-    TGraph
-        The reweighted graph
+    float
+        The weighted average
     '''
 
-    smeared = 0
+    avg = 0
     counts = weights.Integral(1, weights.GetNbinsX())
     for iBin in range(weights.GetNbinsX()):
         freq = weights.GetBinContent(iBin + 1) / counts
-        y = graph.Eval(weights.GetBinCenter(iBin+1))
-        smeared += freq * y
-    return smeared
+        if isinstance(inObj, (TGraph, TF1)):
+            y = inObj.Eval(weights.GetBinCenter(iBin+1))
+        elif isinstance(inObj, TH1):
+            if inObj.GetNbinsX() != weights.GetNbinsX():
+                log.critical('Incompatible binning: %s and %s have %s and %s bins respectively', \
+                          inObj, weights, inObj.GetNbinsX(), weights.GetNbinsX())
+            iBin = inObj.FindBin(weights.GetBinCenter(iBin+1))
+            y = inObj.GetBinContent(iBin)
+        else:
+            log.critical('Not implemented')
+        avg += freq * y # pylint: disable=possibly-used-before-assignment
+    return avg
 
 
 def SmearGraph(graph, matrix, name=None, title=''): # pylint: disable=inconsistent-return-statements
