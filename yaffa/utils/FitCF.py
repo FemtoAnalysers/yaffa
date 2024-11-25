@@ -26,7 +26,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     inFile.Close()
 
     fitter = SuperFitter(oObs, 0, 0.5)
-    fitter.Add('pol8')
+    fitter.Add('gaus')
 
     cFit = TCanvas('cFit', '', 600, 600)
     fitter.Fit('MR+')
