@@ -32,9 +32,6 @@ class SuperFitter : public TObject {
     // Destructor
     ~SuperFitter();
 
-    // Add function
-    // void Add(const char* opt);
-
     // Fit
     void Fit(const char* opt ="" );
 
@@ -52,12 +49,7 @@ SuperFitter::~SuperFitter() { delete fObs; }
 // Standard Constructor
 SuperFitter::SuperFitter(Observable* hObs) { this->fObs = hObs; }
 
-// Add
-// void SuperFitter::Add(const char* name) {
-//     TFormula::DefineFunction(name, functions[name]);
-// }
-
-// // Fit
+// Fit
 void SuperFitter::Fit(const char* opt) { this->fObs->Fit(opt); }
 
 // Draw
