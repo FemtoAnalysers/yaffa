@@ -21,6 +21,9 @@ class Observable : public TObject {
     // Draw
     void Draw(const char* opt = "") const;
 
+    // Fit
+    void Fit(const char* opt = "") const;
+
     ClassDef(Observable, 1)
 };
 
@@ -34,5 +37,8 @@ Observable::Observable(TH1* hObs) { this->fHObs = hObs; }
 
 // Draw
 void Observable::Draw(const char* opt) const { this->fHObs->Draw(opt); }
+
+// Fit
+void Observable::Fit(const char* opt) const { this->fHObs->Fit("pol0", opt); }
 
 #endif

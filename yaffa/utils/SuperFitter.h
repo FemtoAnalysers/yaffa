@@ -36,7 +36,7 @@ class SuperFitter : public TObject {
     // void Add(const char* opt);
 
     // Fit
-    // void Fit(const char* opt ="" );
+    void Fit(const char* opt ="" );
 
     // Draw
     void Draw(const char* opt = "") const;
@@ -58,7 +58,7 @@ SuperFitter::SuperFitter(Observable* hObs) { this->fObs = hObs; }
 // }
 
 // // Fit
-// void SuperFitter::Fit(const char* opt) { this->fObs->Fit(this->fFit, opt); }
+void SuperFitter::Fit(const char* opt) { this->fObs->Fit(opt); }
 
 // Draw
 void SuperFitter::Draw(const char* opt) const { this->fObs->Draw(opt); }
