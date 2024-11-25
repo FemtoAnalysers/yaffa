@@ -8,7 +8,8 @@ import yaml
 
 from ROOT import TFile, TCanvas, gInterpreter
 gInterpreter.ProcessLine('#include "utils/Observable.h"')
-from ROOT import Observable
+gInterpreter.ProcessLine('#include "utils/SuperFitter.h"')
+from ROOT import Observable, SuperFitter
 
 from yaffa import utils
 
@@ -24,9 +25,12 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     oObs = Observable(hObs)
     inFile.Close()
 
+    fitter = SuperFitter(oObs)
+
     cFit = TCanvas('cFit', '', 600, 600)
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
-    oObs.Draw('same')
+    fitter.Draw('same')
+
     cFit.SaveAs('cFit.pdf')
 
 if __name__ == '__main__':
