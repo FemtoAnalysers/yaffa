@@ -2,6 +2,7 @@
 #define OBSERVABLE_H
 
 #include "TH1.h"
+#include "TF1.h"
 #include "TObject.h"
 
 class Observable : public TObject {
@@ -22,7 +23,7 @@ class Observable : public TObject {
     void Draw(const char* opt = "") const;
 
     // Fit
-    void Fit(const char* opt = "") const;
+    void Fit(TF1 *fFit, const char* opt = "") const;
 
     ClassDef(Observable, 1)
 };
@@ -39,6 +40,6 @@ Observable::Observable(TH1* hObs) { this->fHObs = hObs; }
 void Observable::Draw(const char* opt) const { this->fHObs->Draw(opt); }
 
 // Fit
-void Observable::Fit(const char* opt) const { this->fHObs->Fit("pol0", opt); }
+void Observable::Fit(TF1 *fFit, const char* opt) const { this->fHObs->Fit(fFit, opt); }
 
 #endif

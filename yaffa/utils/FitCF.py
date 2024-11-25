@@ -25,11 +25,11 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     oObs = Observable(hObs)
     inFile.Close()
 
-    fitter = SuperFitter(oObs)
-    fitter.Add('mypol1')
+    fitter = SuperFitter(oObs, 0, 0.5)
+    fitter.Add('pol8')
 
     cFit = TCanvas('cFit', '', 600, 600)
-    fitter.Fit()
+    fitter.Fit('MR+')
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
 
