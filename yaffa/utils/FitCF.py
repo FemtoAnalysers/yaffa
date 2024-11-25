@@ -2,11 +2,11 @@
 Script to fit femtoscopic correlation functions.
 '''
 
+import os
 import argparse
 import yaml
-import os
 
-from ROOT import TFile, TCanvas, gInterpreter
+from ROOT import TFile, TCanvas, gInterpreter, gROOT
 gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
 gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
 from ROOT import Observable, SuperFitter
@@ -26,6 +26,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     inFile.Close()
 
     fitter = SuperFitter(oObs)
+    fitter.Add('mypol1')
 
     cFit = TCanvas('cFit', '', 600, 600)
     fitter.Fit()
@@ -41,5 +42,7 @@ if __name__ == '__main__':
 
     with open(args.cfg) as file:
         config = yaml.safe_load(file)
+
+    gROOT.SetBatch(True)
 
     FitCF(config)
