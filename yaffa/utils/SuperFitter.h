@@ -11,6 +11,17 @@
 #include "TH1.h"
 #include "TObject.h"
 
+double Gaus(double* x, double* p) {
+    double xx = x[0];
+    double norm = p[0];
+    double mean = p[1];
+    double sigma = p[2];
+
+    double normFactor = norm / (std::sqrt(2 * M_PI) * sigma);
+    double exponent = -0.5 * std::pow((xx - mean) / sigma, 2);
+    return normFactor * std::exp(exponent);
+}
+
 double Pol0(double* x, double* p) { return p[0]; }
 double Pol1(double* x, double* p) { return Pol0(x, p) + p[1] * pow(x[0], 1); }
 double Pol2(double* x, double* p) { return Pol1(x, p) + p[2] * pow(x[0], 2); }
@@ -64,7 +75,12 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) {
 }
 
 // Fit
-void SuperFitter::Fit(const char* opt) { this->fObs->Fit(this->fFit, opt); }
+void SuperFitter::Fit(const char* opt) {
+    this->fFit->SetParameter(0, 1);
+    this->fFit->FixParameter(1, 0.2);
+    this->fFit->FixParameter(2, 0.1);
+    this->fObs->Fit(this->fFit, opt);
+}
 
 // Add fit component
 void SuperFitter::Add(const char* name) {
@@ -88,6 +104,8 @@ void SuperFitter::Add(const char* name) {
         this->fFit = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
     } else if (strcmp(name, "pol9") == 0) {
         this->fFit = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
+    } else if (strcmp(name, "gaus") == 0) {
+        this->fFit = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
     } else {
         printf("Not implemented. Exit!\n");
         exit(1);
