@@ -17,9 +17,9 @@ class Observable : public TObject {
 
     // Destructor
     ~Observable();
-    
+
     // Draw
-    void Draw(const char * opt) const;
+    void Draw(const char* opt = "") const;
 
     ClassDef(Observable, 1)
 };
