@@ -30,7 +30,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     cFit = TCanvas('cFit', '', 600, 600)
 
-    fitter.Fit("Pol0 + Gaus", 'MR+')
+    fitter.Fit("1.0 + 0.1", 'MR+')
+
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
 

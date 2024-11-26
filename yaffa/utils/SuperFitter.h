@@ -3,8 +3,8 @@
 
 #include <cmath>
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "Observable.h"
 #include "Riostream.h"
@@ -78,22 +78,184 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
     this->fMax = xMax;
 }
 
+
+using Function = std::function<double(const std::vector<double>&)>;
+std::map<std::string, Function> functions = {
+    {"sin", [](const std::vector<double>& args) { return sin(args[0]); }},
+};
+
+// Tokenizer function
+std::vector<std::string> Tokenize(const std::string& str, const std::string& delimiters) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    size_t end;
+
+    while ((end = str.find_first_of(delimiters, start)) != std::string::npos) {
+        if (end != start) {  // Avoid empty tokens
+            tokens.emplace_back(str.substr(start, end - start));
+        }
+        start = end + 1;
+    }
+
+    if (start < str.length()) {  // Add the last token
+        tokens.emplace_back(str.substr(start));
+    }
+
+    return tokens;
+}
+
+// Tokenize the formula
+std::vector<std::string> Tokenize(const std::string& formula) {
+    std::vector<std::string> tokens;
+    std::string token;
+    for (size_t i = 0; i < formula.size(); ++i) {
+        char c = formula[i];
+        if (isspace(c)) continue;  // Ignore spaces
+
+        if (isdigit(c) || c == '.') {
+            // Handle numbers
+            token += c;
+        } else if (isalpha(c)) {
+            // Handle functions or variable names
+            token += c;
+        } else {
+            // Handle operators or parentheses
+            if (!token.empty()) {
+                tokens.push_back(token);
+                token.clear();
+            }
+            tokens.push_back(std::string(1, c));
+        }
+    }
+
+    if (!token.empty()) {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+// Utility: Get operator precedence
+int getPrecedence(const std::string& op) {
+    if (op == "+" || op == "-") return 1;
+    if (op == "*" || op == "/") return 2;
+    return 0;
+}
+
+// Utility: Check if token is an operator
+bool isOperator(const std::string& token) {
+    return token == "+" || token == "-" || token == "*" || token == "/";
+}
+
+// Utility: Check if token is a function
+bool isFunction(const std::string& token) {
+    return functions.find(token) != functions.end();
+}
+
+
+// Convert to Reverse Polish Notation (RPN)
+std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
+    std::vector<std::string> output;
+    std::stack<std::string> operators;
+
+    for (const std::string& token : tokens) {
+        if (isdigit(token[0]) || token[0] == '.') {
+            // Numbers go directly to output
+            output.push_back(token);
+        } else if (isFunction(token)) {
+            // Functions go to the operator stack
+            operators.push(token);
+        } else if (token == "(") {
+            operators.push(token);
+        } else if (token == ")") {
+            // Pop until matching "("
+            while (!operators.empty() && operators.top() != "(") {
+                output.push_back(operators.top());
+                operators.pop();
+            }
+            if (!operators.empty()) operators.pop(); // Pop "("
+            if (!operators.empty() && isFunction(operators.top())) {
+                output.push_back(operators.top());
+                operators.pop();
+            }
+        } else if (isOperator(token)) {
+            while (!operators.empty() && getPrecedence(operators.top()) >= getPrecedence(token)) {
+                output.push_back(operators.top());
+                operators.pop();
+            }
+            operators.push(token);
+        }
+    }
+
+    // Pop remaining operators
+    while (!operators.empty()) {
+        output.push_back(operators.top());
+        operators.pop();
+    }
+
+    return output;
+}
+
+
+// Evaluate RPN
+double evaluateRPN(const std::vector<std::string>& rpn, const std::vector<double>& variables) {
+    std::stack<double> stack;
+
+    for (const std::string& token : rpn) {
+        if (isdigit(token[0]) || token[0] == '.') {
+            // Push numbers
+            stack.push(std::stod(token));
+        } else if (isFunction(token)) {
+            // Call function
+            if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for function");
+            double arg = stack.top();
+            stack.pop();
+            stack.push(functions[token]({arg}));
+        } else if (isOperator(token)) {
+            // Apply operator
+            if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+            double b = stack.top();
+            stack.pop();
+            double a = stack.top();
+            stack.pop();
+
+            if (token == "+") stack.push(a + b);
+            else if (token == "-") stack.push(a - b);
+            else if (token == "*") stack.push(a * b);
+            else if (token == "/") stack.push(a / b);
+            else throw std::runtime_error("Unknown operator");
+        } else {
+            throw std::runtime_error("Unknown token: " + token);
+        }
+    }
+
+    if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
+    return stack.top();
+}
+
 // Fit
 void SuperFitter::Fit(std::string model, const char* opt) {
+    // Tokenization of the model
+    auto tokens = Tokenize(model);
+    for (const auto& t : tokens) {
+        std::cout << t << std::endl;
+    }
 
-    auto lambda = [model](double* x, double* p) -> double {
-        double v1 = Pol0(x, p);
-        double v2 = Gaus(x, p+1);
+    auto rpn = toRPN(tokens);
+    printf("--> RPN\n");
+    for (const auto& r : rpn) {
+        std::cout << r << std::endl;
+    }
 
-        bool exists = model.find("+") != std::string::npos;
-        if (exists) {
-            return v1 + v2;
-        } else {
-            return v1 * v2;
-        }
+    auto lambda = [rpn](double* x, double* p) -> double {
+        double val = evaluateRPN(rpn, {});
+        printf("vall: %.3f\n", val);
+
+        return val;
     };
 
     this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
+    this->fFit->SetNpx(30);
 
     this->fFit->FixParameter(0, 1);
     this->fFit->FixParameter(1, 0.01);
