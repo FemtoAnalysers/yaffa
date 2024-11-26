@@ -3,6 +3,8 @@
 
 #include <cmath>
 #include <map>
+#include <vector>
+#include <string>
 
 #include "Observable.h"
 #include "Riostream.h"
@@ -22,6 +24,7 @@ double Gaus(double* x, double* p) {
     return normFactor * std::exp(exponent);
 }
 
+double Poll0(double x, double p) { return p; }
 double Pol0(double* x, double* p) { return p[0]; }
 double Pol1(double* x, double* p) { return Pol0(x, p) + p[1] * pow(x[0], 1); }
 double Pol2(double* x, double* p) { return Pol1(x, p) + p[2] * pow(x[0], 2); }
@@ -37,12 +40,13 @@ class SuperFitter : public TObject {
    private:
     Observable* fObs;
     TF1* fFit;
+    std::vector<TF1*> fTerms;
     double fMin;
     double fMax;
 
    public:
     // Empty Contructor
-    SuperFitter() : fObs(nullptr), fFit(nullptr) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr) {};
 
     // Standard Contructor
     SuperFitter(Observable* hObs, double xMin, double xMax);
@@ -51,7 +55,7 @@ class SuperFitter : public TObject {
     ~SuperFitter();
 
     // Fit
-    void Fit(const char* opt = "");
+    void Fit(std::string model, const char* opt = "");
 
     // Add fit component
     void Add(const char* name = "");
@@ -68,48 +72,67 @@ ClassImp(SuperFitter);
 SuperFitter::~SuperFitter() { delete fObs; }
 
 // Standard Constructor
-SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) {
+SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject() {
     this->fObs = hObs;
     this->fMin = xMin;
     this->fMax = xMax;
 }
 
 // Fit
-void SuperFitter::Fit(const char* opt) {
-    this->fFit->SetParameter(0, 1);
-    this->fFit->FixParameter(1, 0.2);
+void SuperFitter::Fit(std::string model, const char* opt) {
+
+    auto lambda = [model](double* x, double* p) -> double {
+        double v1 = Pol0(x, p);
+        double v2 = Gaus(x, p+1);
+
+        bool exists = model.find("+") != std::string::npos;
+        if (exists) {
+            return v1 + v2;
+        } else {
+            return v1 * v2;
+        }
+    };
+
+    this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
+
+    this->fFit->FixParameter(0, 1);
+    this->fFit->FixParameter(1, 0.01);
     this->fFit->FixParameter(2, 0.1);
+    this->fFit->FixParameter(3, 0.1);
     this->fObs->Fit(this->fFit, opt);
 }
 
 // Add fit component
 void SuperFitter::Add(const char* name) {
+    TF1* fFunc = nullptr;
     if (strcmp(name, "pol0") == 0) {
-        this->fFit = new TF1("fFit", Pol0, this->fMin, this->fMax, 1);
+        fFunc = new TF1("fFit", Pol0, this->fMin, this->fMax, 1);
     } else if (strcmp(name, "pol1") == 0) {
-        this->fFit = new TF1("fFit", Pol1, this->fMin, this->fMax, 2);
+        fFunc = new TF1("fFit", Pol1, this->fMin, this->fMax, 2);
     } else if (strcmp(name, "pol2") == 0) {
-        this->fFit = new TF1("fFit", Pol2, this->fMin, this->fMax, 3);
+        fFunc = new TF1("fFit", Pol2, this->fMin, this->fMax, 3);
     } else if (strcmp(name, "pol3") == 0) {
-        this->fFit = new TF1("fFit", Pol3, this->fMin, this->fMax, 4);
+        fFunc = new TF1("fFit", Pol3, this->fMin, this->fMax, 4);
     } else if (strcmp(name, "pol4") == 0) {
-        this->fFit = new TF1("fFit", Pol4, this->fMin, this->fMax, 5);
+        fFunc = new TF1("fFit", Pol4, this->fMin, this->fMax, 5);
     } else if (strcmp(name, "pol5") == 0) {
-        this->fFit = new TF1("fFit", Pol5, this->fMin, this->fMax, 6);
+        fFunc = new TF1("fFit", Pol5, this->fMin, this->fMax, 6);
     } else if (strcmp(name, "pol6") == 0) {
-        this->fFit = new TF1("fFit", Pol6, this->fMin, this->fMax, 7);
+        fFunc = new TF1("fFit", Pol6, this->fMin, this->fMax, 7);
     } else if (strcmp(name, "pol7") == 0) {
-        this->fFit = new TF1("fFit", Pol7, this->fMin, this->fMax, 8);
+        fFunc = new TF1("fFit", Pol7, this->fMin, this->fMax, 8);
     } else if (strcmp(name, "pol8") == 0) {
-        this->fFit = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
+        fFunc = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
     } else if (strcmp(name, "pol9") == 0) {
-        this->fFit = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
+        fFunc = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
     } else if (strcmp(name, "gaus") == 0) {
-        this->fFit = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
+        fFunc = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
     } else {
         printf("Not implemented. Exit!\n");
         exit(1);
     }
+
+    this->fTerms.push_back(fFunc);
 }
 
 // Draw

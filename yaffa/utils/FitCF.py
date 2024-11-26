@@ -29,7 +29,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     fitter.Add('gaus')
 
     cFit = TCanvas('cFit', '', 600, 600)
-    fitter.Fit('MR+')
+
+    fitter.Fit("Pol0 + Gaus", 'MR+')
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
 
