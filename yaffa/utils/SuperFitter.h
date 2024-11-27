@@ -204,69 +204,58 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
     return output;
 }
 
-// Evaluate RPN
-double evaluateRPN(const std::vector<std::string>& rpn, const std::vector<double>& variables) {
-    std::stack<double> stack;
-
-    for (const std::string& token : rpn) {
-        if (isdigit(token[0]) || token[0] == '.') {
-            // Push numbers
-            stack.push(std::stod(token));
-        } else if (isFunction(token)) {
-            // Call function
-            if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for function");
-            double arg = stack.top();
-            stack.pop();
-            stack.push(functions[token]({arg}));
-        } else if (isOperator(token)) {
-            // Apply operator
-            if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
-            double b = stack.top();
-            stack.pop();
-            double a = stack.top();
-            stack.pop();
-
-            if (token == "+")
-                stack.push(a + b);
-            else if (token == "-")
-                stack.push(a - b);
-            else if (token == "*")
-                stack.push(a * b);
-            else if (token == "/")
-                stack.push(a / b);
-            else
-                throw std::runtime_error("Unknown operator");
-        } else {
-            throw std::runtime_error("Unknown token: " + token);
-        }
-    }
-
-    if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
-    return stack.top();
-}
-
 // Fit
 void SuperFitter::Fit(std::string model, const char* opt) {
     // Tokenization of the model
     auto tokens = Tokenize(model);
     for (const auto& t : tokens) {
-        std::cout << t << std::endl;
+        std::cout << t << " ";
     }
+    std::cout << std::endl;
 
     auto rpn = toRPN(tokens);
-    printf("--> RPN\n");
-    for (const auto& r : rpn) {
-        std::cout << r << std::endl;
-    }
 
-    this->fFit = new TF1(
-        "fFit",
-        [rpn](double* x, double* p) -> double {
-            double val = evaluateRPN(rpn, {0.9});
+    auto lambda = [rpn](double* x, double* p) -> double {
+        std::stack<double> stack;
 
-            return val;
-        },
-        0, 0.5, 4);
+        for (const std::string& token : rpn) {
+            if (isdigit(token[0]) || token[0] == '.') {
+                // Push numbers
+                stack.push(std::stod(token));
+            } else if (isFunction(token)) {
+                // Call function
+                if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for function");
+                double arg = stack.top();
+                stack.pop();
+                stack.push(functions[token]({arg}));
+            } else if (isOperator(token)) {
+                // Apply operator
+                if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+                double b = stack.top();
+                stack.pop();
+                double a = stack.top();
+                stack.pop();
+
+                if (token == "+")
+                    stack.push(a + b);
+                else if (token == "-")
+                    stack.push(a - b);
+                else if (token == "*")
+                    stack.push(a * b);
+                else if (token == "/")
+                    stack.push(a / b);
+                else
+                    throw std::runtime_error("Unknown operator");
+            } else {
+                throw std::runtime_error("Unknown token: " + token);
+            }
+        }
+
+        if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
+        return stack.top();
+    };
+
+    this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
     this->fFit->SetNpx(30);
 
     this->fFit->FixParameter(0, 1);
