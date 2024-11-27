@@ -53,12 +53,13 @@ class SuperFitter : public TObject {
     Observable* fObs;
     TF1* fFit;
     std::vector<TF1*> fTerms;
+    std::map<int, std::tuple<std::string, double, double, double>> fPars;  // List of fit parameters: (index, (name, init, min, max))
     double fMin;
     double fMax;
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}) {};
 
     // Standard Contructor
     SuperFitter(Observable* hObs, double xMin, double xMax);
@@ -70,7 +71,7 @@ class SuperFitter : public TObject {
     void Fit(std::string model, const char* opt = "");
 
     // Add fit component
-    void Add(const char* name = "");
+    void Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars);
 
     // Draw
     void Draw(const char* opt = "") const;
@@ -84,7 +85,7 @@ ClassImp(SuperFitter);
 SuperFitter::~SuperFitter() { delete fObs; }
 
 // Standard Constructor
-SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject() {
+SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject(), fPars({}) {
     this->fObs = hObs;
     this->fMin = xMin;
     this->fMax = xMax;
@@ -266,36 +267,43 @@ void SuperFitter::Fit(std::string model, const char* opt) {
 }
 
 // Add fit component
-void SuperFitter::Add(const char* name) {
+void SuperFitter::Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars) {
+    DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
     TF1* fFunc = nullptr;
-    if (strcmp(name, "pol0") == 0) {
+    if (name == "pol0") {
         fFunc = new TF1("fFit", Pol0, this->fMin, this->fMax, 1);
-    } else if (strcmp(name, "pol1") == 0) {
+    } else if (name == "pol1") {
         fFunc = new TF1("fFit", Pol1, this->fMin, this->fMax, 2);
-    } else if (strcmp(name, "pol2") == 0) {
+    } else if (name == "pol2") {
         fFunc = new TF1("fFit", Pol2, this->fMin, this->fMax, 3);
-    } else if (strcmp(name, "pol3") == 0) {
+    } else if (name == "pol3") {
         fFunc = new TF1("fFit", Pol3, this->fMin, this->fMax, 4);
-    } else if (strcmp(name, "pol4") == 0) {
+    } else if (name == "pol4") {
         fFunc = new TF1("fFit", Pol4, this->fMin, this->fMax, 5);
-    } else if (strcmp(name, "pol5") == 0) {
+    } else if (name == "pol5") {
         fFunc = new TF1("fFit", Pol5, this->fMin, this->fMax, 6);
-    } else if (strcmp(name, "pol6") == 0) {
+    } else if (name == "pol6") {
         fFunc = new TF1("fFit", Pol6, this->fMin, this->fMax, 7);
-    } else if (strcmp(name, "pol7") == 0) {
+    } else if (name == "pol7") {
         fFunc = new TF1("fFit", Pol7, this->fMin, this->fMax, 8);
-    } else if (strcmp(name, "pol8") == 0) {
+    } else if (name == "pol8") {
         fFunc = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
-    } else if (strcmp(name, "pol9") == 0) {
+    } else if (name == "pol9") {
         fFunc = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
-    } else if (strcmp(name, "gaus") == 0) {
+    } else if (name == "gaus") {
         fFunc = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
     } else {
-        printf("Not implemented. Exit!\n");
-        exit(1);
+        throw std::runtime_error("Function " + name + " is not implemented");
     }
 
     this->fTerms.push_back(fFunc);
+
+    // Save fit settings
+    DEBUG(0, "Parameters are:");
+    for (const auto &par : pars) {
+        DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
+        this->fPars.insert({this->fPars.size(), par});
+    }
 }
 
 // Draw
