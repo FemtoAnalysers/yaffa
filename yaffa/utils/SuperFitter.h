@@ -90,7 +90,6 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
     this->fMax = xMax;
 }
 
-
 using Function = std::function<double(const std::vector<double>&)>;
 std::map<std::string, Function> functions = {
     {"sin", [](const std::vector<double>& args) { return sin(args[0]); }},
@@ -157,15 +156,10 @@ int getPrecedence(const std::string& op) {
 }
 
 // Utility: Check if token is an operator
-bool isOperator(const std::string& token) {
-    return token == "+" || token == "-" || token == "*" || token == "/";
-}
+bool isOperator(const std::string& token) { return token == "+" || token == "-" || token == "*" || token == "/"; }
 
 // Utility: Check if token is a function
-bool isFunction(const std::string& token) {
-    return functions.find(token) != functions.end();
-}
-
+bool isFunction(const std::string& token) { return functions.find(token) != functions.end(); }
 
 // Convert to Reverse Polish Notation (RPN)
 std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
@@ -187,7 +181,7 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
                 output.push_back(operators.top());
                 operators.pop();
             }
-            if (!operators.empty()) operators.pop(); // Pop "("
+            if (!operators.empty()) operators.pop();  // Pop "("
             if (!operators.empty() && isFunction(operators.top())) {
                 output.push_back(operators.top());
                 operators.pop();
@@ -209,7 +203,6 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
 
     return output;
 }
-
 
 // Evaluate RPN
 double evaluateRPN(const std::vector<std::string>& rpn, const std::vector<double>& variables) {
@@ -233,11 +226,16 @@ double evaluateRPN(const std::vector<std::string>& rpn, const std::vector<double
             double a = stack.top();
             stack.pop();
 
-            if (token == "+") stack.push(a + b);
-            else if (token == "-") stack.push(a - b);
-            else if (token == "*") stack.push(a * b);
-            else if (token == "/") stack.push(a / b);
-            else throw std::runtime_error("Unknown operator");
+            if (token == "+")
+                stack.push(a + b);
+            else if (token == "-")
+                stack.push(a - b);
+            else if (token == "*")
+                stack.push(a * b);
+            else if (token == "/")
+                stack.push(a / b);
+            else
+                throw std::runtime_error("Unknown operator");
         } else {
             throw std::runtime_error("Unknown token: " + token);
         }
@@ -261,11 +259,14 @@ void SuperFitter::Fit(std::string model, const char* opt) {
         std::cout << r << std::endl;
     }
 
-    this->fFit = new TF1("fFit", [rpn](double* x, double* p) -> double {
+    this->fFit = new TF1(
+        "fFit",
+        [rpn](double* x, double* p) -> double {
             double val = evaluateRPN(rpn, {0.9});
 
             return val;
-        }, 0, 0.5, 4);
+        },
+        0, 0.5, 4);
     this->fFit->SetNpx(30);
 
     this->fFit->FixParameter(0, 1);
