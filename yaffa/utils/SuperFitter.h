@@ -90,9 +90,9 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
     this->fMax = xMax;
 }
 
-using Function = std::function<double(const std::vector<double>&)>;
+using Function = std::function<double(double*, double*)>;
 std::map<std::string, Function> functions = {
-    {"sin", [](const std::vector<double>& args) { return sin(args[0]); }},
+    {"sin", [](double *x, double *p) { return sin(x[0]); }},
 };
 
 // Tokenizer function
@@ -225,9 +225,9 @@ void SuperFitter::Fit(std::string model, const char* opt) {
             } else if (isFunction(token)) {
                 // Call function
                 if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for function");
-                double arg = stack.top();
+                double arg[] = {stack.top()};
                 stack.pop();
-                stack.push(functions[token]({arg}));
+                stack.push(functions[token](arg, nullptr));
             } else if (isOperator(token)) {
                 // Apply operator
                 if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
