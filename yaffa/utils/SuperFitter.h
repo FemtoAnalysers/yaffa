@@ -25,6 +25,43 @@
 #define DEBUG(msg, ...)
 #endif
 
+// Lambda function to concatenate the elements of a std::vector via a separator. Equivalent of python's " ".join(mylist)
+std::string join(std::string separator, std::vector<std::string> list) {
+    std::string output = "";
+    for (const auto &element : list) {
+        output += element + separator;
+    }
+
+    if (output.size() > 0) output.resize(output.size() - separator.size()); // Remove last separator
+    return output;
+};
+
+std::string join(std::string separator, std::vector<double> list) {
+    std::string output = "";
+    for (const auto &element : list) {
+        output += std::to_string(element) + separator;
+    }
+    if (output.size() > 0) output.resize(output.size() - separator.size()); // Remove last separator
+    return output;
+};
+
+template <typename T>
+std::vector<T> stack_to_vector(const std::stack<T>& stack) {
+    std::stack<T> tempStack = stack;  // Copy the original stack to preserve it
+    std::vector<T> result;
+
+    // Transfer elements from the stack to the vector (in reverse order)
+    while (!tempStack.empty()) {
+        result.push_back(tempStack.top());
+        tempStack.pop();
+    }
+
+    // Reverse the vector to restore the original order of the stack
+    std::reverse(result.begin(), result.end());
+
+    return result;
+}
+
 double Gaus(double* x, double* p) {
     double xx = x[0];
     double norm = p[0];
@@ -94,6 +131,8 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
 using Function = std::function<double(double*, double*)>;
 std::map<std::string, Function> functions = {
     {"sin", [](double *x, double *p) { return sin(x[0]); }},
+    {"pol1", Pol1},
+    {"pol2", Pol2},
 };
 
 // Tokenizer function
@@ -145,6 +184,7 @@ std::vector<std::string> Tokenize(const std::string& formula) {
     if (!token.empty()) {
         tokens.push_back(token);
     }
+    DEBUG(0, "Tokenization is complete, reconstructed formula is '%s'", join(" ", tokens).data());
 
     return tokens;
 }
@@ -209,27 +249,30 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
 void SuperFitter::Fit(std::string model, const char* opt) {
     // Tokenization of the model
     auto tokens = Tokenize(model);
-    for (const auto& t : tokens) {
-        std::cout << t << " ";
-    }
-    std::cout << std::endl;
 
     auto rpn = toRPN(tokens);
 
+    DEBUG(0, "Expression in RPN: %s", join(" ", rpn).data());
     auto lambda = [rpn](double* x, double* p) -> double {
         std::stack<double> stack;
 
+        DEBUG(0, "Compute fit function");
         for (const std::string& token : rpn) {
             if (isdigit(token[0]) || token[0] == '.') {
+                DEBUG(2, "Token '%s' is a digit", token.data());
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (isFunction(token)) {
+                DEBUG(2, "Token '%s' is a function", token.data());
+                DEBUG(2, "Pushing %.3f into the stack", functions[token](x, p));
+
                 // Call function
-                if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for function");
-                double arg[] = {stack.top()};
-                stack.pop();
-                stack.push(functions[token](arg, nullptr));
+                stack.push(functions[token](x, p));
+
+                DEBUG(2, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+
             } else if (isOperator(token)) {
+                DEBUG(2, "Token '%s' is an operator", token.data());
                 // Apply operator
                 if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
@@ -248,21 +291,23 @@ void SuperFitter::Fit(std::string model, const char* opt) {
                 else
                     throw std::runtime_error("Unknown operator");
             } else {
+                DEBUG(2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
             }
         }
+
+        DEBUG(0, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
         return stack.top();
     };
 
     this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
-    this->fFit->SetNpx(30);
+    this->fFit->SetNpx(15);
 
-    this->fFit->FixParameter(0, 1);
-    this->fFit->FixParameter(1, 0.01);
-    this->fFit->FixParameter(2, 0.1);
-    this->fFit->FixParameter(3, 0.1);
+    for (const auto &[iPar, par] : this->fPars) {
+        this->fFit->FixParameter(iPar, std::get<1>(par));
+    }
     this->fObs->Fit(this->fFit, opt);
 }
 
