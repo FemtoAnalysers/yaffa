@@ -13,6 +13,18 @@
 #include "TH1.h"
 #include "TObject.h"
 
+#if true
+#define DEBUG(scopes, msg, ...)                          \
+    do {                                                 \
+        printf("[DEBUG] %s: ", __FUNCTION__);            \
+        for (int i = 0; i < scopes; i++) printf("    "); \
+        printf(msg, ##__VA_ARGS__);                      \
+        printf("\n");                                    \
+    } while (0)
+#else
+#define DEBUG(msg, ...)
+#endif
+
 double Gaus(double* x, double* p) {
     double xx = x[0];
     double norm = p[0];
@@ -106,10 +118,12 @@ std::vector<std::string> Tokenize(const std::string& str, const std::string& del
 
 // Tokenize the formula
 std::vector<std::string> Tokenize(const std::string& formula) {
+    DEBUG(0, "Start tokenization: formula = %s", formula.data());
     std::vector<std::string> tokens;
     std::string token;
     for (size_t i = 0; i < formula.size(); ++i) {
         char c = formula[i];
+        DEBUG(1, "Analyzing char=%c", c);
         if (isspace(c)) continue;  // Ignore spaces
 
         if (isdigit(c) || c == '.') {
@@ -247,14 +261,11 @@ void SuperFitter::Fit(std::string model, const char* opt) {
         std::cout << r << std::endl;
     }
 
-    auto lambda = [rpn](double* x, double* p) -> double {
-        double val = evaluateRPN(rpn, {});
-        printf("vall: %.3f\n", val);
+    this->fFit = new TF1("fFit", [rpn](double* x, double* p) -> double {
+            double val = evaluateRPN(rpn, {0.9});
 
-        return val;
-    };
-
-    this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
+            return val;
+        }, 0, 0.5, 4);
     this->fFit->SetNpx(30);
 
     this->fFit->FixParameter(0, 1);
