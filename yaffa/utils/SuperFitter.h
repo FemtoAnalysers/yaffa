@@ -322,9 +322,36 @@ class SuperFitter : public TObject {
     void Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars) {
         DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
-        if (name == "pol1") {
+        if (name == "pol0") {
+            functions.push_back({name, Pol0});
+            fNPars.push_back(1);
+        } else if (name == "pol1") {
             functions.push_back({name, Pol1});
             fNPars.push_back(2);
+        } else if (name == "pol2") {
+            functions.push_back({name, Pol2});
+            fNPars.push_back(3);
+        } else if (name == "pol3") {
+            functions.push_back({name, Pol3});
+            fNPars.push_back(4);
+        } else if (name == "pol4") {
+            functions.push_back({name, Pol4});
+            fNPars.push_back(5);
+        } else if (name == "pol5") {
+            functions.push_back({name, Pol5});
+            fNPars.push_back(6);
+        } else if (name == "pol6") {
+            functions.push_back({name, Pol6});
+            fNPars.push_back(7);
+        } else if (name == "pol7") {
+            functions.push_back({name, Pol7});
+            fNPars.push_back(8);
+        } else if (name == "pol8") {
+            functions.push_back({name, Pol8});
+            fNPars.push_back(9);
+        } else if (name == "pol9") {
+            functions.push_back({name, Pol9});
+            fNPars.push_back(10);
         } else if (name == "gaus") {
             functions.push_back({name, Gaus});
             fNPars.push_back(3);
