@@ -305,14 +305,23 @@ class SuperFitter : public TObject {
 
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
+            std::string name = std::get<0>(par);
+            double centr = std::get<1>(par);
+            double min = std::get<2>(par);
+            double max = std::get<3>(par);
 
-            this->fFit->SetParName(iPar, std::get<0>(par).data());
+            this->fFit->SetParName(iPar, name.data());
 
-            if (std::get<2>(par) > std::get<3>(par)) {
-                this->fFit->FixParameter(iPar, std::get<1>(par));
+            if (min > max) {
+                this->fFit->FixParameter(iPar, centr);
             } else {
-                this->fFit->SetParameter(iPar, std::get<1>(par));
-                this->fFit->SetParLimits(iPar, std::get<2>(par), std::get<3>(par));
+                if (!(min < centr && centr < max)) {
+                    printf("\033[33mWARNING: parameter '%s' is outside the allowed range\033[0m\n", name.data());
+                    centr = (min + max) / 2;
+                }
+
+                this->fFit->SetParameter(iPar, centr);
+                this->fFit->SetParLimits(iPar, min, max);
             }
         }
         this->fObs->Fit(this->fFit, opt);
