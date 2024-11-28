@@ -13,7 +13,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 0
+#if 1
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -90,13 +90,14 @@ class SuperFitter : public TObject {
     Observable* fObs;
     TF1* fFit;
     std::vector<TF1*> fTerms;
+    std::vector<int> fNPars;
     std::map<int, std::tuple<std::string, double, double, double>> fPars;  // List of fit parameters: (index, (name, init, min, max))
     double fMin;
     double fMax;
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fNPars({}) {};
 
     // Standard Contructor
     SuperFitter(Observable* hObs, double xMin, double xMax);
@@ -129,11 +130,7 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
 }
 
 using Function = std::function<double(double*, double*)>;
-std::map<std::string, Function> functions = {
-    {"sin", [](double *x, double *p) { return sin(x[0]); }},
-    {"pol1", Pol1},
-    {"pol2", Pol2},
-};
+std::map<std::string, Function> functions = {};
 
 // Tokenizer function
 std::vector<std::string> Tokenize(const std::string& str, const std::string& delimiters) {
@@ -253,7 +250,9 @@ void SuperFitter::Fit(std::string model, const char* opt) {
     auto rpn = toRPN(tokens);
 
     DEBUG(0, "Expression in RPN: %s", join(" ", rpn).data());
-    auto lambda = [rpn](double* x, double* p) -> double {
+
+    // The following lambda evaluates the fit function
+    auto lambda = [this, rpn](double* x, double* p) -> double {
         std::stack<double> stack;
 
         DEBUG(0, "Compute fit function");
@@ -267,14 +266,18 @@ void SuperFitter::Fit(std::string model, const char* opt) {
                 DEBUG(2, "Pushing %.3f into the stack", functions[token](x, p));
 
                 // Call function
-                stack.push(functions[token](x, p));
+                // DEBUG(2, "Distance of token '%s': %d", token, std::distance(functions.begin(), functions.find(token)));
+                int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + std::distance(functions.begin(), functions.find(token)), 0);
+                DEBUG(2, "Parameter offset: %d", offset);
+                stack.push(functions[token](x, p + offset));
 
                 DEBUG(2, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             } else if (isOperator(token)) {
                 DEBUG(2, "Token '%s' is an operator", token.data());
+                DEBUG(2, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 // Apply operator
-                if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+                if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
                 stack.pop();
                 double a = stack.top();
@@ -302,8 +305,8 @@ void SuperFitter::Fit(std::string model, const char* opt) {
         return stack.top();
     };
 
-    this->fFit = new TF1("fFit", lambda, 0, 0.5, 3);
-    this->fFit->SetNpx(15);
+    int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
+    this->fFit = new TF1("fFit", lambda, 0, 0.5, nPars);
 
     for (const auto &[iPar, par] : this->fPars) {
         this->fFit->SetParName(iPar, std::get<0>(par).data());
@@ -321,34 +324,45 @@ void SuperFitter::Fit(std::string model, const char* opt) {
 // Add fit component
 void SuperFitter::Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars) {
     DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
-    TF1* fFunc = nullptr;
-    if (name == "pol0") {
-        fFunc = new TF1("fFit", Pol0, this->fMin, this->fMax, 1);
-    } else if (name == "pol1") {
-        fFunc = new TF1("fFit", Pol1, this->fMin, this->fMax, 2);
-    } else if (name == "pol2") {
-        fFunc = new TF1("fFit", Pol2, this->fMin, this->fMax, 3);
-    } else if (name == "pol3") {
-        fFunc = new TF1("fFit", Pol3, this->fMin, this->fMax, 4);
-    } else if (name == "pol4") {
-        fFunc = new TF1("fFit", Pol4, this->fMin, this->fMax, 5);
-    } else if (name == "pol5") {
-        fFunc = new TF1("fFit", Pol5, this->fMin, this->fMax, 6);
-    } else if (name == "pol6") {
-        fFunc = new TF1("fFit", Pol6, this->fMin, this->fMax, 7);
-    } else if (name == "pol7") {
-        fFunc = new TF1("fFit", Pol7, this->fMin, this->fMax, 8);
-    } else if (name == "pol8") {
-        fFunc = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
-    } else if (name == "pol9") {
-        fFunc = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
+
+    if (name == "pol1") {
+        functions.insert({name, Pol1});
+        fNPars.push_back(1);
     } else if (name == "gaus") {
-        fFunc = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
+        functions.insert({name, Gaus});
+        fNPars.push_back(3);
     } else {
         throw std::runtime_error("Function " + name + " is not implemented");
     }
 
-    this->fTerms.push_back(fFunc);
+    // TF1* fFunc = nullptr;
+    // if (name == "pol0") {
+    //     fFunc = new TF1("fFit", Pol0, this->fMin, this->fMax, 1);
+    // } else if (name == "pol1") {
+    //     fFunc = new TF1("fFit", Pol1, this->fMin, this->fMax, 2);
+    // } else if (name == "pol2") {
+    //     fFunc = new TF1("fFit", Pol2, this->fMin, this->fMax, 3);
+    // } else if (name == "pol3") {
+    //     fFunc = new TF1("fFit", Pol3, this->fMin, this->fMax, 4);
+    // } else if (name == "pol4") {
+    //     fFunc = new TF1("fFit", Pol4, this->fMin, this->fMax, 5);
+    // } else if (name == "pol5") {
+    //     fFunc = new TF1("fFit", Pol5, this->fMin, this->fMax, 6);
+    // } else if (name == "pol6") {
+    //     fFunc = new TF1("fFit", Pol6, this->fMin, this->fMax, 7);
+    // } else if (name == "pol7") {
+    //     fFunc = new TF1("fFit", Pol7, this->fMin, this->fMax, 8);
+    // } else if (name == "pol8") {
+    //     fFunc = new TF1("fFit", Pol8, this->fMin, this->fMax, 9);
+    // } else if (name == "pol9") {
+    //     fFunc = new TF1("fFit", Pol9, this->fMin, this->fMax, 10);
+    // } else if (name == "gaus") {
+    //     fFunc = new TF1("fFit", Gaus, this->fMin, this->fMax, 3);
+    // } else {
+    //     throw std::runtime_error("Function " + name + " is not implemented");
+    // }
+
+    // this->fTerms.push_back(fFunc);
 
     // Save fit settings
     DEBUG(0, "Parameters are:");
