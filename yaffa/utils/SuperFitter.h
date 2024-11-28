@@ -13,7 +13,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 0
+#if 1
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -394,7 +394,121 @@ class SuperFitter : public TObject {
     };
 
     // Draw
-    void Draw(const char* opt = "") const { this->fObs->Draw(opt); };
+    void Draw(std::vector<std::string> recipes) const {
+        DEBUG(0, "Start drawing");
+
+        // Draw the fitted observable
+        this->fObs->Draw("hist same pe");
+
+        // Draw the final fit function
+        this->fFit->Draw("same");
+
+        // Draw components based on the draw recipes
+        for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
+            auto recipe = recipes[iRecipe];
+            DEBUG(0, "Drawing the recipe '%s'", recipe.data());
+
+            // Tokenization of the recipe
+            auto tokens = Tokenize(recipe);
+            DEBUG(0, "[DRAW] recipe in infix: %s", join(" ", tokens).data());
+
+            // Count the number of parameters
+            int nPars = 0;
+            
+            for (const auto &token : tokens) {
+                DEBUG(1, "Processing token '%s'", token.data());
+
+                if (!IsFunction(token)) {
+                    DEBUG(2, "Token '%s' is not a function --> skip!", token.data());
+                    continue;
+                }
+
+                // Determine the number of parameters
+                for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
+                    auto name = functions[iFunc].first;
+                    DEBUG(2, "Comparing with function '%s'", name.data());
+                    if (name == token) {
+                        DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
+                        nPars += this->fNPars[iFunc];
+                        break;
+                    }
+                }
+            }
+
+            // Convert to Reverse Polish Notation
+            auto rpn = toRPN(tokens);
+            DEBUG(0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
+
+            // The following lambda evaluates the fit function
+            auto lambda = [this, rpn](double* x, double* p) -> double {
+                std::stack<double> stack;
+
+                DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
+                for (const std::string& token : rpn) {
+                    DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
+                    if (stack.size() == 0) {
+                        DEBUG(1, "[DRAW] Stack is empty");
+                    } else {
+                        DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                    }
+                    if (isdigit(token[0]) || token[0] == '.') {
+                        DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
+                        // Push numbers
+                        stack.push(std::stod(token));
+                    } else if (IsFunction(token)) {
+                        DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
+
+                        // Determine the position of the function in the list of functions
+                        int counter = 0;
+                        for (const auto& [name, _] : functions) {
+                            if (name == token) break;
+                            counter++;
+                        }
+
+                        auto func = functions[counter].second;
+                        double value = func(x, p);
+                        DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+
+                        stack.push(value);
+                    } else if (IsOperator(token)) {
+                        DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
+                        // Apply operator
+                        if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+                        double b = stack.top();
+                        stack.pop();
+                        double a = stack.top();
+                        stack.pop();
+
+                        if (token == "+")
+                            stack.push(a + b);
+                        else if (token == "-")
+                            stack.push(a - b);
+                        else if (token == "*")
+                            stack.push(a * b);
+                        else if (token == "/")
+                            stack.push(a / b);
+                        else
+                            throw std::runtime_error("Unknown operator");
+                    } else {
+                        DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
+                        throw std::runtime_error("Unknown token: " + token);
+                    }
+                    DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+                }
+
+                DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+
+                if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
+                return stack.top();
+            };
+
+            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, nPars);
+            fTerm->SetNpx(500);
+            int iPar = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + nPars, 0);
+            fTerm->FixParameter(0, this->fFit->GetParameter(iPar));
+            fTerm->Draw("same");
+        }
+    };
 
     ClassDef(SuperFitter, 1)
 };

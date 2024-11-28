@@ -42,7 +42,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
         cFit = TCanvas('cFit', '', 600, 600)
         cFit.DrawFrame(0, 0.99, 0.6, 1.12)
-        fitter.Draw('same')
+        fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs('cFit.pdf')
 
 if __name__ == '__main__':

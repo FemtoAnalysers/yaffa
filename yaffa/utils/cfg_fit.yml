@@ -13,10 +13,12 @@ fits:
         yrange: [0.6, 0.9]
 
     model: '1 + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A'
-    # model: '[p0] + [1] * <Sigma1385_direct>'
-    # model: '[p0] * (([p1] * <ca> + (1 - [p1]) * <nca>) + [p2] * <Sigma1385_direct>'
-    # model: '[p0] * (([p1] * <ca> + (1 - [p1]) * <nca>) + [p2] * <Sigma1385_direct> + [p3] * <Sigma1385_indirect> + [p4] * <Xi1530>  +  [p5] * <L1520_A>'
-    # model: '[p0] * (([p1] * <ca> + (1 - [p1]) * <nca>) * (<bl> + <ll>) + [p2] * <Sigma1385_direct> + [p3] * <Sigma1385_indirect> + [p4] * <Xi1530>  +  [p5] * <L1520_A>'
+
+    draw_recipes: [
+        '1 + Sigma1385_direct',
+        '1 + Sigma1385_indirect',
+        '1 + Sigma1385_direct + Sigma1385_indirect',
+    ]
     shared_pars: []
 
     terms:
