@@ -41,7 +41,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     # print(hTemplate)
     fitter.Add('Sigma1385_dir', hTemplate, [
-        ("norm_Sigma1385_dir", 0.1, 0, -2.5),
+        ("norm_Sigma1385_dir", 1, 0, -2.5),
     ])
     fitter.Add('Sigma1385_indir', hTemplate1, [
         ("norm_Sigma1385_indir", 5, 0, -2.5),
@@ -50,7 +50,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     cFit = TCanvas('cFit', '', 600, 600)
     hTemplate1.Draw()
 
-    fitter.Fit("poll1 + Sigma1385_dir + Sigma1385_indir", 'MR+')
+    fitter.Fit("pol1 + 0.04 + Sigma1385_dir + Sigma1385_indir", 'MR+')
 
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
