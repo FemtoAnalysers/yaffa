@@ -31,15 +31,26 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         ("a1", -0.1, 1, -1),
     ])
 
-    fitter.Add('gaus', [
-        ("norm", 0.001, 0, 1),
-        ("mean", 0.2, 1, -1),
-        ("sigma", 0.01, 0, -0.2),
+    # Add template
+    templFile = TFile(cfg['fits'][0]['terms'][4]['file'])
+    hTemplate = utils.io.Load(templFile, cfg['fits'][0]['terms'][4]['path'])
+
+    # input()
+    templFile1 = TFile(cfg['fits'][0]['terms'][5]['file'])
+    hTemplate1 = utils.io.Load(templFile1, cfg['fits'][0]['terms'][5]['path'])
+
+    # print(hTemplate)
+    fitter.Add('Sigma1385_dir', hTemplate, [
+        ("norm_Sigma1385_dir", 0.1, 0, -2.5),
+    ])
+    fitter.Add('Sigma1385_indir', hTemplate1, [
+        ("norm_Sigma1385_indir", 5, 0, -2.5),
     ])
 
     cFit = TCanvas('cFit', '', 600, 600)
+    hTemplate1.Draw()
 
-    fitter.Fit("gaus + pol1", 'MR+')
+    fitter.Fit("poll1 + Sigma1385_dir + Sigma1385_indir", 'MR+')
 
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
