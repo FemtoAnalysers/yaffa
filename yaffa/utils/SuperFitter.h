@@ -13,7 +13,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if true
+#if 0
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -302,11 +302,18 @@ void SuperFitter::Fit(std::string model, const char* opt) {
         return stack.top();
     };
 
-    this->fFit = new TF1("fFit", lambda, 0, 0.5, 4);
+    this->fFit = new TF1("fFit", lambda, 0, 0.5, 3);
     this->fFit->SetNpx(15);
 
     for (const auto &[iPar, par] : this->fPars) {
-        this->fFit->FixParameter(iPar, std::get<1>(par));
+        this->fFit->SetParName(iPar, std::get<0>(par).data());
+
+        if (std::get<2>(par) > std::get<3>(par)) {
+            this->fFit->FixParameter(iPar, std::get<1>(par));
+        } else {
+            this->fFit->SetParameter(iPar, std::get<1>(par));
+            this->fFit->SetParLimits(iPar, std::get<2>(par), std::get<3>(par));
+        }
     }
     this->fObs->Fit(this->fFit, opt);
 }
