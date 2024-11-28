@@ -13,7 +13,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 1
+#if 0
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -111,6 +111,9 @@ class SuperFitter : public TObject {
     // Add fit component
     void Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars);
 
+    // Add template function
+    void Add(std::string name, TH1 *hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars);
+
     // Draw
     void Draw(const char* opt = "") const;
 
@@ -165,7 +168,7 @@ std::vector<std::string> Tokenize(const std::string& formula) {
         if (isdigit(c) || c == '.') {
             // Handle numbers
             token += c;
-        } else if (isalpha(c)) {
+        } else if (isalpha(c) || c == '_') {
             // Handle functions or variable names
             token += c;
         } else {
@@ -197,7 +200,12 @@ int getPrecedence(const std::string& op) {
 bool isOperator(const std::string& token) { return token == "+" || token == "-" || token == "*" || token == "/"; }
 
 // Utility: Check if token is a function
-bool isFunction(const std::string& token) { return token == "pol1" || token == "gaus"; }
+bool isFunction(const std::string& token) { 
+    for (const auto &[name, _] : functions) {
+        if (token == name) return true;
+    }   
+    return false;
+}
 
 // Convert to Reverse Polish Notation (RPN)
 std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
@@ -230,6 +238,8 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
                 operators.pop();
             }
             operators.push(token);
+        } else {
+            throw std::runtime_error("Unrecognized token '" + token + "'");
         }
     }
 
@@ -379,6 +389,20 @@ void SuperFitter::Add(std::string name, std::vector<std::tuple<std::string, doub
     // }
 
     // this->fTerms.push_back(fFunc);
+
+    // Save fit settings
+    DEBUG(0, "Parameters are:");
+    for (const auto &par : pars) {
+        DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
+        this->fPars.insert({this->fPars.size(), par});
+    }
+}
+
+void SuperFitter::Add(std::string name, TH1 *hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars) {
+    DEBUG(0, "Adding the template '%s' to the fitter", name.data());
+
+    functions.push_back({name, [hTemplate](double *x, double *p){ return p[0] * hTemplate->Interpolate(x[0]); }});
+    fNPars.push_back(1); // Only normalization
 
     // Save fit settings
     DEBUG(0, "Parameters are:");
