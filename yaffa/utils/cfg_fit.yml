@@ -3,16 +3,16 @@ suffix: ''
 
 fits:
   - infile: ~/an/LPi/systematics/fit/RawCF_Data_pT017.root
-    name: p02_13/sgn/hCFrew
+    path: p02_13/sgn/hCFrew
 
-    fitrange: [[120, 500]]
-    drawrange: [0, 500]
+    fitrange: [[0, 0.5]]
+    drawrange: [0, 0.55]
     datalabel: "Data #Lambda#pi^{#scale[1.3]{+}}#oplus #bar{#Lambda}#pi^{#scale[1.5]{-}}"
     legend:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    model: '[p0]'
+    model: '1 + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A'
     # model: '[p0] + [1] * <Sigma1385_direct>'
     # model: '[p0] * (([p1] * <ca> + (1 - [p1]) * <nca>) + [p2] * <Sigma1385_direct>'
     # model: '[p0] * (([p1] * <ca> + (1 - [p1]) * <nca>) + [p2] * <Sigma1385_direct> + [p3] * <Sigma1385_indirect> + [p4] * <Xi1530>  +  [p5] * <L1520_A>'
@@ -20,41 +20,49 @@ fits:
     shared_pars: []
 
     terms:
-     -  name: ll
-        func: ComplexLednicky_Singlet_doublegaussian_lambda
-        params:
-            scat_len_re: [0, 1, -1] # shared
-            scat_len_im: [0, 1, -1]
-            effrange: 0
-            source_r1: 1.24855
-            source_r2: 3.16925
-            source_w1: 0.768379
-            source_lambda: 0.902565
-     -  name: bl
-        func: pol0
-        params:
-            p0: [1, 1, -1]
-     -  name: ca
-        file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-        path: common_lpiplus_gaussian_pol3
-     -  name: nca
-        file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-        path: noncommon_lpiplus_pol3
+   #   -  name: ll
+   #      func: ComplexLednicky_Singlet_doublegaussian_lambda
+   #      params:
+   #          scat_len_re: [0, 1, -1] # shared
+   #          scat_len_im: [0, 1, -1]
+   #          effrange: 0
+   #          source_r1: 1.24855
+   #          source_r2: 3.16925
+   #          source_w1: 0.768379
+   #          source_lambda: 0.902565
+   #   -  name: bl
+   #      func: pol0
+   #      params:
+   #          p0: [1, 1, -1]
+   #   -  name: ca
+   #      file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+   #      path: common_lpiplus_gaussian_pol3
+   #   -  name: nca
+   #      file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+   #      path: noncommon_lpiplus_pol3
 
      -  name: Sigma1385_direct
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
         path: hSE00_ratio
-        params: []
+        params: [
+            [norm_Sigma1385_dir, 1, 0, -2.5],
+        ]
      -  name: Sigma1385_indirect
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
         path: hSE00_ratio
-        params: []
+        params: [
+            [norm_Sigma1385_indir, 1, 0, -2.5],
+        ]
      -  name: Xi1530
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
         path: hSE00_ratio
-        params: []
+        params: [
+            [norm_Xi1530, 1, 0, -2.5],
+        ]
      -  name: L1520_A
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
         path: hSE00_ratio
-        params: []
+        params: [
+            [norm_L1520_A, 1, 0, -2.5],
+        ]
 

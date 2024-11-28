@@ -19,43 +19,31 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     Args:
         cfg (dict): configuration of the fit
     '''
-    inFile = TFile(cfg['fits'][0]['infile'])
-    hObs = utils.io.Load(inFile, cfg['fits'][0]['name'])
-    hObs.SetDirectory(0)
-    oObs = Observable(hObs)
-    inFile.Close()
 
-    fitter = SuperFitter(oObs, 0, 0.5)
-    fitter.Add('pol1', [
-        ("a0", 1.05, 1, -1),
-        ("a1", -0.1, 1, -1),
-    ])
+    for fitCfg in cfg['fits']:
+        inFile = TFile(fitCfg['infile'])
+        hObs = utils.io.Load(inFile, fitCfg['path'])
+        hObs.SetDirectory(0)
+        oObs = Observable(hObs)
+        inFile.Close()
 
-    # Add template
-    templFile = TFile(cfg['fits'][0]['terms'][4]['file'])
-    hTemplate = utils.io.Load(templFile, cfg['fits'][0]['terms'][4]['path'])
+        fitter = SuperFitter(oObs, fitCfg['fitrange'][0][0], fitCfg['fitrange'][0][1])
 
-    # input()
-    templFile1 = TFile(cfg['fits'][0]['terms'][5]['file'])
-    hTemplate1 = utils.io.Load(templFile1, cfg['fits'][0]['terms'][5]['path'])
+        # Add template to the fitter
+        for term in fitCfg['terms']:
+            templFile = TFile(term['file'])
+            hTemplate = utils.io.Load(templFile, term['path'])
+            hTemplate.SetDirectory(0)
+            templFile.Close()
 
-    # print(hTemplate)
-    fitter.Add('Sigma1385_dir', hTemplate, [
-        ("norm_Sigma1385_dir", 1, 0, -2.5),
-    ])
-    fitter.Add('Sigma1385_indir', hTemplate1, [
-        ("norm_Sigma1385_indir", 5, 0, -2.5),
-    ])
+            fitter.Add(term['name'], hTemplate, term['params'])
 
-    cFit = TCanvas('cFit', '', 600, 600)
-    hTemplate1.Draw()
+        fitter.Fit(fitCfg['model'], 'MR+')
 
-    fitter.Fit("pol1 + 0.04 + Sigma1385_dir + Sigma1385_indir", 'MR+')
-
-    cFit.DrawFrame(0, 0.99, 0.5, 1.12)
-    fitter.Draw('same')
-
-    cFit.SaveAs('cFit.pdf')
+        cFit = TCanvas('cFit', '', 600, 600)
+        cFit.DrawFrame(0, 0.99, 0.6, 1.12)
+        fitter.Draw('same')
+        cFit.SaveAs('cFit.pdf')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
