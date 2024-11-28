@@ -207,7 +207,7 @@ class SuperFitter : public TObject {
     Observable* fObs;         // Observable to be fitted
     TF1* fFit;                // Total fit function
     std::vector<int> fNPars;  // Number of parameters for each fit function
-    std::map<int, std::tuple<std::string, double, double, double>> fPars;  // List of fit parameters: (index, (name, init, min, max))
+    std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     double fMin; // Fit range minimum
     double fMax; // Fit range maximum
 
@@ -304,7 +304,9 @@ class SuperFitter : public TObject {
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
         this->fFit = new TF1("fFit", lambda, 0, 0.5, nPars);
 
-        for (const auto& [iPar, par] : this->fPars) {
+        for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
+            auto par = this->fPars[iPar];
+
             this->fFit->SetParName(iPar, std::get<0>(par).data());
 
             if (std::get<2>(par) > std::get<3>(par)) {
@@ -336,7 +338,7 @@ class SuperFitter : public TObject {
         for (const auto& par : pars) {
             DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
                   std::get<2>(par), std::get<3>(par));
-            this->fPars.insert({this->fPars.size(), par});
+            this->fPars.push_back(par);
         }
     };
 
@@ -352,7 +354,7 @@ class SuperFitter : public TObject {
         for (const auto& par : pars) {
             DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
                   std::get<2>(par), std::get<3>(par));
-            this->fPars.insert({this->fPars.size(), par});
+            this->fPars.push_back(par);
         }
     };
 
