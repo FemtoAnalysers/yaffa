@@ -301,7 +301,7 @@ class SuperFitter : public TObject {
         };
 
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
-        this->fFit = new TF1("fFit", lambda, 0, 0.5, nPars);
+        this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
 
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
