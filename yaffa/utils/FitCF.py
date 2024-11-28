@@ -26,16 +26,21 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     inFile.Close()
 
     fitter = SuperFitter(oObs, 0, 0.5)
-    pars = [
-        ("a0", 1.1, -10, 10),
-        ("a1", 0.1, -10, 20),
-        ("a2", 0.1, -10, 20),
-    ]
-    fitter.Add('pol2', pars)
+    # fitter.Add('pol1', [
+    #     ("a0", 1.1, 1, -1),
+    #     ("a1", 0.1, 1, -1),
+    #     # ("a2", 0.1, -10, 20),
+    # ])
+
+    fitter.Add('gaus', [
+        ("norm", 0.001, 0, -1),
+        ("mean", 0.2, 1, -1),
+        ("sigma", 0.01, 0, -1),
+    ])
 
     cFit = TCanvas('cFit', '', 600, 600)
 
-    fitter.Fit("pol2", 'MR+')
+    fitter.Fit("1 + gaus", 'MR+')
 
     cFit.DrawFrame(0, 0.99, 0.5, 1.12)
     fitter.Draw('same')
