@@ -130,7 +130,7 @@ SuperFitter::SuperFitter(Observable* hObs, double xMin, double xMax) : TObject()
 }
 
 using Function = std::function<double(double*, double*)>;
-std::map<std::string, Function> functions = {};
+std::vector<std::pair<std::string, Function>> functions = {};
 
 // Tokenizer function
 std::vector<std::string> Tokenize(const std::string& str, const std::string& delimiters) {
@@ -197,7 +197,7 @@ int getPrecedence(const std::string& op) {
 bool isOperator(const std::string& token) { return token == "+" || token == "-" || token == "*" || token == "/"; }
 
 // Utility: Check if token is a function
-bool isFunction(const std::string& token) { return functions.find(token) != functions.end(); }
+bool isFunction(const std::string& token) { return token == "pol1" || token == "gaus"; }
 
 // Convert to Reverse Polish Notation (RPN)
 std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
@@ -210,7 +210,7 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             output.push_back(token);
         } else if (isFunction(token)) {
             // Functions go to the operator stack
-            operators.push(token);
+            output.push_back(token);
         } else if (token == "(") {
             operators.push(token);
         } else if (token == ")") {
@@ -247,37 +247,52 @@ void SuperFitter::Fit(std::string model, const char* opt) {
     // Tokenization of the model
     auto tokens = Tokenize(model);
 
+    DEBUG(0, "Expression in infix: %s", join(" ", tokens).data());
     auto rpn = toRPN(tokens);
-
     DEBUG(0, "Expression in RPN: %s", join(" ", rpn).data());
 
     // The following lambda evaluates the fit function
     auto lambda = [this, rpn](double* x, double* p) -> double {
         std::stack<double> stack;
 
-        DEBUG(0, "Compute fit function");
+        DEBUG(0, "Compute fit function from %s", join(":", rpn).data());
         for (const std::string& token : rpn) {
+            DEBUG(1, "Start processing the token '%s'", token.data());
+            if (stack.size() == 0) {
+                DEBUG(1, "Stack is empty");
+            } else {
+                DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+            }
             if (isdigit(token[0]) || token[0] == '.') {
                 DEBUG(2, "Token '%s' is a digit", token.data());
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (isFunction(token)) {
                 DEBUG(2, "Token '%s' is a function", token.data());
-                DEBUG(2, "Pushing %.3f into the stack", functions[token](x, p));
 
                 // Call function
-                // DEBUG(2, "Distance of token '%s': %d", token, std::distance(functions.begin(), functions.find(token)));
-                int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + std::distance(functions.begin(), functions.find(token)), 0);
-                DEBUG(2, "Parameter offset: %d", offset);
-                stack.push(functions[token](x, p + offset));
+                int counter = 0;
+                for (const auto &[name, _] : functions) {
+                    if (name == token) break;
+                    counter++;
+                }
+                //     std::cout << name << "lalal " << std::endl;
+                    // DEBUG("function %s  ", name.data());
+                // }
+                DEBUG(2, "Counter: %d", counter);
+                // int d = std::distance(functions.begin(), functions.find(token));
+                DEBUG(2, "Distance of token '%s': %d", token.data(), counter);
 
-                DEBUG(2, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
+                DEBUG(2, "Pushing %.3f into the stack", functions[counter].second(x, p + offset));
+                DEBUG(2, "Parameter offset: %d", offset);
+                stack.push(functions[counter].second(x, p + offset));
+
 
             } else if (isOperator(token)) {
                 DEBUG(2, "Token '%s' is an operator", token.data());
-                DEBUG(2, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 // Apply operator
-                if (stack.size() < 1) throw std::runtime_error("Insufficient arguments for operator");
+                if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
                 stack.pop();
                 double a = stack.top();
@@ -297,9 +312,10 @@ void SuperFitter::Fit(std::string model, const char* opt) {
                 DEBUG(2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
             }
+            DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
         }
 
-        DEBUG(0, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+        DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
         return stack.top();
@@ -326,10 +342,10 @@ void SuperFitter::Add(std::string name, std::vector<std::tuple<std::string, doub
     DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
     if (name == "pol1") {
-        functions.insert({name, Pol1});
-        fNPars.push_back(1);
+        functions.push_back({name, Pol1});
+        fNPars.push_back(2);
     } else if (name == "gaus") {
-        functions.insert({name, Gaus});
+        functions.push_back({name, Gaus});
         fNPars.push_back(3);
     } else {
         throw std::runtime_error("Function " + name + " is not implemented");
