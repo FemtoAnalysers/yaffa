@@ -27,9 +27,9 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     fitter = SuperFitter(oObs, 0, 0.5)
     pars = [
-        ("p0", 1, 0, 2),
-        ("p1", 0.1, 0, 2),
-        ("p2", 0.1, 0, 2),
+        ("a0", 1.1, -10, 10),
+        ("a1", 0.1, -10, 20),
+        ("a2", 0.1, -10, 20),
     ]
     fitter.Add('pol2', pars)
 
