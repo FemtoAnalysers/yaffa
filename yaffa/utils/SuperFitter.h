@@ -204,14 +204,12 @@ double Pol9(double* x, double* p) { return Pol8(x, p) + p[9] * pow(x[0], 9); }
 // Class for advanced fitting
 class SuperFitter : public TObject {
    private:
-    Observable* fObs;
-    TF1* fFit;
-    std::vector<TF1*> fTerms;
-    std::vector<int> fNPars;
-    std::map<int, std::tuple<std::string, double, double, double>>
-        fPars;  // List of fit parameters: (index, (name, init, min, max))
-    double fMin;
-    double fMax;
+    Observable* fObs;         // Observable to be fitted
+    TF1* fFit;                // Total fit function
+    std::vector<int> fNPars;  // Number of parameters for each fit function
+    std::map<int, std::tuple<std::string, double, double, double>> fPars;  // List of fit parameters: (index, (name, init, min, max))
+    double fMin; // Fit range minimum
+    double fMax; // Fit range maximum
 
    public:
     // Empty Contructor
