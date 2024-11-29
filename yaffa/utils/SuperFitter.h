@@ -14,7 +14,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 0
+#if 1
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -416,6 +416,7 @@ class SuperFitter : public TObject {
             // Count the number of parameters
             int nPars = 0;
             std::vector<int> paraList = {};
+            std::vector<int> nParsDraw = {};
             for (const auto &token : tokens) {
                 DEBUG(1, "Processing token '%s'", token.data());
 
@@ -439,6 +440,7 @@ class SuperFitter : public TObject {
                     if (name == token) {
                         DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
                         nPars += this->fNPars[iFunc];
+                        nParsDraw.push_back(this->fNPars[iFunc]);
                         // Determine the position of the function in the list of functions
                         for (int iPar = 0; iPar< this->fNPars[iFunc]; iPar++) {
                             paraList.push_back(offset + iPar);
@@ -450,7 +452,7 @@ class SuperFitter : public TObject {
             DEBUG(0, "ParaList:");
             for (const auto &e : paraList) {
 
-                DEBUG(1, "%d", e);
+                DEBUG(1, "%d value: %.3f", e, this->fFit->GetParameter(e));
             }
 
             // Convert to Reverse Polish Notation
@@ -458,7 +460,7 @@ class SuperFitter : public TObject {
             DEBUG(0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
 
             // The following lambda evaluates the fit function
-            auto lambda = [this, rpn](double* x, double* p) -> double {
+            auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
                 std::stack<double> stack;
 
                 DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
@@ -483,9 +485,10 @@ class SuperFitter : public TObject {
                             if (name == token) break;
                             counter++;
                         }
+                        int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
 
                         auto func = functions[counter].second;
-                        double value = func(x, p);
+                        double value = func(x, p + offset);
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
@@ -524,7 +527,10 @@ class SuperFitter : public TObject {
             DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), nPars);
 
             TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, nPars);
+            fTerm->SetLineColor(iRecipe + 3);
+
             for (int iPar = 0; iPar < paraList.size(); iPar++) {
+                DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(paraList[iPar]));
                 fTerm->FixParameter(iPar, this->fFit->GetParameter(paraList[iPar]));
             }
             fTerm->Draw("same");
