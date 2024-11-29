@@ -36,6 +36,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                 hTemplate = utils.io.Load(templFile, term['path'])
                 hTemplate.SetDirectory(0)
                 templFile.Close()
+                hTemplate = utils.analysis.ChangeUnits(hTemplate, term.get('units', 1))
+
                 fitter.Add(term['name'], hTemplate, term['params'])
             else:
                 fitter.Add(term['func'], term['params'])
