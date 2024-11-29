@@ -31,12 +31,14 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
         # Add template to the fitter
         for term in fitCfg['terms']:
-            templFile = TFile(term['file'])
-            hTemplate = utils.io.Load(templFile, term['path'])
-            hTemplate.SetDirectory(0)
-            templFile.Close()
-
-            fitter.Add(term['name'], hTemplate, term['params'])
+            if templFileName := term.get('file'):
+                templFile = TFile(templFileName)
+                hTemplate = utils.io.Load(templFile, term['path'])
+                hTemplate.SetDirectory(0)
+                templFile.Close()
+                fitter.Add(term['name'], hTemplate, term['params'])
+            else:
+                fitter.Add(term['func'], term['params'])
 
         fitter.Fit(fitCfg['model'], 'MR+')
 

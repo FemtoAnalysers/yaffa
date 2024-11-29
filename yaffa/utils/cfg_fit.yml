@@ -12,12 +12,14 @@ fits:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    model: '1 + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A'
+    model: 'pol1 + Sigma1385_direct'
 
     draw_recipes: [
-        '1 + Sigma1385_direct',
-        '1 + Sigma1385_indirect',
-        '1 + Sigma1385_direct + Sigma1385_indirect',
+        # 'ca',
+        # 'pol1 + Xi1530',
+        # 'pol1 + Sigma1385_direct',
+        'pol1+ Sigma1385_direct',
+        # 'pol1 + Sigma1385_direct + Sigma1385_indirect',
     ]
     shared_pars: []
 
@@ -32,39 +34,50 @@ fits:
    #          source_r2: 3.16925
    #          source_w1: 0.768379
    #          source_lambda: 0.902565
-   #   -  name: bl
-   #      func: pol0
-   #      params:
-   #          p0: [1, 1, -1]
-   #   -  name: ca
-   #      file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-   #      path: common_lpiplus_gaussian_pol3
-   #   -  name: nca
-   #      file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-   #      path: noncommon_lpiplus_pol3
+     -  name: poll
+        func: pol1
+        params: [
+            ["p0", 1, 0.5, 1.5],
+            ["p1", 0, -1, 1],
+        ]
+    #  -  name: bl
+    #     func: pol0
+    #     params:
+    #         p0: [1, 1, -1]
+    #  -  name: ca
+    #     file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+    #     path: common_lpiplus_gaussian_pol3
+    #  -  name: nca
+    #     file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+    #     path: noncommon_lpiplus_pol3
 
      -  name: Sigma1385_direct
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
         path: hSE00_ratio
         params: [
-            [norm_Sigma1385_dir, 1, 0, -2.5],
+            [norm_Sigma1385_dir, 2, 0, -2.5],
         ]
-     -  name: Sigma1385_indirect
-        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
-        path: hSE00_ratio
-        params: [
-            [norm_Sigma1385_indir, 1, 0, -2.5],
-        ]
-     -  name: Xi1530
-        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
-        path: hSE00_ratio
-        params: [
-            [norm_Xi1530, 1, 0, -2.5],
-        ]
-     -  name: L1520_A
-        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
-        path: hSE00_ratio
-        params: [
-            [norm_L1520_A, 1, 0, -2.5],
-        ]
-
+    #  -  name: pol1
+    #     func: pol1
+    #     params: [
+    #         [p0, 0, -1, 10],
+    #         [p1, 0, -1, 1],
+    #     ]
+    #  -  name: Sigma1385_indirect
+    #     file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
+    #     path: hSE00_ratio
+    #     params: [
+    #         [norm_Sigma1385_indir, 1, 0, -2.5],
+    #     ]
+    #  -  name: Xi1530
+    #     file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
+    #     path: hSE00_ratio
+    #     params: [
+    #         [norm_Xi1530, 1, 0, -2.5],
+    #     ]
+    #  -  name: L1520_A
+    #     file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
+    #     path: hSE00_ratio
+    #     params: [
+    #         [norm_L1520_A, 1, 0, -2.5],
+    #     ]
