@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <stdio.h>
 
 #include "Observable.h"
 #include "Riostream.h"
@@ -13,7 +14,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 1
+#if 0
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -302,7 +303,7 @@ class SuperFitter : public TObject {
 
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
-
+        
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
             std::string name = std::get<0>(par);
@@ -414,9 +415,17 @@ class SuperFitter : public TObject {
 
             // Count the number of parameters
             int nPars = 0;
-            
+            std::vector<int> paraList = {};
             for (const auto &token : tokens) {
                 DEBUG(1, "Processing token '%s'", token.data());
+
+                int counter = 0;
+                for (const auto& [name, _] : functions) {
+                    if (name == token) break;
+                    counter++;
+                }
+
+                int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
 
                 if (!IsFunction(token)) {
                     DEBUG(2, "Token '%s' is not a function --> skip!", token.data());
@@ -430,9 +439,18 @@ class SuperFitter : public TObject {
                     if (name == token) {
                         DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
                         nPars += this->fNPars[iFunc];
-                        break;
+                        // Determine the position of the function in the list of functions
+                        for (int iPar = 0; iPar< this->fNPars[iFunc]; iPar++) {
+                            paraList.push_back(offset + iPar);
+                        }
                     }
                 }
+            }
+
+            DEBUG(0, "ParaList:");
+            for (const auto &e : paraList) {
+
+                DEBUG(1, "%d", e);
             }
 
             // Convert to Reverse Polish Notation
@@ -451,6 +469,7 @@ class SuperFitter : public TObject {
                     } else {
                         DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                     }
+
                     if (isdigit(token[0]) || token[0] == '.') {
                         DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
                         // Push numbers
@@ -502,10 +521,12 @@ class SuperFitter : public TObject {
                 return stack.top();
             };
 
+            DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), nPars);
+
             TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, nPars);
-            fTerm->SetNpx(500);
-            int iPar = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + nPars, 0);
-            fTerm->FixParameter(0, this->fFit->GetParameter(iPar));
+            for (int iPar = 0; iPar < paraList.size(); iPar++) {
+                fTerm->FixParameter(iPar, this->fFit->GetParameter(paraList[iPar]));
+            }
             fTerm->Draw("same");
         }
     };
