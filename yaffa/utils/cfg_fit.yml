@@ -12,9 +12,9 @@ fits:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    # model: 'pol1 + Sigma1385_direct'
+    model: '1 + Sigma1385_direct'
     # model: 'pol0 * ca + ( 1 - pol0) * nca'
-    model: 'pol0 * ca + (1 - pol0) * nca '
+    # model: 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct'
 
     draw_recipes: [
         # 'ca',
@@ -51,26 +51,26 @@ fits:
     # #     func: pol0
     # #     params:
     # #         p0: [1, 1, -1]
-      - name: ca
-        file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-        path: common_lpiplus_gaussian_pol3/fFit
-        unit_mult: 1000
-        params: [
-            [norm_ca, 1, 0, -2.5],
-        ]  
-      - name: nca
-        file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-        path:  noncommon_lpiplus_pol3/fFit
-        unit_mult: 1000
-        params: [
-            [norm_nca, 1, 0, -2.5],
-        ]  
-      # - name: Sigma1385_direct
-      #   file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
-      #   path: hSE00_ratio
+      # - name: ca
+      #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+      #   path: common_lpiplus_gaussian_pol3/fFit
+      #   unit_mult: 1000
       #   params: [
-      #       [norm_Sigma1385_dir, 1, 0, -2.5],
-      #   ]
+      #       [norm_ca, 1, 0, -2.5],
+      #   ]  
+      # - name: nca
+      #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
+      #   path:  noncommon_lpiplus_pol3/fFit
+      #   unit_mult: 1000
+      #   params: [
+      #       [norm_nca, 1, 0, -2.5],
+      #   ]  
+      - name: Sigma1385_direct
+        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
+        path: hSE00_ratio
+        params: [
+            [norm_Sigma1385_dir, 1, 0, -2.5],
+        ]
     #   - name: pol1
     #     func: pol1
     #     params: [
