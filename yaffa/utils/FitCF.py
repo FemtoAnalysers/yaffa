@@ -38,8 +38,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                 print("Adding ", hTemplate.GetName())
                 if isinstance(hTemplate, TH1):
                     print("Is TH1")
-                    hTemplate.SetDirectory(0)
                     hTemplate = utils.analysis.ChangeUnits(hTemplate, term.get('units', 1))
+                    hTemplate.SetDirectory(0)
                     fitter.Add(term['name'], hTemplate, term['params'])
 
                 elif isinstance(hTemplate, TF1):
