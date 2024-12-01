@@ -145,6 +145,10 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             }
             operators.push(token);
         } else {
+            std::cout << "List of functions:" << std::endl;
+            for (const auto &[fn, _] : functions) {
+                std::cout << fn << std::endl;
+            }
             throw std::runtime_error("Unrecognized token '" + token + "'");
         }
     }
