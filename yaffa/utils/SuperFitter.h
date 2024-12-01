@@ -14,7 +14,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 1
+#if 0
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -383,6 +383,25 @@ class SuperFitter : public TObject {
         DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
         functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }});
+        fNPars.push_back(1);  // Only normalization
+
+        // Save fit settings
+        DEBUG(0, "Parameters are:");
+        for (const auto& par : pars) {
+            DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
+                  std::get<2>(par), std::get<3>(par));
+            this->fPars.push_back(par);
+        }
+    };
+
+    // Add TF1 function
+    void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars, double unitMult) { // todo: remove units mult here and put in .py
+        DEBUG(0, "Adding the function '%s' to the fitter", name.data());
+
+        auto fT =  (TF1*)fTemplate->Clone("new");
+
+        functions.push_back({name, [fT, unitMult](double* x, double* p) { return p[0] * fT->Eval(x[0] * unitMult); }});
+
         fNPars.push_back(1);  // Only normalization
 
         // Save fit settings
