@@ -58,7 +58,7 @@ fits:
       - name: wc
         func: pol0
         params: [
-            ["p0", 0.17, 0, -1],
+            ["p0", 1.05099e-01, 0, -1],
         ]
       # - name: ca
       #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
