@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <stdio.h>
+#include <algorithm>
 
 #include "Observable.h"
 #include "Riostream.h"
@@ -319,7 +320,7 @@ if(false)
 
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
-        this->fFit->SetNpx(15);
+        this->fFit->SetNpx(20);
         
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
@@ -457,8 +458,14 @@ if(false)
             // Count the number of parameters
             std::set<int> paraList = {};
             std::vector<int> nParsDraw = {};
+            std::set<std::string> used_tokens = {};
             for (const auto &token : tokens) {
                 DEBUG(1, "Processing token '%s'", token.data());
+
+                if (!IsFunction(token)) {
+                    DEBUG(2, "Token '%s' is not a function --> skip!", token.data());
+                    continue;
+                }
 
                 int counter = 0;
                 for (const auto& [name, _] : functions) {
@@ -468,16 +475,12 @@ if(false)
 
                 int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
 
-                if (!IsFunction(token)) {
-                    DEBUG(2, "Token '%s' is not a function --> skip!", token.data());
-                    continue;
-                }
 
                 // Determine the number of parameters
                 for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
                     auto name = functions[iFunc].first;
                     DEBUG(2, "Comparing with function '%s'", name.data());
-                    if (name == token) {
+                    if (name == token && used_tokens.find(token) == used_tokens.end()) {
                         DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
                         nParsDraw.push_back(this->fNPars[iFunc]);
                         // Determine the position of the function in the list of functions
@@ -499,12 +502,25 @@ if(false)
             auto rpn = toRPN(tokens);
             DEBUG(0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
 
+            for (const int &d : nParsDraw) {
+                DEBUG(1, "par draw: %d", d);
+            }
+            
+
             // The following lambda evaluates the fit function
             auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
                 std::stack<double> stack;
 
 if (0.12 < x[0] && x[0] < .16)
                 DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
+                std::vector<std::pair<std::string, int>> nParameters = {
+                    // {"pol0", 1},
+                    // {"ca", 1},
+                    // {"nca", 1},
+                    // // {"Sigma1385_direct", 1},
+                    // {"Xi1530", 1},
+                }; // token, npars
+                int idx = 0;
                 for (const std::string& token : rpn) {
                     if (0.12 < x[0] && x[0] < .16)
                     DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
@@ -523,6 +539,23 @@ if (0.12 < x[0] && x[0] < .16)
                         stack.push(std::stod(token));
                     } else if (IsFunction(token)) {
                         if (0.12 < x[0] && x[0] < .16)
+                        printf("Inserting token; %s   npar: %d\n", token.data(), 1);
+
+                        // inly insert if not already present -> avoid duplicates
+                        if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
+                            nParameters.push_back({token, 1});
+                        }
+
+                        // Compute offset
+                        int offset = 0;
+                        printf("\n");
+                        for (const auto &[name, np] : nParameters) {
+                            printf("Comparing %s and %s\n", name.data(), token.data());
+                            if (name == token) break;
+                            offset += np;
+                        }
+                        
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
 
                         // Determine the position of the function in the list of functions
@@ -531,19 +564,22 @@ if (0.12 < x[0] && x[0] < .16)
                             if (name == token) break;
                             counter++;
                         }
-
                         // todo: why no offset?
                         auto func = functions[counter].second;
-                        int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
+                        // int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
+                        // if (counter == 4) offset--;
+                        // if (counter == 4) offset = 1;
                         double value = func(x, p + offset);
                         // value = func(x, p);
 
                         if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Counter: %d    Offset: %d", counter, offset);
+                        DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions.size(), offset);
                         if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
+                        // offset+= fNPars[counter];
+                        // idx+=1;
                     } else if (IsOperator(token)) {
                         if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
@@ -586,7 +622,7 @@ if (0.12 < x[0] && x[0] < .16)
             int color = iRecipe + 3;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
-            fTerm->SetNpx(15);
+            fTerm->SetNpx(20);
 
             int counter = 0;
             for (const int &par : paraList) {
