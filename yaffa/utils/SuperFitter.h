@@ -352,30 +352,30 @@ if(false)
     };
 
     // Add fit component
-    void Add(std::string name, std::vector<std::tuple<std::string, double, double, double>> pars) {
+    void Add(std::string name, std::string func, std::vector<std::tuple<std::string, double, double, double>> pars) {
         DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
-        if (name == "pol0") {
+        if (func == "pol0") {
             functions.push_back({name, Pol0, 1});
-        } else if (name == "pol1") {
+        } else if (func == "pol1") {
             functions.push_back({name, Pol1, 2});
-        } else if (name == "pol2") {
+        } else if (func == "pol2") {
             functions.push_back({name, Pol2, 3});
-        } else if (name == "pol3") {
+        } else if (func == "pol3") {
             functions.push_back({name, Pol3, 4});
-        } else if (name == "pol4") {
+        } else if (func == "pol4") {
             functions.push_back({name, Pol4, 5});
-        } else if (name == "pol5") {
+        } else if (func == "pol5") {
             functions.push_back({name, Pol5, 6});
-        } else if (name == "pol6") {
+        } else if (func == "pol6") {
             functions.push_back({name, Pol6, 7});
-        } else if (name == "pol7") {
+        } else if (func == "pol7") {
             functions.push_back({name, Pol7, 8});
-        } else if (name == "pol8") {
+        } else if (func == "pol8") {
             functions.push_back({name, Pol8, 9});
-        } else if (name == "pol9") {
+        } else if (func == "pol9") {
             functions.push_back({name, Pol9, 10});
-        } else if (name == "gaus") {
+        } else if (func == "gaus") {
             functions.push_back({name, Gaus, 3});
         } else {
             throw std::runtime_error("Function " + name + " is not implemented");
