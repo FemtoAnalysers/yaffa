@@ -12,18 +12,26 @@ fits:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    model: '1 + Sigma1385_direct +Sigma1385_indirect + Xi1530 +L1520_A'
+    # model: '1 + Sigma1385_direct +Sigma1385_indirect + Xi1530 +L1520_A'
     # model: 'pol0 * ca + ( 1 - pol0) * nca'
     # model: 'pol0 * ca + ( 1 - pol0) * nca'
     # model: 'ca * 0.16 + nca * 0.8'
     # model: 'ca * 0.16 + nca'
-    # model: 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A'
+    model: 'pol0 * ca + (1 - pol0) * nca +  Sigma1385_direct + Xi1530'
 
     draw_recipes: [
+      # 'ca'
+      'pol0 * ca + (1 - pol0) * nca',
+      # 'pol0 * ca + (1- 0.17) * nca',
+      # '0.17 * ca + 0.17 * nca',
+      # 'pol0 * ca + (1 - 0.17) * nca + Sigma1385_direct',
+      # 'pol0 * ca + (1 - 0.17) * nca + Xi1530',
+      # 'pol0 * ca + (1 - pol0) * nca + Xi1530',
+
       # 'pol0 * ca',
-      # 'ca',
-      '1 + Sigma1385_direct',
-      '1 + Sigma1385_indirect',
+      # 'pol0 * ca',
+      # '1 + Sigma1385_direct',
+      # '1 + Sigma1385_indirect',
       # 'nca',
       # '2*(pol0 * ca + (1 - pol0) * nca)',
       # 'pol0 * ca + (1 - pol0) * nca',
@@ -45,21 +53,11 @@ fits:
    #          source_r2: 3.16925
    #          source_w1: 0.768379
    #          source_lambda: 0.902565
-      # - name: pol0
-      #   func: pol0
-      #   params: [
-      #       ["p0", 0.17, 0, -1],
-      #   ]
-    #   - name: poll
-    #     func: pol1
-    #     params: [
-    #         ["p0", 1, 0.5, 1.5],
-    #         ["p1", 0, -1, 1],
-    #     ]
-    # #   - name: bl
-    # #     func: pol0
-    # #     params:
-    # #         p0: [1, 1, -1]
+      - name: wc
+        func: pol0
+        params: [
+            ["p0", 0.17, 0, -1],
+        ]
       # - name: ca
       #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
       #   path: common_lpiplus_gaussian_pol3/fFit
@@ -77,41 +75,41 @@ fits:
 
 
       # CA Hist
-      # - name: ca
-      #   file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
-      #   path: hCF_0
-      #   unit_mult: 1
-      #   params: [
-      #       [norm_ca, 1, 0, -2.5],
-      #   ]
-      # - name: nca
-      #   file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
-      #   path: hCF_1
-      #   unit_mult: 1
-      #   params: [
-      #       [norm_nca, 1, 0, -2.5],
-      #   ]
+      - name: ca
+        file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
+        path: hCF_0
+        unit_mult: 1
+        params: [
+            [norm_ca, 1, 0, -2.5],
+        ]
+      - name: nca
+        file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
+        path: hCF_1
+        unit_mult: 1
+        params: [
+            [norm_nca, 1, 0, -2.5],
+        ]
       - name: Sigma1385_direct
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
         path: hSE00_ratio
         params: [
             [norm_Sigma1385_dir, 1, 0, -5.5],
         ]
-      - name: Sigma1385_indirect
-        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
-        path: hSE00_ratio
-        params: [
-            [norm_Sigma1385_indir, 1, 0, -5.5],
-        ]
+      # - name: Sigma1385_indirect
+      #   file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
+      #   path: hSE00_ratio
+      #   params: [
+      #       [norm_Sigma1385_indir, 1, 0, -5.5],
+      #   ]
       - name: Xi1530
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
         path: hSE00_ratio
         params: [
             [norm_Xi1530, 1, 0, -5.5],
         ]
-      - name: L1520_A
-        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
-        path: hSE00_ratio
-        params: [
-            [norm_L1520_A, 1, 0, -5.5],
-        ]
+      # - name: L1520_A
+      #   file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
+      #   path: hSE00_ratio
+      #   params: [
+      #       [norm_L1520_A, 1, 0, -5.5],
+      #   ]

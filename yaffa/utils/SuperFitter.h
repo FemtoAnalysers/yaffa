@@ -245,22 +245,22 @@ class SuperFitter : public TObject {
 if(false)
             DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
             for (const std::string& token : rpn) {
-if(false)
+                if(false)
                 DEBUG(1, "Start processing the token '%s'", token.data());
                 if (stack.size() == 0) {
-if(false)
+                    if(false)
                     DEBUG(1, "Stack is empty");
                 } else {
-if(false)
+                    if(false)
                     DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
                 if (isdigit(token[0]) || token[0] == '.') {
-if(false)
+                    if(false)
                     DEBUG(2, "Token '%s' is a number", token.data());
                     // Push numbers
                     stack.push(std::stod(token));
                 } else if (IsFunction(token)) {
-if(false)
+                    if(false)
                     DEBUG(2, "Token '%s' is a function", token.data());
 
                     // Determine the position of the function in the list of functions
@@ -271,18 +271,18 @@ if(false)
                     }
 
                     int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
-if(false)
+                    if(false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                           counter, offset);
 
                     auto func = functions[counter].second;
                     double value = func(x, p + offset);
-if(false)
+                    if(false)
                     DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                     stack.push(value);
                 } else if (IsOperator(token)) {
-if(false)
+                    if(false)
                     DEBUG(2, "Token '%s' is an operator", token.data());
                     // Apply operator
                     if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
@@ -302,11 +302,11 @@ if(false)
                     else
                         throw std::runtime_error("Unknown operator");
                 } else {
-if(false)
+                    if(false)
                     DEBUG(2, "Token '%s' is unknown", token.data());
                     throw std::runtime_error("Unknown token: " + token);
                 }
-if(false)
+                if(false)
                 DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
             }
 
@@ -319,7 +319,7 @@ if(false)
 
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
-        // this->fFit->SetNpx(15);
+        this->fFit->SetNpx(15);
         
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
@@ -535,10 +535,12 @@ if (0.12 < x[0] && x[0] < .16)
 
                         // todo: why no offset?
                         auto func = functions[counter].second;
-                        double value = func(x, p);
+                        int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
+                        double value = func(x, p + offset);
+                        // value = func(x, p);
 
-if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Counter: %d    Offset: %d", counter);
+                        if (0.12 < x[0] && x[0] < .16)
+                        DEBUG(2, "Counter: %d    Offset: %d", counter, offset);
                         if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
@@ -568,22 +570,27 @@ if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
                         throw std::runtime_error("Unknown token: " + token);
                     }
-if (0.12 < x[0] && x[0] < .16)
+                    if (0.12 < x[0] && x[0] < .16)
                     DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
 
-if (0.12 < x[0] && x[0] < .16)
+                if (0.12 < x[0] && x[0] < .16)
                 DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
                 if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
                 return stack.top();
             };
 
-            DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), nPars);
+            paraList.erase(paraList.begin() + 2);
+            // paraList.erase(paraList.begin() + 2);
+            // paraList.erase(paraList.begin() + 2);
+            DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
-            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, nPars);
-            fTerm->SetLineColor(iRecipe + 3);
-            // fTerm->SetNpx(15);
+            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, paraList.size());
+            int color = iRecipe + 3;
+            if (color >= 5) color++;
+            fTerm->SetLineColor(color);
+            fTerm->SetNpx(15);
 
             for (int iPar = 0; iPar < paraList.size(); iPar++) {
                 DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(paraList[iPar]));
