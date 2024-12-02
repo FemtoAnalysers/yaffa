@@ -12,35 +12,14 @@ fits:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    # model: '1 + Sigma1385_direct +Sigma1385_indirect + Xi1530 +L1520_A'
-    # model: 'pol0 * ca + ( 1 - pol0) * nca'
-    # model: 'pol0 * ca + ( 1 - pol0) * nca'
-    # model: 'ca * 0.16 + nca * 0.8'
-    # model: 'ca * 0.16 + nca'
-    model: 'pol0 * ca + (1 - pol0) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A '
+    model: 'wc * ca + (1 - wc) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A '
 
     draw_recipes: [
-      # 'ca'
-      'pol0 * ca + (1 - pol0) * nca',
-      # 'pol0 * ca + (1- 0.17) * nca',
-      # '0.17 * ca + 0.17 * nca',
-      'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct',
-      'pol0 * ca + (1 - pol0) * nca + Sigma1385_indirect',
-      'pol0 * ca + (1 - pol0) * nca + Xi1530',
-      'pol0 * ca + (1 - pol0) * nca + L1520_A',
-      # 'pol0 * ca + (1 - pol0) * nca + Xi1530',
-
-      # 'pol0 * ca',
-      # 'pol0 * ca',
-      # '1 + Sigma1385_direct',
-      # '1 + Sigma1385_indirect',
-      # 'nca',
-      # '2*(pol0 * ca + (1 - pol0) * nca)',
-      # 'pol0 * ca + (1 - pol0) * nca',
-      # 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A',
-      # 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A',
-      # 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A',
-      # 'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct + Sigma1385_indirect + Xi1530 + L1520_A',
+      'wc * ca + (1 - wc) * nca',
+      'wc * ca + (1 - wc) * nca + Sigma1385_direct',
+      'wc * ca + (1 - wc) * nca + Sigma1385_indirect',
+      'wc * ca + (1 - wc) * nca + Xi1530',
+      'wc * ca + (1 - wc) * nca + L1520_A',
     ]
     shared_pars: []
 

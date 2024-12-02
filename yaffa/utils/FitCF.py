@@ -71,7 +71,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     sys.exit()
                 templFile.Close()
             else:
-                fitter.Add(term['func'], term['params'])
+                fitter.Add(term['name'], term['func'], term['params'])
 
         fitter.Fit(fitCfg['model'], 'MR+')
 
