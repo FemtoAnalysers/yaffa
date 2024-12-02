@@ -1,3 +1,4 @@
+# pylint: skip-file
 '''
 Script to fit femtoscopic correlation functions.
 '''
@@ -42,22 +43,22 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     hTemplate.SetDirectory(0)
                     fitter.Add(term['name'], hTemplate, term['params'])
 
-                elif isinstance(template, TF1):
+                # elif isinstance(template, TF1):
                     # Ccnvert to hist
-                    hTemplate = TH1D(f"h{iTerm}", "", 500, 0, 2)
-                    for iBin in range(500):
-                        bc = template.Eval(hTemplate.GetBinCenter(iBin + 1) * term.get('unit_mult', 1))
-                        print("bc", bc)
-                        hTemplate.SetBinContent(iBin + 1, bc)
-                    hTemplate.SetDirectory(0)
+                    # hTemplate = TH1D(f"h{iTerm}", "", 500, 0, 2)
+                    # for iBin in range(500):
+                    #     bc = template.Eval(hTemplate.GetBinCenter(iBin + 1) * term.get('unit_mult', 1))
+                    #     print("bc", bc)
+                    #     hTemplate.SetBinContent(iBin + 1, bc)
+                    # hTemplate.SetDirectory(0)
 
-                    c = TCanvas()
-                    hTemplate.Draw()
+                    # c = TCanvas()
+                    # hTemplate.Draw()
 
-                    hTemplate.Write()
-                    # oFile.cd()
-                    hTemplate.Write(f'hCF_{iTerm}')
-                    c.SaveAs(f'test{iTerm}.png')
+                    # hTemplate.Write()
+                    # # oFile.cd()
+                    # hTemplate.Write(f'hCF_{iTerm}')
+                    # c.SaveAs(f'test{iTerm}.png')
 
 
                     # unitMult = term.get('unit_mult', 1)
@@ -65,7 +66,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     # template.SetName(f'f{iTerm}')
 
                     # print('zezez', template)
-                    fitter.Add(term['name'], hTemplate, term['params'])
+                    # fitter.Add(term['name'], template, term['params'], term.get('unit_mult', 1))
+                    # fitter.Add(term['name'], hTemplate, term['params'])
                 else:
                     print('Type not implemented. Exit!')
                     sys.exit()
@@ -80,7 +82,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         # cFit.DrawFrame(0, 0.2, 0.5, 0.4)
         # cFit.DrawFrame(0, 0.8, 0.5, 1.2)
 
-        cFit.DrawFrame(0, 0.9, 0.5, 1.12)
+        # cFit.DrawFrame(0, 0.9, 0.5, 1.12)
         fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs('cFit.pdf')
 
