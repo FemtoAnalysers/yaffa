@@ -36,9 +36,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             if templFileName := term.get('file'):
                 templFile = TFile(templFileName)
                 template = utils.io.Load(templFile, term['path'])
-                print("Adding ", template.GetName())
                 if isinstance(template, TH1):
-                    print("Is TH1")
                     hTemplate = utils.analysis.ChangeUnits(template, term.get('unit_mult', 1))
                     hTemplate.SetDirectory(0)
                     fitter.Add(term['name'], hTemplate, term['params'])
