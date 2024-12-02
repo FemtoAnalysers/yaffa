@@ -24,8 +24,8 @@ fits:
       'pol0 * ca + (1 - pol0) * nca',
       # 'pol0 * ca + (1- 0.17) * nca',
       # '0.17 * ca + 0.17 * nca',
-      # 'pol0 * ca + (1 - 0.17) * nca + Sigma1385_direct',
-      # 'pol0 * ca + (1 - 0.17) * nca + Xi1530',
+      'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct',
+      'pol0 * ca + (1 - pol0) * nca + Xi1530',
       # 'pol0 * ca + (1 - pol0) * nca + Xi1530',
 
       # 'pol0 * ca',
