@@ -17,7 +17,7 @@ fits:
     # model: 'pol0 * ca + ( 1 - pol0) * nca'
     # model: 'ca * 0.16 + nca * 0.8'
     # model: 'ca * 0.16 + nca'
-    model: 'pol0 * ca + (1 - pol0) * nca + Xi1530 + Sigma1385_direct '
+    model: 'pol0 * ca + (1 - pol0) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A '
 
     draw_recipes: [
       # 'ca'
@@ -25,7 +25,9 @@ fits:
       # 'pol0 * ca + (1- 0.17) * nca',
       # '0.17 * ca + 0.17 * nca',
       'pol0 * ca + (1 - pol0) * nca + Sigma1385_direct',
+      'pol0 * ca + (1 - pol0) * nca + Sigma1385_indirect',
       'pol0 * ca + (1 - pol0) * nca + Xi1530',
+      'pol0 * ca + (1 - pol0) * nca + L1520_A',
       # 'pol0 * ca + (1 - pol0) * nca + Xi1530',
 
       # 'pol0 * ca',
@@ -95,21 +97,21 @@ fits:
         params: [
             [norm_Sigma1385_dir, 1, 0, -5.5],
         ]
-      # - name: Sigma1385_indirect
-      #   file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
-      #   path: hSE00_ratio
-      #   params: [
-      #       [norm_Sigma1385_indir, 1, 0, -5.5],
-      #   ]
+      - name: Sigma1385_indirect
+        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
+        path: hSE00_ratio
+        params: [
+            [norm_Sigma1385_indir, 1, 0, -5.5],
+        ]
       - name: Xi1530
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
         path: hSE00_ratio
         params: [
             [norm_Xi1530, 1, 0, -5.5],
         ]
-      # - name: L1520_A
-      #   file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
-      #   path: hSE00_ratio
-      #   params: [
-      #       [norm_L1520_A, 1, 0, -5.5],
-      #   ]
+      - name: L1520_A
+        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
+        path: hSE00_ratio
+        params: [
+            [norm_L1520_A, 1, 0, -5.5],
+        ]

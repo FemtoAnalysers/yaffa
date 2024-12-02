@@ -533,11 +533,15 @@ if (0.12 < x[0] && x[0] < .16)
                         stack.push(std::stod(token));
                     } else if (IsFunction(token)) {
                         if (0.12 < x[0] && x[0] < .16)
-                        printf("Inserting token; %s   npar: %d\n", token.data(), 1);
+                        DEBUG(2, "Inserting token; %s   npar: %d\n", token.data(), 1);
 
                         // inly insert if not already present -> avoid duplicates
                         if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
-                            nParameters.push_back({token, 1});
+                            for (const auto &[name, _, npar] : functions) {
+                                if (name == token) {
+                                    nParameters.push_back({token, npar});
+                                }
+                            }
                         }
 
                         // Compute offset
