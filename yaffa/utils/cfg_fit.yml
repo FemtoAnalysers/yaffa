@@ -17,7 +17,7 @@ fits:
     # model: 'pol0 * ca + ( 1 - pol0) * nca'
     # model: 'ca * 0.16 + nca * 0.8'
     # model: 'ca * 0.16 + nca'
-    model: 'pol0 * ca + (1 - pol0) * nca +  Sigma1385_direct + Xi1530'
+    model: 'pol0 * ca + (1 - pol0) * nca + Xi1530 + Sigma1385_direct '
 
     draw_recipes: [
       # 'ca'
