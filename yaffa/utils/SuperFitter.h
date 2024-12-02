@@ -215,7 +215,7 @@ class SuperFitter : public TObject {
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     double fMin;                                                         // Fit range minimum
     double fMax;                                                         // Fit range maximum
-    std::vector<TF1*> fFuncList = {};
+
    public:
     // Empty Contructor
     SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fMin(0), fMax(1) {};
@@ -409,7 +409,6 @@ if(false)
     void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars, double unitMult) { // todo: remove units mult here and put in .py
         DEBUG(0, "Adding the function '%s' to the fitter", name.data());
         std::cout << "kekek" << fTemplate << std::endl;
-        this->fFuncList.push_back(fTemplate);
 
         functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }, 1});
 
