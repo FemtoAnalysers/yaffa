@@ -14,7 +14,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if 0
+#if DO_DEBUG
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -215,7 +215,7 @@ class SuperFitter : public TObject {
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     double fMin;                                                         // Fit range minimum
     double fMax;                                                         // Fit range maximum
-
+    std::vector<TF1*> fFuncList = {};
    public:
     // Empty Contructor
     SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fNPars({}), fPars({}), fMin(0), fMax(1) {};
@@ -307,6 +307,7 @@ class SuperFitter : public TObject {
 
         int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
+        // this->fFit->SetNpx(15);
         
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
@@ -401,10 +402,10 @@ class SuperFitter : public TObject {
     // Add TF1 function
     void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars, double unitMult) { // todo: remove units mult here and put in .py
         DEBUG(0, "Adding the function '%s' to the fitter", name.data());
+        std::cout << "kekek" << fTemplate << std::endl;
+        this->fFuncList.push_back(fTemplate);
 
-        auto fT =  (TF1*)fTemplate->Clone("new");
-
-        functions.push_back({name, [fT, unitMult](double* x, double* p) { return p[0] * fT->Eval(x[0] * unitMult); }});
+        functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }});
 
         fNPars.push_back(1);  // Only normalization
 
@@ -419,6 +420,11 @@ class SuperFitter : public TObject {
 
     // Draw
     void Draw(std::vector<std::string> recipes) const {
+        std::cout << "Draw functions" << std::endl;
+        for (const auto& [name, _] : functions) {
+            std::cout << name << std::endl;
+        }
+
         DEBUG(0, "Start drawing");
 
         // Draw the fitted observable
@@ -509,9 +515,10 @@ class SuperFitter : public TObject {
                             counter++;
                         }
                         int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
-
+                        
                         auto func = functions[counter].second;
                         double value = func(x, p + offset);
+                        DEBUG(2, "Counter: %d    Offset: %d", counter, offset);
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
@@ -551,6 +558,7 @@ class SuperFitter : public TObject {
 
             TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, nPars);
             fTerm->SetLineColor(iRecipe + 3);
+            // fTerm->SetNpx(15);
 
             for (int iPar = 0; iPar < paraList.size(); iPar++) {
                 DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(paraList[iPar]));
