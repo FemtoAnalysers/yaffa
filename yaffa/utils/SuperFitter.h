@@ -514,11 +514,11 @@ class SuperFitter : public TObject {
                             if (name == token) break;
                             counter++;
                         }
-                        int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
-                        
+
+                        // todo: why no offset?
                         auto func = functions[counter].second;
-                        double value = func(x, p + offset);
-                        DEBUG(2, "Counter: %d    Offset: %d", counter, offset);
+                        double value = func(x, p);
+                        DEBUG(2, "Counter: %d    Offset: %d", counter);
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
