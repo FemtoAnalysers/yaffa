@@ -455,7 +455,6 @@ if(false)
             DEBUG(0, "[DRAW] recipe in infix: %s", join(" ", tokens).data());
 
             // Count the number of parameters
-            int nPars = 0;
             std::vector<int> paraList = {};
             std::vector<int> nParsDraw = {};
             for (const auto &token : tokens) {
@@ -480,12 +479,12 @@ if(false)
                     DEBUG(2, "Comparing with function '%s'", name.data());
                     if (name == token) {
                         DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
-                        nPars += this->fNPars[iFunc];
                         nParsDraw.push_back(this->fNPars[iFunc]);
                         // Determine the position of the function in the list of functions
                         for (int iPar = 0; iPar< this->fNPars[iFunc]; iPar++) {
                             paraList.push_back(offset + iPar);
                         }
+                        break;
                     }
                 }
             }
