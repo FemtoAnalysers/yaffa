@@ -7,10 +7,7 @@ import os
 import argparse
 import yaml
 
-from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TF1
-gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
-gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
-from ROOT import Observable, SuperFitter
+
 
 from yaffa import utils
 
@@ -20,6 +17,9 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     Args:
         cfg (dict): configuration of the fit
     '''
+
+    # oFile = TFile('ancestors_LPiplus.root', 'create')
+
 
     for fitCfg in cfg['fits']:
         inFile = TFile(fitCfg['infile'])
@@ -31,22 +31,41 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         fitter = SuperFitter(oObs, fitCfg['fitrange'][0][0], fitCfg['fitrange'][0][1])
 
         # Add template to the fitter
-        for term in fitCfg['terms']:
+        for iTerm, term in enumerate(fitCfg['terms']):
             if templFileName := term.get('file'):
                 templFile = TFile(templFileName)
-                hTemplate = utils.io.Load(templFile, term['path'])
-                print("Adding ", hTemplate.GetName())
-                if isinstance(hTemplate, TH1):
+                template = utils.io.Load(templFile, term['path'])
+                print("Adding ", template.GetName())
+                if isinstance(template, TH1):
                     print("Is TH1")
-                    hTemplate = utils.analysis.ChangeUnits(hTemplate, term.get('units', 1))
+                    hTemplate = utils.analysis.ChangeUnits(template, term.get('unit_mult', 1))
                     hTemplate.SetDirectory(0)
                     fitter.Add(term['name'], hTemplate, term['params'])
 
-                elif isinstance(hTemplate, TF1):
-                    unitMult = term.get('unit_mult', 1)
-                    print('mmimi', hTemplate.Eval(200))
-                    fitter.Add(term['name'], hTemplate.Clone(), term['params'], unitMult)
+                elif isinstance(template, TF1):
+                    # Ccnvert to hist
+                    hTemplate = TH1D(f"h{iTerm}", "", 500, 0, 2)
+                    for iBin in range(500):
+                        bc = template.Eval(hTemplate.GetBinCenter(iBin + 1) * term.get('unit_mult', 1))
+                        print("bc", bc)
+                        hTemplate.SetBinContent(iBin + 1, bc)
+                    hTemplate.SetDirectory(0)
 
+                    c = TCanvas()
+                    hTemplate.Draw()
+
+                    hTemplate.Write()
+                    # oFile.cd()
+                    hTemplate.Write(f'hCF_{iTerm}')
+                    c.SaveAs(f'test{iTerm}.png')
+
+
+                    # unitMult = term.get('unit_mult', 1)
+                    # SetOwnership(template, False)
+                    # template.SetName(f'f{iTerm}')
+
+                    # print('zezez', template)
+                    fitter.Add(term['name'], hTemplate, term['params'])
                 else:
                     print('Type not implemented. Exit!')
                     sys.exit()
@@ -57,16 +76,28 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         fitter.Fit(fitCfg['model'], 'MR+')
 
         cFit = TCanvas('cFit', '', 600, 600)
+        cFit.DrawFrame(0, 0, 0.5, 1.8)
+        # cFit.DrawFrame(0, 0.2, 0.5, 0.4)
         # cFit.DrawFrame(0, 0.8, 0.5, 1.2)
 
         cFit.DrawFrame(0, 0.9, 0.5, 1.12)
         fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs('cFit.pdf')
 
+
+        # oFile.Close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='cfg_fit.yml', nargs='?')
+    parser.add_argument('--debug', default=False, action='store_true')
     args = parser.parse_args()
+
+    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TH1D, TF1
+    gInterpreter.ProcessLine(f'#define DO_DEBUG {1 if args.debug else 0}')
+    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
+    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
+    from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
 
     with open(args.cfg) as file:
         config = yaml.safe_load(file)
