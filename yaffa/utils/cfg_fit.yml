@@ -5,22 +5,23 @@ fits:
   - infile: ~/an/LPi/systematics/fit/RawCF_Data_pT017.root
     path: p02_13/sgn/hCFrew
 
-    fitrange: [[0.1, 0.5]]
+    fitrange: [[0., 0.45]]
     drawrange: [0, 0.55]
     datalabel: "Data #Lambda#pi^{#scale[1.3]{+}}#oplus #bar{#Lambda}#pi^{#scale[1.5]{-}}"
     legend:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    model: 'wc * ca + (1 - wc) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A '
+    model: 'wc * ca + (1 - wc) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A + Xi1690'
 
-    draw_recipes: [
-      'wc * ca + (1 - wc) * nca',
-      'wc * ca + (1 - wc) * nca + Sigma1385_direct',
-      'wc * ca + (1 - wc) * nca + Sigma1385_indirect',
-      'wc * ca + (1 - wc) * nca + Xi1530',
-      'wc * ca + (1 - wc) * nca + L1520_A',
-    ]
+    draw_recipes:
+        - ['MJ', 'wc * ca + (1 - wc) * nca']
+        - ['Sigma1385_direct', 'wc * ca + (1 - wc) * nca + Sigma1385_direct']
+        - ['Sigma1385_indirect', 'wc * ca + (1 - wc) * nca + Sigma1385_indirect']
+        - ['Xi1530', 'wc * ca + (1 - wc) * nca + Xi1530']
+        - ['L1520_A', 'wc * ca + (1 - wc) * nca + L1520_A']
+        - ['Xi1690', 'wc * ca + (1 - wc) * nca + Xi1690']
+
     shared_pars: []
 
     terms:
@@ -37,60 +38,49 @@ fits:
       - name: wc
         func: pol0
         params: [
-            ["p0", 1.05099e-01, 0, -1],
+            ["p0", 1.07985e-01, 0, -1],
         ]
-      # - name: ca
-      #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-      #   path: common_lpiplus_gaussian_pol3/fFit
-      #   unit_mult: 1000
-      #   params: [
-      #       [norm_ca, 1, 0, -2.5],
-      #   ]
-      # - name: nca
-      #   file: ~/an/LPi/systematics/fit/ancestors_0_2000.root
-      #   path:  noncommon_lpiplus_pol3/fFit
-      #   unit_mult: 1000
-      #   params: [
-      #       [norm_nca, 1, 0, -2.5],
-      #   ]  
-
-
-      # CA Hist
       - name: ca
         file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
         path: hCF_0
         unit_mult: 1
         params: [
-            [norm_ca, 1, 0, -2.5],
+            [norm_ca, 1, 0, -1],
         ]
       - name: nca
         file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
         path: hCF_1
         unit_mult: 1
         params: [
-            [norm_nca, 1, 0, -2.5],
+            [norm_nca, 1, 0, -1],
         ]
       - name: Sigma1385_direct
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_direct.root
         path: hSE00_ratio
         params: [
-            [norm_Sigma1385_dir, 1, 0, -5.5],
+            [norm_Sigma1385_dir, 1, 0, 10],
         ]
       - name: Sigma1385_indirect
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Sigma1385_indirect.root
         path: hSE00_ratio
         params: [
-            [norm_Sigma1385_indir, 1, 0, -5.5],
+            [norm_Sigma1385_indir, 1, 0, 10],
         ]
       - name: Xi1530
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1530zero.root
         path: hSE00_ratio
         params: [
-            [norm_Xi1530, 1, 0, -5.5],
+            [norm_Xi1530, 1.5, 0, 10],
         ]
       - name: L1520_A
         file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_L1520_A.root
         path: hSE00_ratio
         params: [
-            [norm_L1520_A, 1, 0, -5.5],
+            [norm_L1520_A, 1, 0, 100],
+        ]
+      - name: Xi1690
+        file: /home/daniel/an/AnalysisLPi/simulations/templates/blastwave/CF_LPiplus_Xi1690zero_D.root
+        path: hSE00_ratio
+        params: [
+            [norm_Xi11690, 2, 0, 10],
         ]
