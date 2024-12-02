@@ -325,7 +325,7 @@ if(false)
           nPars += std::get<2>(functions[iFunc]);
         }
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
-        this->fFit->SetNpx(20);
+        this->fFit->SetNpx(1000);
         
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
@@ -378,7 +378,7 @@ if(false)
         } else if (func == "gaus") {
             functions.push_back({name, Gaus, 3});
         } else {
-            throw std::runtime_error("Function " + name + " is not implemented");
+            throw std::runtime_error("Function " + func + "with name " + name + " is not implemented");
         }
 
         // Save fit settings
@@ -423,7 +423,7 @@ if(false)
     };
 
     // Draw
-    void Draw(std::vector<std::string> recipes) const {
+    void Draw(std::vector<std::pair<std::string, std::string>> recipes) const {
         std::cout << "Draw functions" << std::endl;
         for (const auto& [name, _, __] : functions) {
             std::cout << name << std::endl;
@@ -431,15 +431,20 @@ if(false)
 
         DEBUG(0, "Start drawing");
 
+        TLegend *leg = new TLegend(0.6, 0.6, 0.9, 0.9);
+
         // Draw the fitted observable
         this->fObs->Draw("hist same pe");
+        leg->AddEntry(this->fObs, "data", "pe");
 
         // Draw the final fit function
         this->fFit->Draw("same");
 
+        leg->AddEntry(this->fFit, "Total");
         // Draw components based on the draw recipes
         for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
-            auto recipe = recipes[iRecipe];
+            std::string legend = recipes[iRecipe].first;
+            std::string recipe = recipes[iRecipe].second;
             DEBUG(0, "Drawing the recipe '%s'", recipe.data());
 
             // Tokenization of the recipe
@@ -616,7 +621,7 @@ if (0.12 < x[0] && x[0] < .16)
             int color = iRecipe + 3;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
-            fTerm->SetNpx(20);
+            fTerm->SetNpx(1000);
 
             int counter = 0;
             for (const int &par : paraList) {
@@ -624,7 +629,9 @@ if (0.12 < x[0] && x[0] < .16)
                 fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
             }
             fTerm->Draw("same");
+            leg->AddEntry(fTerm, legend.data());
         }
+        leg->Draw("same");
     };
 
     ClassDef(SuperFitter, 1)
