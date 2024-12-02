@@ -28,7 +28,7 @@
 #endif
 
 // List of TF1-compatible functions that can be used in the fit
-std::vector<std::pair<std::string, std::function<double(double*, double*)>>> functions = {};
+std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>> functions = {};
 
 // Concatenate the elements of a std::vector via a separator. Equivalent of python's `" ".join(mylist)`
 template <typename T>
@@ -111,7 +111,7 @@ bool IsOperator(const std::string& token) { return token == "+" || token == "-" 
 
 // Check if token is a function
 bool IsFunction(const std::string& token) {
-    for (const auto& [name, _] : functions) {
+    for (const auto& [name, _, __] : functions) {
         if (token == name) return true;
     }
     return false;
@@ -147,7 +147,7 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             operators.push(token);
         } else {
             std::cout << "List of functions:" << std::endl;
-            for (const auto &[fn, _] : functions) {
+            for (const auto &[fn, _, __] : functions) {
                 std::cout << fn << std::endl;
             }
             throw std::runtime_error("Unrecognized token '" + token + "'");
@@ -212,7 +212,7 @@ class SuperFitter : public TObject {
    private:
     Observable* fObs;                                                    // Observable to be fitted
     TF1* fFit;                                                           // Total fit function
-    std::vector<int> fNPars;                                             // Number of parameters for each fit function
+    std::vector<int> fNPars;     // todo: remove                                         // Number of parameters for each fit function
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     double fMin;                                                         // Fit range minimum
     double fMax;                                                         // Fit range maximum
@@ -266,7 +266,7 @@ if(false)
 
                     // Determine the position of the function in the list of functions
                     int counter = 0;
-                    for (const auto& [name, _] : functions) {
+                    for (const auto& [name, _, __] : functions) {
                         if (name == token) break;
                         counter++;
                     }
@@ -276,7 +276,7 @@ if(false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                           counter, offset);
 
-                    auto func = functions[counter].second;
+                    auto func = std::get<1>(functions[counter]);
                     double value = func(x, p + offset);
                     if(false)
                     DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
@@ -351,37 +351,37 @@ if(false)
         DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
         if (name == "pol0") {
-            functions.push_back({name, Pol0});
+            functions.push_back({name, Pol0, 1});
             fNPars.push_back(1);
         } else if (name == "pol1") {
-            functions.push_back({name, Pol1});
+            functions.push_back({name, Pol1, 2});
             fNPars.push_back(2);
         } else if (name == "pol2") {
-            functions.push_back({name, Pol2});
+            functions.push_back({name, Pol2, 3});
             fNPars.push_back(3);
         } else if (name == "pol3") {
-            functions.push_back({name, Pol3});
+            functions.push_back({name, Pol3, 4});
             fNPars.push_back(4);
         } else if (name == "pol4") {
-            functions.push_back({name, Pol4});
+            functions.push_back({name, Pol4, 5});
             fNPars.push_back(5);
         } else if (name == "pol5") {
-            functions.push_back({name, Pol5});
+            functions.push_back({name, Pol5, 6});
             fNPars.push_back(6);
         } else if (name == "pol6") {
-            functions.push_back({name, Pol6});
+            functions.push_back({name, Pol6, 7});
             fNPars.push_back(7);
         } else if (name == "pol7") {
-            functions.push_back({name, Pol7});
+            functions.push_back({name, Pol7, 8});
             fNPars.push_back(8);
         } else if (name == "pol8") {
-            functions.push_back({name, Pol8});
+            functions.push_back({name, Pol8, 9});
             fNPars.push_back(9);
         } else if (name == "pol9") {
-            functions.push_back({name, Pol9});
+            functions.push_back({name, Pol9, 10});
             fNPars.push_back(10);
         } else if (name == "gaus") {
-            functions.push_back({name, Gaus});
+            functions.push_back({name, Gaus, 3});
             fNPars.push_back(3);
         } else {
             throw std::runtime_error("Function " + name + " is not implemented");
@@ -400,7 +400,7 @@ if(false)
     void Add(std::string name, TH1* hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars) {
         DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
-        functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }});
+        functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
         fNPars.push_back(1);  // Only normalization
 
         // Save fit settings
@@ -418,7 +418,7 @@ if(false)
         std::cout << "kekek" << fTemplate << std::endl;
         this->fFuncList.push_back(fTemplate);
 
-        functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }});
+        functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }, 1});
 
         fNPars.push_back(1);  // Only normalization
 
@@ -434,7 +434,7 @@ if(false)
     // Draw
     void Draw(std::vector<std::string> recipes) const {
         std::cout << "Draw functions" << std::endl;
-        for (const auto& [name, _] : functions) {
+        for (const auto& [name, _, __] : functions) {
             std::cout << name << std::endl;
         }
 
@@ -468,7 +468,7 @@ if(false)
                 }
 
                 int counter = 0;
-                for (const auto& [name, _] : functions) {
+                for (const auto& [name, _, __] : functions) {
                     if (name == token) break;
                     counter++;
                 }
@@ -478,7 +478,7 @@ if(false)
 
                 // Determine the number of parameters
                 for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
-                    auto name = functions[iFunc].first;
+                    auto name = std::get<0>(functions[iFunc]);
                     DEBUG(2, "Comparing with function '%s'", name.data());
                     if (name == token && used_tokens.find(token) == used_tokens.end()) {
                         DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
@@ -548,9 +548,7 @@ if (0.12 < x[0] && x[0] < .16)
 
                         // Compute offset
                         int offset = 0;
-                        printf("\n");
                         for (const auto &[name, np] : nParameters) {
-                            printf("Comparing %s and %s\n", name.data(), token.data());
                             if (name == token) break;
                             offset += np;
                         }
@@ -560,12 +558,12 @@ if (0.12 < x[0] && x[0] < .16)
 
                         // Determine the position of the function in the list of functions
                         int counter = 0;
-                        for (const auto& [name, _] : functions) {
+                        for (const auto& [name, _, __] : functions) {
                             if (name == token) break;
                             counter++;
                         }
                         // todo: why no offset?
-                        auto func = functions[counter].second;
+                        auto func = std::get<1>(functions[counter]);
                         // int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
                         // if (counter == 4) offset--;
                         // if (counter == 4) offset = 1;
