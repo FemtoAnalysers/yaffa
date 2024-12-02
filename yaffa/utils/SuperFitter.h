@@ -242,19 +242,25 @@ class SuperFitter : public TObject {
         auto lambda = [this, rpn](double* x, double* p) -> double {
             std::stack<double> stack;
 
+if(false)
             DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
             for (const std::string& token : rpn) {
+if(false)
                 DEBUG(1, "Start processing the token '%s'", token.data());
                 if (stack.size() == 0) {
+if(false)
                     DEBUG(1, "Stack is empty");
                 } else {
+if(false)
                     DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
                 if (isdigit(token[0]) || token[0] == '.') {
+if(false)
                     DEBUG(2, "Token '%s' is a number", token.data());
                     // Push numbers
                     stack.push(std::stod(token));
                 } else if (IsFunction(token)) {
+if(false)
                     DEBUG(2, "Token '%s' is a function", token.data());
 
                     // Determine the position of the function in the list of functions
@@ -265,15 +271,18 @@ class SuperFitter : public TObject {
                     }
 
                     int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
+if(false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                           counter, offset);
 
                     auto func = functions[counter].second;
                     double value = func(x, p + offset);
+if(false)
                     DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                     stack.push(value);
                 } else if (IsOperator(token)) {
+if(false)
                     DEBUG(2, "Token '%s' is an operator", token.data());
                     // Apply operator
                     if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
@@ -293,12 +302,15 @@ class SuperFitter : public TObject {
                     else
                         throw std::runtime_error("Unknown operator");
                 } else {
+if(false)
                     DEBUG(2, "Token '%s' is unknown", token.data());
                     throw std::runtime_error("Unknown token: " + token);
                 }
+if(false)
                 DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
             }
 
+if(false)
             DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
@@ -492,20 +504,26 @@ class SuperFitter : public TObject {
             auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
                 std::stack<double> stack;
 
+if (0.12 < x[0] && x[0] < .16)
                 DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
                 for (const std::string& token : rpn) {
+                    if (0.12 < x[0] && x[0] < .16)
                     DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
                     if (stack.size() == 0) {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(1, "[DRAW] Stack is empty");
                     } else {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                     }
 
                     if (isdigit(token[0]) || token[0] == '.') {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
                         // Push numbers
                         stack.push(std::stod(token));
                     } else if (IsFunction(token)) {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
 
                         // Determine the position of the function in the list of functions
@@ -518,11 +536,15 @@ class SuperFitter : public TObject {
                         // todo: why no offset?
                         auto func = functions[counter].second;
                         double value = func(x, p);
+
+if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "Counter: %d    Offset: %d", counter);
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
                     } else if (IsOperator(token)) {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
                         // Apply operator
                         if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
@@ -542,12 +564,15 @@ class SuperFitter : public TObject {
                         else
                             throw std::runtime_error("Unknown operator");
                     } else {
+                        if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
                         throw std::runtime_error("Unknown token: " + token);
                     }
+if (0.12 < x[0] && x[0] < .16)
                     DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
 
+if (0.12 < x[0] && x[0] < .16)
                 DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
                 if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
