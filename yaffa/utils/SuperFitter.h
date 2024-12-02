@@ -212,18 +212,17 @@ class SuperFitter : public TObject {
    private:
     Observable* fObs;                                                    // Observable to be fitted
     TF1* fFit;                                                           // Total fit function
-    std::vector<int> fNPars;     // todo: remove                                         // Number of parameters for each fit function
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     double fMin;                                                         // Fit range minimum
     double fMax;                                                         // Fit range maximum
     std::vector<TF1*> fFuncList = {};
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fNPars({}), fPars({}), fMin(0), fMax(1) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fMin(0), fMax(1) {};
 
     // Standard Contructor
     SuperFitter(Observable* oObservable, double xMin, double xMax)
-        : TObject(), fObs(oObservable), fFit(nullptr), fNPars({}), fPars({}), fMin(xMin), fMax(xMax) {
+        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fMin(xMin), fMax(xMax) {
     };
 
     // Destructor
@@ -271,7 +270,10 @@ if(false)
                         counter++;
                     }
 
-                    int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
+                    int offset = 0;
+                    for (int iFunc = 0; iFunc < counter; iFunc++) {
+                        offset += std::get<2>(functions[iFunc]);
+                    }
                     if(false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                           counter, offset);
@@ -318,7 +320,10 @@ if(false)
             return stack.top();
         };
 
-        int nPars = std::accumulate(this->fNPars.begin(), this->fNPars.end(), 0);
+        int nPars = 0;
+        for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
+          nPars += std::get<2>(functions[iFunc]);
+        }
         this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
         this->fFit->SetNpx(20);
         
@@ -352,37 +357,26 @@ if(false)
 
         if (name == "pol0") {
             functions.push_back({name, Pol0, 1});
-            fNPars.push_back(1);
         } else if (name == "pol1") {
             functions.push_back({name, Pol1, 2});
-            fNPars.push_back(2);
         } else if (name == "pol2") {
             functions.push_back({name, Pol2, 3});
-            fNPars.push_back(3);
         } else if (name == "pol3") {
             functions.push_back({name, Pol3, 4});
-            fNPars.push_back(4);
         } else if (name == "pol4") {
             functions.push_back({name, Pol4, 5});
-            fNPars.push_back(5);
         } else if (name == "pol5") {
             functions.push_back({name, Pol5, 6});
-            fNPars.push_back(6);
         } else if (name == "pol6") {
             functions.push_back({name, Pol6, 7});
-            fNPars.push_back(7);
         } else if (name == "pol7") {
             functions.push_back({name, Pol7, 8});
-            fNPars.push_back(8);
         } else if (name == "pol8") {
             functions.push_back({name, Pol8, 9});
-            fNPars.push_back(9);
         } else if (name == "pol9") {
             functions.push_back({name, Pol9, 10});
-            fNPars.push_back(10);
         } else if (name == "gaus") {
             functions.push_back({name, Gaus, 3});
-            fNPars.push_back(3);
         } else {
             throw std::runtime_error("Function " + name + " is not implemented");
         }
@@ -401,7 +395,6 @@ if(false)
         DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
         functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
-        fNPars.push_back(1);  // Only normalization
 
         // Save fit settings
         DEBUG(0, "Parameters are:");
@@ -420,7 +413,6 @@ if(false)
 
         functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }, 1});
 
-        fNPars.push_back(1);  // Only normalization
 
         // Save fit settings
         DEBUG(0, "Parameters are:");
@@ -473,18 +465,21 @@ if(false)
                     counter++;
                 }
 
-                int offset = std::accumulate(this->fNPars.begin(), this->fNPars.begin() + counter, 0);
-
+                int offset = 0;
+                for (int iFunc = 0; iFunc < counter; iFunc++) {
+                    offset += std::get<2>(functions[iFunc]);
+                }
 
                 // Determine the number of parameters
                 for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
                     auto name = std::get<0>(functions[iFunc]);
                     DEBUG(2, "Comparing with function '%s'", name.data());
                     if (name == token && used_tokens.find(token) == used_tokens.end()) {
-                        DEBUG(3, "It's a match! Number of parameters: %d", this->fNPars[iFunc]);
-                        nParsDraw.push_back(this->fNPars[iFunc]);
+                        int nPars = std::get<2>(functions[iFunc]);
+                        DEBUG(3, "It's a match! Number of parameters: %d", nPars);
+                        nParsDraw.push_back(nPars);
                         // Determine the position of the function in the list of functions
-                        for (int iPar = 0; iPar< this->fNPars[iFunc]; iPar++) {
+                        for (int iPar = 0; iPar< nPars; iPar++) {
                             paraList.insert(offset + iPar);
                         }
                         break;
@@ -576,8 +571,6 @@ if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
-                        // offset+= fNPars[counter];
-                        // idx+=1;
                     } else if (IsOperator(token)) {
                         if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
