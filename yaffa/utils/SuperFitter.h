@@ -455,7 +455,7 @@ if(false)
             DEBUG(0, "[DRAW] recipe in infix: %s", join(" ", tokens).data());
 
             // Count the number of parameters
-            std::vector<int> paraList = {};
+            std::set<int> paraList = {};
             std::vector<int> nParsDraw = {};
             for (const auto &token : tokens) {
                 DEBUG(1, "Processing token '%s'", token.data());
@@ -482,7 +482,7 @@ if(false)
                         nParsDraw.push_back(this->fNPars[iFunc]);
                         // Determine the position of the function in the list of functions
                         for (int iPar = 0; iPar< this->fNPars[iFunc]; iPar++) {
-                            paraList.push_back(offset + iPar);
+                            paraList.insert(offset + iPar);
                         }
                         break;
                     }
@@ -580,9 +580,6 @@ if (0.12 < x[0] && x[0] < .16)
                 return stack.top();
             };
 
-            paraList.erase(paraList.begin() + 2);
-            // paraList.erase(paraList.begin() + 2);
-            // paraList.erase(paraList.begin() + 2);
             DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
             TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, paraList.size());
@@ -591,9 +588,10 @@ if (0.12 < x[0] && x[0] < .16)
             fTerm->SetLineColor(color);
             fTerm->SetNpx(15);
 
-            for (int iPar = 0; iPar < paraList.size(); iPar++) {
-                DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(paraList[iPar]));
-                fTerm->FixParameter(iPar, this->fFit->GetParameter(paraList[iPar]));
+            int counter = 0;
+            for (const int &par : paraList) {
+                DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(par));
+                fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
             }
             fTerm->Draw("same");
         }
