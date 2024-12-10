@@ -1,4 +1,5 @@
 #!/bin/sh
 
 # Prevent the push if the linting fails, but only if you are not on the batchfarm since there docker is not available
-[[ "$(lsb_release -i | awk '{print $3}')" != "AlmaLinux" ]]  && exec yaffa-lint || exit 0
+isBatchFarm="$hostname" == "nidoking.ktas.ph.tum.de" || "$hostname" == "nidoqueen.ktas.ph.tum.de"
+isBatchFarm && exec yaffa-lint || exit 0
