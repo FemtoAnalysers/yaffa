@@ -5,16 +5,18 @@
     -   file:  toy/Gaus.root
         name: fGaus
         legend: 'function'
-        rebin: 1
         color: kRed
+        rebin: 1
+        scale: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
     -   file:  toy/Gaus.root
         name: hGaus
         legend: 'histogram'
-        rebin: 1
         color: kBlue
+        rebin: 1
+        scale: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
