@@ -72,15 +72,21 @@ def ComputeAcceptance(args): # pylint: disable=too-many-statements
 
     SetStyle()
 
+    oFile = TFile('EffAcc.root', 'recreate')
+
     # Plot Efficiency
     cEff = TCanvas('cEff', '', 1200, 600)
     cEff.Divide(2, 1)
     cEff.cd(1)
     aEff0.SetStats(0)
     aEff0.Draw()
+    aEff0.Write()
+
     cEff.cd(2)
     aEff0.SetStats(0)
     aEff1.Draw()
+    aEff1.Write()
+
     cEff.SaveAs('cEff.pdf')
 
     # Plot pt distributions
@@ -91,29 +97,34 @@ def ComputeAcceptance(args): # pylint: disable=too-many-statements
     hPt0.SetMarkerColor(4)
     hPt0.SetLineColor(4)
     hPt0.Draw()
+    hPt0.Write()
 
     hPt0TimesEff = hPt0.Clone('hPt0TimesEff')
     hPt0TimesEff.Multiply(aEff0 if aEff0 else eff0)
     hPt0TimesEff.SetMarkerColor(2)
     hPt0TimesEff.SetLineColor(2)
     hPt0TimesEff.Draw('same')
+    hPt0TimesEff.Write()
 
     leg0 = TLegend(0.5, 0.7, 0.9, 0.9)
     leg0.AddEntry(hPt0, 'Before')
     leg0.AddEntry(hPt0TimesEff, 'After')
     leg0.Draw()
 
+
     cPt0.cd(2)
     hPt1.GetXaxis().SetRangeUser(0, 4)
     hPt1.SetMarkerColor(4)
     hPt1.SetLineColor(4)
     hPt1.Draw()
+    hPt1.Write()
 
     hPt1TimesEff = hPt1.Clone('hPt1TimesEff')
     hPt1TimesEff.Multiply(aEff1 if aEff1 else eff1)
     hPt1TimesEff.SetMarkerColor(2)
     hPt1TimesEff.SetLineColor(2)
     hPt1TimesEff.Draw('same')
+    hPt1TimesEff.Write()
 
     leg1 = TLegend(0.5, 0.7, 0.9, 0.9)
     leg1.AddEntry(hPt1, 'Before')
@@ -122,6 +133,7 @@ def ComputeAcceptance(args): # pylint: disable=too-many-statements
 
     cPt0.SaveAs('cPt.pdf')
 
+    oFile.Close()
 
     print(f'<eff> part0 = {eff0 * 100:.4f} %')
     print(f'<eff> part1 = {eff1 * 100:.4f} %')
