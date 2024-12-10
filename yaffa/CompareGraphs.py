@@ -36,16 +36,24 @@ def CopyHistInSubrange(hist, xMin, xMax):
     TH1
         The cropped histogram
     '''
-
-    fromBin = hist.FindBin(xMin * 1.0001)
-    toBin = hist.FindBin(xMax * 0.9999)
-    N = toBin - fromBin + 1
+    # Check that the binning is consistent
+    N = (xMax - xMin) / hist.GetBinWidth(1)
+    print(f'N: {N:.3f} xmax: {xMax:.3f}  xmin: {xMin:.3f}  width: {hist.GetBinWidth(1):.3f}')
+    if abs(round(N) - N) > 1.e-6:
+        log.critical('Range is not a multiple of bin width')
+    N = round(N)
 
     hNew = TH1D(f'{hist.GetName()}_new', hist.GetTitle(), N, xMin, xMax)
+    for iBinNew in range(N):
+        iBinOld = hist.FindBin(hNew.GetBinCenter(iBinNew + 1))
 
-    for i in range(N):
-        hNew.SetBinContent(i + 1, hist.GetBinContent(i + fromBin))
-        hNew.SetBinError(i + 1, hist.GetBinError(i + fromBin))
+        if iBinOld < 1 or iBinOld > hist.GetNbinsX():
+            hNew.SetBinContent(iBinNew + 1, 0)
+            hNew.SetBinError(iBinNew + 1, 0)
+        else:
+            hNew.SetBinContent(iBinNew + 1, hist.GetBinContent(iBinOld))
+            hNew.SetBinError(iBinNew + 1, hist.GetBinError(iBinOld))
+
     hNew.SetDirectory(0)
     return hNew
 
@@ -82,8 +90,8 @@ for plot in cfg:
     # Frame Coordinates
     fx1 = plot['opt']['rangex'][0]
     fy1 = plot['opt']['rangey'][0]
-    fx2 = plot['opt']['rangex'][1] * 0.999
-    fy2 = plot['opt']['rangey'][1] * 0.999
+    fx2 = plot['opt']['rangex'][1]
+    fy2 = plot['opt']['rangey'][1]
 
     # Load the objects to draw
     inObjs = []
