@@ -20,8 +20,9 @@ import os
 from ROOT import TH1D, TCanvas, gROOT # pylint: disable=no-name-in-module
 gROOT.SetBatch(True)
 
-# pylint: disable=anomalous-backslash-in-string
-times = os.popen("find . -wholename './[1-9]*/slurm-*.out' -exec tail -n 3 {} \; | grep real | awk '{print $2}'").read()
+# pylint: disable=anomalous-backslash-in-string, line-too-long
+# times = os.popen("find . -wholename './[1-9]*/slurm-*.out' -exec tail -n 3 {} \; | grep real | awk '{print $2}'").read()
+times = os.popen("find . -name 'slurm-*.out' -exec tail -n 3 {} \; | grep real | awk '{print $2}'").read()
 times = times.split('\n')
 times = [time for time in times if time] # remove empty strings
 
