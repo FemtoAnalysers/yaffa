@@ -515,11 +515,44 @@ void MakeDistr(
     // Load Pt and y distributions
     int pdgMother = cfg["decaychain"]["pdg"].as<int>();
 
+    std::string kinemFile = cfg["decaychain"]["kinemfile"].as<std::string>();
     std::string ptshape = cfg["decaychain"]["ptshape"].as<std::string>();
+    std::string yshape = cfg["decaychain"]["yshape"].as<std::string>();
+    bool corr = cfg["decaychain"]["corr"].as<bool>();
+
+    if (kinemFile != "" && ptshape != "") {
+        printf("\033[31mError: you can't set the kinematics both from 'ptshape' and 'kinemfile'. Kinematics from file will be used.\033[0m\n");
+    }
+
+    if (kinemFile != "" && yshape != "") {
+        printf("\033[31mError: you can't set the kinematics both from 'yshape' and 'kinemfile'. Kinematics from file will be used.\033[0m\n");
+    }
+
     if (cfg["injection"].size() == 0 && ptshape != "") {
         printf("\033[33mWarning: you are specifying a pt-shape but the mother particle is not injected. Set ptshape: '' to silence this warning.\033[0m\n");
     }
 
+    if (cfg["injection"].size() == 0 && yshape != "") {
+        printf("\033[33mWarning: you are specifying a y-shape but the mother particle is not injected. Set yshape: '' to silence this warning.\033[0m\n");
+    }
+
+    // Load 2D histogram for kinematics
+    TH2D *hYvsPt = nullptr;
+    TH1D *hPt = nullptr;
+    TH1D *hY = nullptr;
+    if (kinemFile != "") {
+        TFile *fKinem = new TFile(kinemFile.data());
+        hYvsPt = (TH2D *) fKinem->Get("hYvsPt");
+        hYvsPt->SetDirectory(0);
+        fKinem->Close();
+
+        if (!corr) {
+            hPt = (TH1D *) hYvsPt->ProjectionX("hPt", 1, -1);
+            hY = (TH1D *) hYvsPt->ProjectionY("hY", 1, -1);
+        }
+    }
+
+    // Set pT shape
     TF1 *fPt;
     if (ptshape == "blastwave") {
         double mass;
@@ -543,10 +576,7 @@ void MakeDistr(
         fPt = new TF1("fPt", ptshape.data(), 0, 10);
     }
 
-    std::string yshape = cfg["decaychain"]["yshape"].as<std::string>();
-    if (cfg["injection"].size() == 0 && yshape != "") {
-        printf("\033[33mWarning: you are specifying a y-shape but the mother particle is not injected. Set yshape: '' to silence this warning.\033[0m\n");
-    }
+    // Set rapidity shape
     TF1 *fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
@@ -640,8 +670,19 @@ void MakeDistr(
                     mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
                 } while (mass < minBWMass);
 
-                double pt = fPt->GetRandom();
-                double y = fY->GetRandom();
+                double pt;
+                double y;
+                if (hYvsPt) {
+                    if (corr) {
+                        hYvsPt->GetRandom2(pt, y);
+                    } else {
+                        pt = hPt->GetRandom();
+                        y = hY->GetRandom();
+                    }
+                } else {
+                    pt = fPt->GetRandom();
+                    y = fY->GetRandom();
+                }
                 double phi = gRandom->Uniform(2 * TMath::Pi());
                 double tau = gRandom->Exp(1);
                 double mt = TMath::Sqrt(mass * mass + pt * pt);
