@@ -215,7 +215,7 @@ for plot in cfg:
                 hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
                 hRatio.Rebin(plot['ratio']['rebin'])
                 hRatio.Divide(hDen)
-                hRatio.Draw('same pe')
+                hRatio.DrawCopy('same pe')
         elif isinstance(inObj, TGraphErrors):
             for inObj in inObjs[1:]:
                 hRatio = utils.analysis.Divide(inObj, hDen)
