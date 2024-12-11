@@ -193,7 +193,11 @@ for plot in cfg:
     leg.Draw()
 
     # Compute ratio wrt the first obj
-    if plot['ratio']['enable']:
+    while plot['ratio']['enable']: # use if-equivallent while scope to be able to control when to exit
+        if len(inObjs) < 2:
+            log.error("Not enough objects for making a ratio. Skipping ratio plot")
+            break
+
         pad = cPlot.cd(panels['ratio'])
         pad.SetLogx(plot['ratio']['logx'])
         pad.SetLogy(plot['ratio']['logy'])
@@ -228,6 +232,8 @@ for plot in cfg:
         line.SetLineColor(13)
         line.SetLineStyle(7)
         line.Draw('same pe')
+
+        break
 
     if plot['spread']['enable']:
         # Calcualate the spread around the first oject
