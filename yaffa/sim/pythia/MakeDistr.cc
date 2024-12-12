@@ -549,12 +549,19 @@ void MakeDistr(
         if (!corr) {
             hPt = (TH1D *) hYvsPt->ProjectionX("hPt", 1, -1);
             hY = (TH1D *) hYvsPt->ProjectionY("hY", 1, -1);
+
+            hPt->SetDirectory(0);
+            hY->SetDirectory(0);
+
+            delete hYvsPt;
+            hYvsPt = nullptr;
         }
     }
 
     // Set pT shape
-    TF1 *fPt;
+    TF1 *fPt = nullptr;
     if (ptshape == "blastwave") {
+        printf("Using Blast-Wave function for pt distribution\n");
         double mass;
         if (cfg["injection"].size() > 0) {
             mass = cfg["injection"][0]["mass"].as<double>();
@@ -572,12 +579,25 @@ void MakeDistr(
         fPt->SetParameter(2, Tkin);
         fPt->SetParameter(3, n);
         fPt->SetParameter(4, 1);
+    } else if (size_t pos = ptshape.find(':'); pos != std::string::npos) {
+        TFile *ptFile = new TFile(ptshape.substr(0, pos).data());
+        hPt = (TH1D *) ptFile->Get(ptshape.substr(pos + 1).data());
+        hPt->SetDirectory(0);
+        ptFile->Close();
     } else {
         fPt = new TF1("fPt", ptshape.data(), 0, 10);
     }
 
     // Set rapidity shape
-    TF1 *fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
+    TF1 *fY = nullptr;
+    if (size_t pos = yshape.find(':'); pos != std::string::npos) {
+        TFile *yFile = new TFile(yshape.substr(0, pos).data());
+        hY = (TH1D *) yFile->Get(yshape.substr(pos + 1).data());
+        hY->SetDirectory(0);
+        yFile->Close();
+    } else {
+        fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
+    }
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
@@ -673,15 +693,28 @@ void MakeDistr(
                 double pt;
                 double y;
                 if (hYvsPt) {
-                    if (corr) {
-                        hYvsPt->GetRandom2(pt, y);
-                    } else {
+                    hYvsPt->GetRandom2(pt, y);
+                } else if ((hPt || fPt) && (hY || fY)) {
+                    if (hPt) {
                         pt = hPt->GetRandom();
+                    } else if (fPt) {
+                        pt = fPt->GetRandom();
+                    } else {
+                        printf("Error: undefined pt distribution for injected particle. Exit!\n");
+                        exit(1);
+                    }
+
+                    if (hY) {
                         y = hY->GetRandom();
+                    } else if (fY) {
+                        y = fY->GetRandom();
+                    } else {
+                        printf("Error: undefined rapidity distribution for injected particle. Exit!\n");
+                        exit(1);
                     }
                 } else {
-                    pt = fPt->GetRandom();
-                    y = fY->GetRandom();
+                    printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
+                    exit(1);
                 }
                 double phi = gRandom->Uniform(2 * TMath::Pi());
                 double tau = gRandom->Exp(1);
