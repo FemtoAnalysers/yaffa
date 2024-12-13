@@ -518,6 +518,7 @@ void MakeDistr(
     std::string kinemFile = cfg["decaychain"]["kinemfile"].as<std::string>();
     std::string ptshape = cfg["decaychain"]["ptshape"].as<std::string>();
     std::string yshape = cfg["decaychain"]["yshape"].as<std::string>();
+    std::string etashape = cfg["decaychain"]["etashape"].as<std::string>();
     bool corr = cfg["decaychain"]["corr"].as<bool>();
 
     if (kinemFile != "" && ptshape != "") {
@@ -536,10 +537,24 @@ void MakeDistr(
         printf("\033[33mWarning: you are specifying a y-shape but the mother particle is not injected. Set yshape: '' to silence this warning.\033[0m\n");
     }
 
+    if (etashape != "") {
+        printf("\033[33mWarning: you should never use a 1D eta-shape because it's correlated with pT. Be careful!\033[0m\n");
+    }
+
+    if (etashape != "" && yshape != "") {
+        printf("\031[31mError: decide if you want a y-shape or eta-shape. Exit!\033[0m\n");
+        exit(1);
+    }
+
     // Load 2D histogram for kinematics
     TH2D *hYvsPt = nullptr;
     TH1D *hPt = nullptr;
     TH1D *hY = nullptr;
+    TH1D *hEta = nullptr;
+    TF1 *fPt = nullptr;
+    TF1 *fY = nullptr;
+    TF1 *fEta = nullptr;
+
     if (kinemFile != "") {
         TFile *fKinem = new TFile(kinemFile.data());
         hYvsPt = (TH2D *) fKinem->Get("hYvsPt");
@@ -559,7 +574,6 @@ void MakeDistr(
     }
 
     // Set pT shape
-    TF1 *fPt = nullptr;
     if (ptshape == "blastwave") {
         printf("Using Blast-Wave function for pt distribution\n");
         double mass;
@@ -589,14 +603,37 @@ void MakeDistr(
     }
 
     // Set rapidity shape
-    TF1 *fY = nullptr;
     if (size_t pos = yshape.find(':'); pos != std::string::npos) {
         TFile *yFile = new TFile(yshape.substr(0, pos).data());
         hY = (TH1D *) yFile->Get(yshape.substr(pos + 1).data());
         hY->SetDirectory(0);
         yFile->Close();
-    } else {
-        fY = new TF1("fPt", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
+    } else if (yshape != "") {
+        fY = new TF1("fY", cfg["decaychain"]["yshape"].as<std::string>().data(), -10, 10);
+    }
+
+    // Set pseudo-rapidity shape
+    if (size_t pos = etashape.find(':'); pos != std::string::npos) {
+        std::string fileName = etashape.substr(0, pos);
+        std::string objName = etashape.substr(pos + 1);
+
+        TFile *etaFile = new TFile(fileName.data());
+        if (!etaFile) {
+            printf("\033[31mError: file '%s' could not be loaded. Exit!\033[0m\n", fileName.data());
+            exit(1);
+        }
+
+        hEta = (TH1D *) etaFile->Get(objName.data());
+        if (!hEta) {
+            printf("\033[31mError: etashape '%s' could not be loaded. Exit!\033[0m\n", objName.data());
+            exit(1);
+        }
+
+        hEta->SetDirectory(0);
+        etaFile->Close();
+    } else if (etashape != ""){
+        printf("Using formula");
+        fEta = new TF1("fEta", cfg["decaychain"]["etashape"].as<std::string>().data(), -10, 10);
     }
 
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
@@ -691,10 +728,12 @@ void MakeDistr(
                 } while (mass < minBWMass);
 
                 double pt;
-                double y;
+                double y = std::nan("");
+                double eta = std::nan("");
+
                 if (hYvsPt) {
                     hYvsPt->GetRandom2(pt, y);
-                } else if ((hPt || fPt) && (hY || fY)) {
+                } else if ((hPt || fPt) && (hY || fY || hEta || fEta)) {
                     if (hPt) {
                         pt = hPt->GetRandom();
                     } else if (fPt) {
@@ -708,8 +747,14 @@ void MakeDistr(
                         y = hY->GetRandom();
                     } else if (fY) {
                         y = fY->GetRandom();
+                    } else if (hEta) {
+                        do {
+                            eta = hEta->GetRandom();
+                        } while (eta > 8); // todo: remove
+                    } else if (fEta) {
+                        eta = fEta->GetRandom();
                     } else {
-                        printf("Error: undefined rapidity distribution for injected particle. Exit!\n");
+                        printf("Error: both rapidity and pseudo-rapidity distribution for injected particle are undefined. Exit!\n");
                         exit(1);
                     }
                 } else {
@@ -719,7 +764,15 @@ void MakeDistr(
                 double phi = gRandom->Uniform(2 * TMath::Pi());
                 double tau = gRandom->Exp(1);
                 double mt = TMath::Sqrt(mass * mass + pt * pt);
-                double pz = TMath::SinH(y) * mt;
+                double pz;
+                if (y == y) {
+                    pz = mt * TMath::SinH(y);
+                } else if (eta == eta) {
+                    pz = pt * TMath::SinH(eta);
+                } else {
+                    printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
+                    exit(1);
+                }
 
                 Pythia8::Particle myPart;
                 myPart.id(myPdg);
