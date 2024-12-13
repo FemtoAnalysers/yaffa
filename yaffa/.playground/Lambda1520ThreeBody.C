@@ -72,7 +72,7 @@ void Lambda1520ThreeBody(int nEvents=10000, int seed=42,
   
     // Read histograms from Xi(1530) to simulate acceptance and pT of the particle
     TFile *kinemXi1530 = TFile::Open(kinemFilePath.data(), "r");
-    TH1F * hAccXi1530 = (TH1F*)kinemXi1530->Get("hAcc");
+    TH1F * hYXi1530 = (TH1F*)kinemXi1530->Get("hY");
     TH1F * hPtXi1530 = (TH1F*)kinemXi1530->Get("hPt");
     TH1F * hSampledBreitWigner = new TH1F("hSampledBreitWigner", ";#it{k*};Counts", 12500, 0, 3.);
     TH1F * hSampledPt = new TH1F("hSampledPt", ";#it{p}_{T} (GeV/c);Counts", 1000, 0, 10);
@@ -103,16 +103,16 @@ void Lambda1520ThreeBody(int nEvents=10000, int seed=42,
 
         // initialize particle properties of Lambda(1520)
         double phiLambda1520 = gRandom->Rndm() * 2 * TMath::Pi();
-        double etaLambda1520 = hAccXi1530->GetRandom();
-        double thetaLambda1520 = 2 * TMath::ATan( TMath::Exp(-etaLambda1520) );
+        double yLambda1520 = hYXi1530->GetRandom();
         double ptLambda1520 = hPtXi1530->GetRandom();
         double pxLambda1520 = ptLambda1520 * TMath::Cos(phiLambda1520);
         double pyLambda1520 = ptLambda1520 * TMath::Sin(phiLambda1520);
-        double pzLambda1520 = ptLambda1520 * TMath::SinH(etaLambda1520);
+        double mt = TMath::Sqrt(massLambda1520 * massLambda1520 + ptLambda1520 * ptLambda1520);
+        double pzLambda1520 = TMath::SinH(yLambda1520) * mt;
         double pLambda1520 = TMath::Sqrt(ptLambda1520 * ptLambda1520 + pzLambda1520 * pzLambda1520);
         double ELambda1520 = TMath::Sqrt(massLambda1520 * massLambda1520 + pLambda1520 * pLambda1520);
         hSampledPt->Fill(ptLambda1520);
-        
+
         Particle lambda1520;
         lambda1520.id(pdgLambda1520);
         lambda1520.status(81);
@@ -187,7 +187,7 @@ void Lambda1520ThreeBody(int nEvents=10000, int seed=42,
     std::string outFileName = outFilePath + "_" + std::to_string(seed) + ".root";  
     TFile oFile(outFileName.data(), "recreate");
     oFile.cd();
-    hAccXi1530->Write();
+    hYXi1530->Write();
     hPtXi1530->Write();
     hSELambda1520Pt015->Write("hSE_015");
     hSELambda1520Pt017->Write("hSE_017");
