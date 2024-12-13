@@ -25,7 +25,7 @@ void GetKinem(
     ) {
 
     // Make output file name
-    std::string oFileName = std::string(std::getenv("YAFFA")) + "/yaffa/secrets/sim/pythia/kinem/Kinem";
+    std::string oFileName = "Kinem";
     if (pdg == 211) oFileName += "_pi";
     else if (pdg == 321) oFileName += "_K";
     else if (pdg == 2212) oFileName += "_p";
