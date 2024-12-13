@@ -8,6 +8,7 @@
         color: kRed
         rebin: 1
         scale: 1
+        fillalpha: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
@@ -17,6 +18,7 @@
         color: kBlue
         rebin: 1
         scale: 1
+        fillalpha: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
