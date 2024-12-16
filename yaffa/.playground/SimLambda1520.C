@@ -1,9 +1,14 @@
+/* Run using:
+alidist: d8de0bcde8aeb65223ac525a1233cc1ab1bc1435
+AliPhysics: 379a9b201c492b5b9d0cf2ad5f87022412aadd2b
+*/
 #include <array>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <stdlib.h>
 
 // #include "yaml-cpp/yaml.h"
 
@@ -55,6 +60,14 @@ void SimLambda1520(
         hSEPairs.insert({keys[iKey], new TH1F(keys[iKey].Data(), ";#it{k*};Counts", 1500, 0., 6.)});
         hSEPairsSmeared.insert({keys[iKey], new TH1F(smearHistoName.Data(), ";#it{k*};Counts", 1500, 0., 6.)});
     }
+
+    // setenv("PYTHIA8DATA", "/usr/share/Pythia8/xmldoc", 1);
+    gSystem->Load("liblhapdf.so");
+    gSystem->Load("libpythia8.so");
+    gSystem->Load("libAliPythia8.so");
+    gSystem->Setenv("PYTHIA8DATA", gSystem->ExpandPathName("$ALICE_ROOT/PYTHIA8/pythia8/xmldoc"));
+    gSystem->Setenv("LHAPDF", gSystem->ExpandPathName("$ALICE_ROOT/LHAPDF"));
+    gSystem->Setenv("LHAPATH", gSystem->ExpandPathName("$ALICE_ROOT/LHAPDF/PDFsets"));
 
     Pythia8::Pythia pythia;
 
@@ -146,11 +159,8 @@ void SimLambda1520(
         // force the decay of the Lambda
         pythia.moreDecays();
 
-        pythia.event.list();
-
         for (int iPart = 2; iPart < pythia.event.size(); iPart++) {
             if (pythia.event[iPart].id() == 3122) {
-                printf("Pion\n");
                 Pythia8::Particle lambda = pythia.event[iPart];
                 TLorentzVector momLambda = TLorentzVector(lambda.px(), lambda.py(), lambda.pz(), lambda.e());
 
@@ -293,4 +303,6 @@ void SimLambda1520(
     hPt1530->Write();
     fDecay->Write();
     oFile.Close();
+
+    // unsetenv("PYTHIA8DATA");
 }
