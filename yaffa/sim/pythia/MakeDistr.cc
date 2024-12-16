@@ -302,48 +302,13 @@ std::tuple<int, double, double> ComputeBinning(double xMin, double xMax, int pre
     return {nBins, xMinMul / mul, xMaxMul / mul};
 }
 
-static TDatabasePDG *PDG;
-
-/* If the particle with pdg `pdg` is not in ROOT's TDatabasePDG it is added based on the information in pythia.
-If already present it doesn'to anything. Returns the pdg code of the particle. */
-int AddToDatabase(int pdg, Pythia8::Pythia &pythia) {
-    auto part = PDG->GetParticle(pdg);
-    if (!part) {
-        printf("Info: adding particle %d to ROOT's database using pythia's information.\n", pdg);
-
-        // // Check if the particle is in pythia
-        // if (!pythia.particleData.exists(pdg)) {
-        //     printf("Error: particle not in pythia. Exit!\n");
-        //     exit(1);
-        // }
-
-        // Get particle information from pythia
-        auto pde = pythia.particleData.particleDataEntryPtr(pdg);
-
-        if (!pde) {
-            printf("Error: particle entry is null. Exit!\n");
-            exit(1);
-        }
-        const std::string& name = pde->name();         // Particle name
-        double mass = pde->m0();                       // Particle mass (GeV)
-        double charge = pde->charge();                 // Particle charge (e.g., +1 or -1)
-        int spin = static_cast<int>(pde->spinType());  // Particle spin (integer form)
-        double width = pde->mWidth();                  // Decay width
-        bool stable = pde->isResonance() ? false : true; // Stability
-
-        // Add the particle to ROOT's TDatabasePDG
-        PDG->AddParticle(name.c_str(), name.c_str(), mass, stable, width, charge, "", pdg, 0, 0);
-    }
-    return pdg;
-}
-
 void MakeDistr(
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
     int seed = 31
     ) {
     // Load PDG
-    PDG = TDatabasePDG::Instance();
+    TDatabasePDG *PDG = TDatabasePDG::Instance();
 
     // Load simulation settings
     YAML::Node cfg = YAML::LoadFile(cfgFile.data());
@@ -502,10 +467,9 @@ void MakeDistr(
             // Loop over the daughters in the decay channel
             double sum = 0;
             for (int iDau = 0; iDau < channel.multiplicity(); iDau++) {
-                int dauPdg = AddToDatabase(channel.product(iDau), pythia);
+                int dauPdg = channel.product(iDau);
 
-                auto partData = PDG->GetParticle(dauPdg);
-                sum += partData->Mass();
+                sum += pythia.particleData.particleDataEntryPtr(dauPdg).get()->m0();
             }
             if (sum < minBWMass) minBWMass = sum;
         }
@@ -580,7 +544,7 @@ void MakeDistr(
         if (cfg["injection"].size() > 0) {
             mass = cfg["injection"][0]["mass"].as<double>();
         } else {
-            mass = PDG->GetParticle(pdgMother)->Mass();
+            mass = pythia.particleData.particleDataEntryPtr(pdgMother).get()->m0();
         }
 
         // The following values are take from peripheral pPb collisions. See Tab 5 of PLB 728 (2014) 25-38
@@ -671,7 +635,7 @@ void MakeDistr(
     }
 
     // Single-particle QA for part 0
-    double mass = PDG->GetParticle(pdg0)->Mass();
+    double mass = pythia.particleData.particleDataEntryPtr(pdg0).get()->m0();
     auto [nBins, massMin, massMax] = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQA0 = {
         {"mass", new TH1D("hMass0", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
@@ -681,7 +645,7 @@ void MakeDistr(
     };
 
     // Single-particle QA for part 1
-    mass = PDG->GetParticle(pdg1)->Mass();
+    mass = pythia.particleData.particleDataEntryPtr(pdg1).get()->m0();
     std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQA1 = {
         {"mass", new TH1D("hMass1", ";#it{M} (GeV/#it{c}^{2});Counts", nBins, massMin, massMax)},
@@ -694,7 +658,7 @@ void MakeDistr(
     if (cfg["injection"].size() > 0) {
         mass = cfg["injection"][0]["mass"].as<double>();
     } else {
-        mass = PDG->GetParticle(pdgMother)->Mass();
+        mass = pythia.particleData.particleDataEntryPtr(pdgMother).get()->m0();
     }
     std::tie(nBins, massMin, massMax) = ComputeBinning(mass*0.7, mass*1.3);
     std::map<std::string, TH1*> hQAMother = {
@@ -748,9 +712,7 @@ void MakeDistr(
                     } else if (fY) {
                         y = fY->GetRandom();
                     } else if (hEta) {
-                        do {
-                            eta = hEta->GetRandom();
-                        } while (eta > 8); // todo: remove
+                        eta = hEta->GetRandom();
                     } else if (fEta) {
                         eta = fEta->GetRandom();
                     } else {
