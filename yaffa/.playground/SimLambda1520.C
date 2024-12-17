@@ -46,7 +46,7 @@ float RelativePairMomentum(TLorentzVector &PartOne, TLorentzVector &PartTwo) {
 }
 
 void SimLambda1520(
-    int nEvents = 100000, int seed = 42,
+    int nEvents = 10000000, int seed = 42,
     std::string kinemFilePath = "/home/ktas/go98pog/simkinem/SimLambda1520Kinem_MERGED.root",  // kinematic information
     //    std::string MCFilePath="/home/mdicostanzo/an/LPi/Trains/02_allpc/mc/data/AnalysisResultsAllPC.root",    //
     //    momentum smearing
@@ -91,9 +91,9 @@ void SimLambda1520(
     pythia.readString("3122:onMode = off");
     pythia.readString("211:onMode = off");
     pythia.readString("3124:onIfMatch = 3122 211 -211");
-    pythia.readString("3124:onIfMatch = 3212 211 -211");
-    pythia.readString("3212:onIfMatch = 3122 111");
-    pythia.readString("3212:onIfMatch = 3122 22");
+    // pythia.readString("3124:onIfMatch = 3212 211 -211");
+    // pythia.readString("3212:onIfMatch = 3122 111");
+    // pythia.readString("3212:onIfMatch = 3122 22");
 
     // init
     pythia.init();
@@ -122,7 +122,7 @@ void SimLambda1520(
     lambda1520Feature.m(massLambda1520);
 
     for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
-        if (iEvent % 5000 == 0) std::cout << "Processing event " << iEvent << endl;
+        if (iEvent % 100000 == 0) std::cout << "Processing event " << iEvent << endl;
 
         // initialize particle properties of Lambda(1520)
         double tauLambda1520 = fDecay->GetRandom();
