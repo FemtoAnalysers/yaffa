@@ -1,4 +1,4 @@
-ofilename: FitCF
+ofile: FitCF
 suffix: ''
 
 fits:
@@ -12,10 +12,12 @@ fits:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
-    model: 'wc * ca + (1 - wc) * nca + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A + Xi1690'
+    model: '(wc * ca + (1 - wc) * nca ) * ll + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A + Xi1690'
+    # model: 'll * (wc * ca + (1 - wc) * nca)'
 
     draw_recipes:
         - ['MJ', 'wc * ca + (1 - wc) * nca']
+        - ['LL', ' ll * (wc * ca + (1 - wc) * nca)']
         - ['Sigma1385_direct', 'wc * ca + (1 - wc) * nca + Sigma1385_direct']
         - ['Sigma1385_indirect', 'wc * ca + (1 - wc) * nca + Sigma1385_indirect']
         - ['Xi1530', 'wc * ca + (1 - wc) * nca + Xi1530']
@@ -25,20 +27,21 @@ fits:
     shared_pars: []
 
     terms:
-   #    - name: ll
-   #      func: ComplexLednicky_Singlet_doublegaussian_lambda
-   #      params:
-   #          scat_len_re: [0, 1, -1] # shared
-   #          scat_len_im: [0, 1, -1]
-   #          effrange: 0
-   #          source_r1: 1.24855
-   #          source_r2: 3.16925
-   #          source_w1: 0.768379
-   #          source_lambda: 0.902565
+      - name: ll
+        func: lednicky
+        params: [
+            ["a0_re", 0, 0, -1],
+            ["a0_im", 0, 0, -1],
+            ["d0", 0, 1, -1],
+            ["r1", 1.24855, 1, -1],
+            ["r2", 3.16925, 1, -1],
+            ["w1", 0.768379, 1, -1],
+            ["lambda", 0.902565, 1, -1],
+        ]
       - name: wc
         func: pol0
         params: [
-            ["p0", 1.07985e-01, 0, -1],
+            ["wx", 1.07985e-01, 0, -1],
         ]
       - name: ca
         file: /home/daniel/phsw/yaffa/yaffa/utils/ancestors_LPiplus.root
