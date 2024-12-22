@@ -177,7 +177,7 @@ void SetDefault(YAML::Node &&node, T1 min, T2 max) {
 void SetDefaults(YAML::Node &cfg) {
     SetDefault(cfg["status"], -300, 300);
     SetDefault(cfg["pt"], 0, 100);
-    SetDefault(cfg["eta"], -10, 10);
+    SetDefault(cfg["eta"], -100, 100);
     SetDefault(cfg["y"], -10, 10);
     SetDefault(cfg["prodvtx"], -1., 1000);
 
