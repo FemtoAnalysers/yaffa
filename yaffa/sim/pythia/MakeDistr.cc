@@ -524,6 +524,12 @@ void MakeDistr(
         if (!fKinem) exit(1); // TFile::Open already prints an error message
 
         hYvsPt = (TH2D *) fKinem->Get("hYvsPt");
+        if (!hYvsPt) {
+            printf("Error: cannot get object 'hYvsPt' from file '%s'. Exit!\n", kinemFile.data());
+            printf("Available objects: \n");
+            fKinem->ls();
+            exit(1);
+        }
         hYvsPt->SetDirectory(0);
         fKinem->Close();
 
