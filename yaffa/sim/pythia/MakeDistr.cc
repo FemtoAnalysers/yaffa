@@ -48,6 +48,7 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 
 const double HBARC =  197.3269804; // um=MeV*fm
 
+static YAML::Node cfgMother;
 static YAML::Node cfgPart0;
 static YAML::Node cfgPart1;
 
@@ -168,7 +169,7 @@ int ComputeMultTPC(const Pythia8::Pythia &pythia) {
 // Set the default selections
 template<typename T1, typename T2>
 void SetDefault(YAML::Node &&node, T1 min, T2 max) {
-    if (node.IsNull()) {
+    if (!node.IsDefined() || node.IsNull()) {
         node.push_back(min);
         node.push_back(max);
     }
@@ -316,10 +317,18 @@ void MakeDistr(
     unsigned int md = cfg["mixdepth"].as<int>();
     bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
 
+    // Load selections for mother particle
+    cfgMother = YAML::Clone(cfg["decaychain"]);
+    cfgMother["daus"] = YAML::Null; // Don't check the daughters. // todo: understand why if this line is removed all hists are empty
+
     // Load selections for part 0
     cfgPart0 = cfg["part0"];
+
     // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
     cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : cfg["part1"];
+
+    std::cout << "\033[34mParticle selections before defaults (Mother)\033[0m" << std::endl;
+    std::cout << cfgMother<< std::endl;
 
     std::cout << "\033[34mParticle selections before defaults (part0)\033[0m" << std::endl;
     std::cout << cfgPart0<< std::endl;
@@ -327,8 +336,12 @@ void MakeDistr(
     std::cout << "\033[34mParticle selections before defaults (part1)\033[0m" << std::endl;
     std::cout << cfgPart1<< std::endl;
 
+    SetDefaults(cfgMother);
     SetDefaults(cfgPart0);
     SetDefaults(cfgPart1);
+
+    std::cout << "\033[34mParticle selections after defaults (Mother)\033[0m" << std::endl;
+    std::cout << cfgMother<< std::endl;
 
     std::cout << "\033[34mParticle selections after defaults (part0)\033[0m" << std::endl;
     std::cout << cfgPart0<< std::endl;
@@ -784,7 +797,7 @@ void MakeDistr(
 
             if (cfg["decaychain"]["enable"].as<bool>()) {
                 int pdgMother = cfg["decaychain"]["pdg"].as<int>();
-                if (absPdg != std::abs(pdgMother)) continue;
+                if (!IsSelected(pythia, iPart, cfgMother)) continue;
 
                 DEBUG("\n\n==========================================================================================================\n");
                 if (GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1)) {
