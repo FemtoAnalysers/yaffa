@@ -520,7 +520,9 @@ void MakeDistr(
     TF1 *fEta = nullptr;
 
     if (kinemFile != "") {
-        TFile *fKinem = new TFile(kinemFile.data());
+        TFile *fKinem = TFile::Open(kinemFile.data());
+        if (!fKinem) exit(1); // TFile::Open already prints an error message
+
         hYvsPt = (TH2D *) fKinem->Get("hYvsPt");
         hYvsPt->SetDirectory(0);
         fKinem->Close();
@@ -558,7 +560,8 @@ void MakeDistr(
         fPt->SetParameter(3, n);
         fPt->SetParameter(4, 1);
     } else if (size_t pos = ptshape.find(':'); pos != std::string::npos) {
-        TFile *ptFile = new TFile(ptshape.substr(0, pos).data());
+        TFile *ptFile = TFile::Open(ptshape.substr(0, pos).data());
+        if (!ptFile) exit(1);
         hPt = (TH1D *) ptFile->Get(ptshape.substr(pos + 1).data());
         hPt->SetDirectory(0);
         ptFile->Close();
@@ -568,7 +571,8 @@ void MakeDistr(
 
     // Set rapidity shape
     if (size_t pos = yshape.find(':'); pos != std::string::npos) {
-        TFile *yFile = new TFile(yshape.substr(0, pos).data());
+        TFile *yFile = TFile::Open(yshape.substr(0, pos).data());
+        if (!yFile) exit(1);
         hY = (TH1D *) yFile->Get(yshape.substr(pos + 1).data());
         hY->SetDirectory(0);
         yFile->Close();
@@ -581,7 +585,8 @@ void MakeDistr(
         std::string fileName = etashape.substr(0, pos);
         std::string objName = etashape.substr(pos + 1);
 
-        TFile *etaFile = new TFile(fileName.data());
+        TFile *etaFile = TFile::Open(fileName.data());
+        if (!etaFile) exit(1);
         if (!etaFile) {
             printf("\033[31mError: file '%s' could not be loaded. Exit!\033[0m\n", fileName.data());
             exit(1);
@@ -874,7 +879,9 @@ void MakeDistr(
         if (partBuffer.size() > md) partBuffer.pop_front();
     }
 
-    TFile *oFile = new TFile(oFileName.data(), "recreate");
+    TFile *oFile = TFile::Open(oFileName.data(), "recreate");
+    if (!oFile) exit(1);
+
     hEvtMult->Write();
     hEvt->Write();
 
