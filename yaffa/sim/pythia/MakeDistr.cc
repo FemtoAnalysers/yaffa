@@ -459,7 +459,8 @@ void MakeDistr(
         double mMax = 0; // If mMax < mMin then no upper limit is imposed
 
         pythia.particleData.addParticle(myPdg, name, antiname, spin, charge, color, mass, width, mMin, mMax, tau0);
-        pythia.particleData.readString(Form("%d:addChannel = 1 1 0 %s", myPdg, part["daus"].as<std::string>().data()));
+int meMode = part["meMode"].as<int>();
+        pythia.particleData.readString(Form("%d:addChannel = 1 1 %d %s", meMode, myPdg, part["daus"].as<std::string>().data()));
     }
 
     std::cout << "Applying the following customization to pythia:" << std::endl;
