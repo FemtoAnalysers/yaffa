@@ -149,7 +149,7 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             operators.push(token);
         } else {
             std::cout << "List of functions:" << std::endl;
-            for (const auto &[fn, _, __] : functions) {
+            for (const auto& [fn, _, __] : functions) {
                 std::cout << fn << std::endl;
             }
             throw std::runtime_error("Unrecognized token '" + token + "'");
@@ -211,27 +211,27 @@ double Pol9(double* x, double* p) { return Pol8(x, p) + p[9] * pow(x[0], 9); }
 
 const double FmToNu(5.067731237e-3);
 const double Pi(3.141592653589793);
-const std::complex<double> i(0,1);
+const std::complex<double> i(0, 1);
 
-double GeneralLednicky(double Momentum, const double &GaussR,
-                       const complex<double> &ScattLenSin, const double &EffRangeSin) {
-
-    // Taken from https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L215
-    if (GaussR != GaussR)
-    {
-        printf("\033[1;33mWARNING:\033[0m GeneralLednicky got a bad value for the Radius (nan). Returning default value of 1.\n");
+double GeneralLednicky(double kstar, const double& GaussR, const complex<double>& a0, const double& effRange) {
+    // Taken from
+    // https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L215
+    if (GaussR != GaussR) {
+        printf(
+            "\033[1;33mWARNING:\033[0m GeneralLednicky got a bad value for the Radius (nan). Returning default value "
+            "of 1.\n");
         return 1;
     }
 
-    Momentum *= 1000; // change units to GeV/c
+    kstar *= 1000;  // change units to GeV/c
 
     const double Radius = GaussR * FmToNu;
-    const complex<double> IsLen1 = 1. / (ScattLenSin * FmToNu + 1e-64);
-    const double eRan1 = EffRangeSin * FmToNu;
+    const complex<double> IsLen1 = 1. / (a0 * FmToNu + 1e-64);
+    const double eRan1 = effRange * FmToNu;
 
-    double F1 = gsl_sf_dawson(2. * Momentum * Radius) / (2. * Momentum * Radius);
-    double F2 = (1. - exp(-4. * Momentum * Momentum * Radius * Radius)) / (2. * Momentum * Radius);
-    complex<double> ScattAmplSin = pow(IsLen1 + 0.5 * eRan1 * Momentum * Momentum - i * Momentum, -1.);
+    double F1 = gsl_sf_dawson(2. * kstar * Radius) / (2. * kstar * Radius);
+    double F2 = (1. - exp(-4. * kstar * kstar * Radius * Radius)) / (2. * kstar * Radius);
+    complex<double> ScattAmplSin = pow(IsLen1 + 0.5 * eRan1 * kstar * kstar - i * kstar, -1.);
 
     double CkValue = 0.;
     CkValue += 0.5 * pow(abs(ScattAmplSin) / Radius, 2) * (1. - (eRan1) / (2 * sqrt(Pi) * Radius)) +
@@ -241,9 +241,9 @@ double GeneralLednicky(double Momentum, const double &GaussR,
     return CkValue;
 }
 
-double Lednicky(double *x, double *par)
-{
-    // Taken from https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L504C8-L504C53
+double Lednicky(double* x, double* par) {
+    // Taken from
+    // https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L504C8-L504C53
     double kStar = x[0];
     double potPar0 = par[0];     // real part of the scattering length
     double potPar1 = par[1];     // imaginary part of the scattering length
@@ -253,8 +253,10 @@ double Lednicky(double *x, double *par)
     double sourcePar2 = par[5];  // relative weight of the two gaussians
     double sourcePar3 = par[6];  // normalization of the gaussians
     complex<double> ScatLen(potPar0, potPar1);
-    return sourcePar3 * (sourcePar2 * GeneralLednicky(kStar, sourcePar0, ScatLen, potPar2) 
-           + (1 - sourcePar2) * GeneralLednicky(kStar, sourcePar1, ScatLen, potPar2)) + 1. - sourcePar3;
+
+    double ll1 = GeneralLednicky(kStar, sourcePar0, ScatLen, potPar2);
+    double ll2 = GeneralLednicky(kStar, sourcePar1, ScatLen, potPar2);
+    return sourcePar3 * (sourcePar2 * ll1 + (1 - sourcePar2) * ll2) + 1. - sourcePar3;
 }
 
 // Class for advanced fitting
@@ -274,8 +276,7 @@ class SuperFitter : public TObject {
 
     // Standard Contructor
     SuperFitter(Observable* oObservable, double xMin, double xMax)
-        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRangeMin(xMin), fFitRangeMax(xMax) {
-    };
+        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRangeMin(xMin), fFitRangeMax(xMax) {};
 
     // Destructor
     ~SuperFitter() { delete fObs; };
@@ -294,26 +295,20 @@ class SuperFitter : public TObject {
         auto lambda = [this, rpn](double* x, double* p) -> double {
             std::stack<double> stack;
 
-if(false)
-            DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
+            if (false) DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
             for (const std::string& token : rpn) {
-                if(false)
-                DEBUG(1, "Start processing the token '%s'", token.data());
+                if (false) DEBUG(1, "Start processing the token '%s'", token.data());
                 if (stack.size() == 0) {
-                    if(false)
-                    DEBUG(1, "Stack is empty");
+                    if (false) DEBUG(1, "Stack is empty");
                 } else {
-                    if(false)
-                    DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                    if (false) DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
                 if (isdigit(token[0]) || token[0] == '.') {
-                    if(false)
-                    DEBUG(2, "Token '%s' is a number", token.data());
+                    if (false) DEBUG(2, "Token '%s' is a number", token.data());
                     // Push numbers
                     stack.push(std::stod(token));
                 } else if (IsFunction(token)) {
-                    if(false)
-                    DEBUG(2, "Token '%s' is a function", token.data());
+                    if (false) DEBUG(2, "Token '%s' is a function", token.data());
 
                     // Determine the position of the function in the list of functions
                     int counter = 0;
@@ -326,19 +321,17 @@ if(false)
                     for (int iFunc = 0; iFunc < counter; iFunc++) {
                         offset += std::get<2>(functions[iFunc]);
                     }
-                    if(false)
-                    DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
-                          counter, offset);
+                    if (false)
+                        DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
+                              counter, offset);
 
                     auto func = std::get<1>(functions[counter]);
                     double value = func(x, p + offset);
-                    if(false)
-                    DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                    if (false) DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                     stack.push(value);
                 } else if (IsOperator(token)) {
-                    if(false)
-                    DEBUG(2, "Token '%s' is an operator", token.data());
+                    if (false) DEBUG(2, "Token '%s' is an operator", token.data());
                     // Apply operator
                     if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                     double b = stack.top();
@@ -357,16 +350,13 @@ if(false)
                     else
                         throw std::runtime_error("Unknown operator");
                 } else {
-                    if(false)
-                    DEBUG(2, "Token '%s' is unknown", token.data());
+                    if (false) DEBUG(2, "Token '%s' is unknown", token.data());
                     throw std::runtime_error("Unknown token: " + token);
                 }
-                if(false)
-                DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+                if (false) DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
             }
 
-if(false)
-            DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+            if (false) DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
             return stack.top();
@@ -374,11 +364,11 @@ if(false)
 
         int nPars = 0;
         for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
-          nPars += std::get<2>(functions[iFunc]);
+            nPars += std::get<2>(functions[iFunc]);
         }
         this->fFit = new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars);
         this->fFit->SetNpx(1000);
-        
+
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
             auto par = this->fPars[iPar];
             std::string name = std::get<0>(par);
@@ -429,7 +419,7 @@ if(false)
             functions.push_back({name, Pol9, 10});
         } else if (func == "gaus") {
             functions.push_back({name, Gaus, 3});
-} else if (func == "lednicky") {
+        } else if (func == "lednicky") {
             functions.push_back({name, Lednicky, 7});
         } else {
             throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
@@ -448,7 +438,8 @@ if(false)
     void Add(std::string name, TH1* hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars) {
         DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
-        functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
+        functions.push_back(
+            {name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
 
         // Save fit settings
         DEBUG(0, "Parameters are:");
@@ -460,12 +451,15 @@ if(false)
     };
 
     // Add TF1 function
-    void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars, double unitMult) { // todo: remove units mult here and put in .py
+    void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars,
+             double unitMult) {  // todo: remove units mult here and put in .py
         DEBUG(0, "Adding the function '%s' to the fitter", name.data());
         std::cout << "kekek" << fTemplate << std::endl;
 
-        functions.push_back({name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); }, 1});
-
+        functions.push_back(
+            {name,
+             [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); },
+             1});
 
         // Save fit settings
         DEBUG(0, "Parameters are:");
@@ -485,7 +479,7 @@ if(false)
 
         DEBUG(0, "Start drawing");
 
-        TLegend *leg = new TLegend(0.6, 0.6, 0.9, 0.9);
+        TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
 
         // Draw the fitted observable
         this->fObs->Draw("hist same pe");
@@ -509,7 +503,7 @@ if(false)
             std::set<int> paraList = {};
             std::vector<int> nParsDraw = {};
             std::set<std::string> used_tokens = {};
-            for (const auto &token : tokens) {
+            for (const auto& token : tokens) {
                 DEBUG(1, "Processing token '%s'", token.data());
 
                 if (!IsFunction(token)) {
@@ -537,7 +531,7 @@ if(false)
                         DEBUG(3, "It's a match! Number of parameters: %d", nPars);
                         nParsDraw.push_back(nPars);
                         // Determine the position of the function in the list of functions
-                        for (int iPar = 0; iPar< nPars; iPar++) {
+                        for (int iPar = 0; iPar < nPars; iPar++) {
                             paraList.insert(offset + iPar);
                         }
                         break;
@@ -546,8 +540,7 @@ if(false)
             }
 
             DEBUG(0, "ParaList:");
-            for (const auto &e : paraList) {
-
+            for (const auto& e : paraList) {
                 DEBUG(1, "%d value: %.3f", e, this->fFit->GetParameter(e));
             }
 
@@ -555,48 +548,38 @@ if(false)
             auto rpn = toRPN(tokens);
             DEBUG(0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
 
-            for (const int &d : nParsDraw) {
+            for (const int& d : nParsDraw) {
                 DEBUG(1, "par draw: %d", d);
             }
-            
 
             // The following lambda evaluates the fit function
             auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
                 std::stack<double> stack;
 
-if (0.12 < x[0] && x[0] < .16)
-                DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
-                std::vector<std::pair<std::string, int>> nParameters = {
-                    // {"pol0", 1},
-                    // {"ca", 1},
-                    // {"nca", 1},
-                    // // {"Sigma1385_direct", 1},
-                    // {"Xi1530", 1},
-                }; // token, npars
+                if (0.12 < x[0] && x[0] < .16)
+                    DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
+                std::vector<std::pair<std::string, int>> nParameters = {};  // token, npars
                 int idx = 0;
                 for (const std::string& token : rpn) {
-                    if (0.12 < x[0] && x[0] < .16)
-                    DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
                     if (stack.size() == 0) {
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(1, "[DRAW] Stack is empty");
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(1, "[DRAW] Stack is empty");
                     } else {
                         if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                            DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                     }
 
                     if (isdigit(token[0]) || token[0] == '.') {
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
                         // Push numbers
                         stack.push(std::stod(token));
                     } else if (IsFunction(token)) {
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Inserting token; %s   npar: %d\n", token.data(), 1);
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(2, "Inserting token; %s   npar: %d\n", token.data(), 1);
 
                         // inly insert if not already present -> avoid duplicates
-                        if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
-                            for (const auto &[name, _, npar] : functions) {
+                        if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) ==
+                            nParameters.end()) {
+                            for (const auto& [name, _, npar] : functions) {
                                 if (name == token) {
                                     nParameters.push_back({token, npar});
                                 }
@@ -605,13 +588,12 @@ if (0.12 < x[0] && x[0] < .16)
 
                         // Compute offset
                         int offset = 0;
-                        for (const auto &[name, np] : nParameters) {
+                        for (const auto& [name, np] : nParameters) {
                             if (name == token) break;
                             offset += np;
                         }
-                        
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
+
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
 
                         // Determine the position of the function in the list of functions
                         int counter = 0;
@@ -619,23 +601,17 @@ if (0.12 < x[0] && x[0] < .16)
                             if (name == token) break;
                             counter++;
                         }
-                        // todo: why no offset?
                         auto func = std::get<1>(functions[counter]);
-                        // int offset = std::accumulate(nParsDraw.begin(), nParsDraw.begin() + counter, 0);
-                        // if (counter == 4) offset--;
-                        // if (counter == 4) offset = 1;
                         double value = func(x, p + offset);
-                        // value = func(x, p);
 
                         if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions.size(), offset);
+                            DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions.size(), offset);
                         if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                            DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                         stack.push(value);
                     } else if (IsOperator(token)) {
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
                         // Apply operator
                         if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                         double b = stack.top();
@@ -654,16 +630,17 @@ if (0.12 < x[0] && x[0] < .16)
                         else
                             throw std::runtime_error("Unknown operator");
                     } else {
-                        if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
+                        if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
                         throw std::runtime_error("Unknown token: " + token);
                     }
                     if (0.12 < x[0] && x[0] < .16)
-                    DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+                        DEBUG(1, "[DRAW] Stack after processing the token: '%s'",
+                              join(" ", stack_to_vector(stack)).data());
                 }
 
                 if (0.12 < x[0] && x[0] < .16)
-                DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+                    DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'",
+                          join(" ", stack_to_vector(stack)).data());
 
                 if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
                 return stack.top();
@@ -671,15 +648,16 @@ if (0.12 < x[0] && x[0] < .16)
 
             DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
-            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
+            TF1* fTerm =
+                new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
             int color = iRecipe + 2;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
             fTerm->SetNpx(1000);
 
             int counter = 0;
-            for (const int &par : paraList) {
-                DEBUG(2, "parameter val: %.3f",  this->fFit->GetParameter(par));
+            for (const int& par : paraList) {
+                DEBUG(2, "parameter val: %.3f", this->fFit->GetParameter(par));
                 fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
             }
             fTerm->Draw("same");
@@ -693,9 +671,7 @@ if (0.12 < x[0] && x[0] < .16)
         this->fDrawRangeMax = xMax;
     }
 
-    TF1* GetFitFunction() {
-        return this->fFit;
-    }
+    TF1* GetFitFunction() { return this->fFit; }
 
     ClassDef(SuperFitter, 1)
 };
