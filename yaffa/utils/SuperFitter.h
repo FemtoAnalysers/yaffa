@@ -634,6 +634,10 @@ if (0.12 < x[0] && x[0] < .16)
         leg->Draw("same");
     };
 
+    TF1* GetFitFunction() {
+        return this->fFit;
+    }
+
     ClassDef(SuperFitter, 1)
 };
 
