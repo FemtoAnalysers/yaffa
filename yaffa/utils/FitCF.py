@@ -7,7 +7,7 @@ import sys
 import os
 import argparse
 import yaml
-
+import tabulate
 
 
 from yaffa import utils
@@ -80,7 +80,22 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
-
+        # Save fit parameters to file
+        fFit = fitter.GetFitFunction()
+        colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
+        pars = []
+        for iPar in range(fFit.GetNpar()):
+            pars.append([
+                iPar,
+                fFit.GetParName(iPar),
+                f'{fFit.GetParameter(iPar):+10.5e}',
+                f'{fFit.GetParError(iPar):+10.5e}',
+                '-',  # Placeholder for "Step size"
+                '-'   # Placeholder for "Derivative"
+            ])        
+        table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
+        with open(f'{cfg["ofile"]}_parameters.txt', "w") as file:
+            file.write(table)
         # oFile.Close()
 
 if __name__ == '__main__':
