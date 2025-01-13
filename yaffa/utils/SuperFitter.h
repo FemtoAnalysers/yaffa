@@ -670,7 +670,7 @@ if (0.12 < x[0] && x[0] < .16)
             DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
             TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, paraList.size());
-            int color = iRecipe + 3;
+            int color = iRecipe + 2;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
             fTerm->SetNpx(1000);
