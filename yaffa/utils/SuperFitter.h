@@ -263,16 +263,18 @@ class SuperFitter : public TObject {
     Observable* fObs;                                                    // Observable to be fitted
     TF1* fFit;                                                           // Total fit function
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
-    double fMin;                                                         // Fit range minimum
-    double fMax;                                                         // Fit range maximum
+    double fFitRangeMin;                                                 // Fit range minimum
+    double fFitRangeMax;                                                 // Fit range maximum
+    double fDrawRangeMin;                                                // Draw range minimum
+    double fDrawRangeMax;                                                // Draw range maximum
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fMin(0), fMax(1) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fFitRangeMin(0), fFitRangeMax(1) {};
 
     // Standard Contructor
     SuperFitter(Observable* oObservable, double xMin, double xMax)
-        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fMin(xMin), fMax(xMax) {
+        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRangeMin(xMin), fFitRangeMax(xMax) {
     };
 
     // Destructor
@@ -374,7 +376,7 @@ if(false)
         for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
           nPars += std::get<2>(functions[iFunc]);
         }
-        this->fFit = new TF1("fFit", lambda, this->fMin, this->fMax, nPars);
+        this->fFit = new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars);
         this->fFit->SetNpx(1000);
         
         for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
@@ -398,7 +400,7 @@ if(false)
                 this->fFit->SetParLimits(iPar, min, max);
             }
         }
-        this->fObs->Fit(this->fFit, opt);
+        this->fObs->Fit(this->fFit, opt, fFitRangeMin, fFitRangeMax);
     };
 
     // Add fit component
@@ -669,7 +671,7 @@ if (0.12 < x[0] && x[0] < .16)
 
             DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
-            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fMin, this->fMax, paraList.size());
+            TF1 *fTerm = new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
             int color = iRecipe + 2;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
@@ -685,6 +687,11 @@ if (0.12 < x[0] && x[0] < .16)
         }
         leg->Draw("same");
     };
+
+    void SetDrawRange(double xMin, double xMax) {
+        this->fDrawRangeMin = xMin;
+        this->fDrawRangeMax = xMax;
+    }
 
     TF1* GetFitFunction() {
         return this->fFit;

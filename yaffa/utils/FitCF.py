@@ -30,6 +30,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         inFile.Close()
 
         fitter = SuperFitter(oObs, fitCfg['fitrange'][0][0], fitCfg['fitrange'][0][1])
+        fitter.SetDrawRange(*fitCfg['drawrange'])
 
         # Add template to the fitter
         for iTerm, term in enumerate(fitCfg['terms']):
