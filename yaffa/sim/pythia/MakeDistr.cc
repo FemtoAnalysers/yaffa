@@ -646,6 +646,7 @@ void MakeDistr(
     
     // Pair QA
     std::map<std::pair<int, int>, TH2D *> hPairMultSE;
+    std::map<std::pair<int, int>, TH2D *> hPtMotherVsKstar;
 
     int nPart0 = PDG->GetParticle(pdg0)->AntiParticle() && pdg0 != pdg1 ? 2 : 1;
     int nPart1 = PDG->GetParticle(pdg1)->AntiParticle() ? 2 : 1;
@@ -656,6 +657,7 @@ void MakeDistr(
             hSE.insert({pair, new TH1D(Form("hSE%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
             hME.insert({pair, new TH1D(Form("hME%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
             hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
+            hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
         }
     }
 
@@ -857,6 +859,9 @@ void MakeDistr(
 
         DEBUG("Particle multiplicities in this event: n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
+        //! WARNING: this value makes sense ONLY for events with a SINGLE injected resonance! Don't use for realistic events
+        double ptMother = pythia.event[1].pT(); // The injected particle is always at index=1.
+
         // Same event
         DEBUG("Start same-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
@@ -872,6 +877,7 @@ void MakeDistr(
                 DEBUG("    SE(idx=%zu, idx=%zu): pdg0=%d pdg1=%d  --->  (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                 hSE[pair]->Fill(kStar);
+                hPtMotherVsKstar[pair]->Fill(kStar, ptMother);
             }
         }
 
@@ -930,6 +936,7 @@ void MakeDistr(
             hSE[pair]->Write("hSE");
             hME[pair]->Write("hME");
             hPairMultSE[pair]->Write("hPairMult");
+            hPtMotherVsKstar[pair]->Write("hPtMotherVsKstar");
         }
     }
 
