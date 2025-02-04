@@ -80,6 +80,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
         fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs(f'{cfg["ofile"]}.pdf')
+        cFit.SaveAs(f'{cfg["ofile"]}.root')
 
         # Save fit parameters to file
         fFit = fitter.GetFitFunction()
@@ -103,11 +104,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='cfg_fit.yml', nargs='?')
     parser.add_argument('--debug', default=False, action='store_true')
+    parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
 
     utils.style.SetStyle()
 
-    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TH1D, TF1
+    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1
     gInterpreter.ProcessLine(f'#define DO_DEBUG {1 if args.debug else 0}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
@@ -116,6 +118,6 @@ if __name__ == '__main__':
     with open(args.cfg) as file:
         config = yaml.safe_load(file)
 
-    gROOT.SetBatch(True)
+    gROOT.SetBatch(not args.x)
 
     FitCF(config)
