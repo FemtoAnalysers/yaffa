@@ -653,6 +653,7 @@ class SuperFitter : public TObject {
             int color = iRecipe + 2;
             if (color >= 5) color++;
             fTerm->SetLineColor(color);
+            fTerm->SetLineWidth(3);
             fTerm->SetNpx(1000);
 
             int counter = 0;
