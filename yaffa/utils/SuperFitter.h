@@ -17,7 +17,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if DO_DEBUG
+#if DO_DEBUG || 1
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -279,7 +279,10 @@ class SuperFitter : public TObject {
         : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRangeMin(xMin), fFitRangeMax(xMax) {};
 
     // Destructor
-    ~SuperFitter() { delete fObs; };
+    ~SuperFitter() {
+        delete fObs;
+        functions.clear();
+    };
 
     // Fit
     void Fit(std::string model, const char* opt = "") {
@@ -664,7 +667,7 @@ class SuperFitter : public TObject {
             fTerm->Draw("same");
             leg->AddEntry(fTerm, legend.data());
         }
-        leg->Draw("same");
+        leg->DrawClone("same");
     };
 
     void SetDrawRange(double xMin, double xMax) {
