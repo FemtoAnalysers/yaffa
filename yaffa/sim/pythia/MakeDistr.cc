@@ -11,6 +11,7 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include <map>
 #include <string>
 #include <vector>
+#include <cxxabi.h>  // For demangling
 
 // 3rd party libraries
 #include "yaml-cpp/yaml.h"
@@ -303,6 +304,41 @@ std::tuple<int, double, double> ComputeBinning(double xMin, double xMax, int pre
     return {nBins, xMinMul / mul, xMaxMul / mul};
 }
 
+/*
+Returns the name of the type as a string.
+*/
+template <typename T>
+std::string getType() {
+    int status;
+    std::string name = abi::__cxa_demangle(typeid(T).name(), 0, 0, &status);
+
+    if (status == 0) {
+        return name;
+    } else {
+        return typeid(T).name();
+    }
+}
+
+/*
+Load a variable from a YAML node and check its validity.
+*/
+template<typename T>
+T load(YAML::Node node, std::string name) {
+    if (!node) {
+        throw YAML::InvalidNode("Invalid node!");
+    }
+
+    if (!node[name].IsDefined()) {
+        throw std::runtime_error("Key '" + name + "' is not defined!");
+    }
+
+    try {
+        return node[name].as<T>();
+    } catch (const YAML::BadConversion&) {
+        throw std::runtime_error("Key '" + name + "' must be of type " + getType<T>() + "!");
+    }
+}
+
 void MakeDistr(
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
@@ -493,11 +529,11 @@ void MakeDistr(
     // Load Pt and y distributions
     int pdgMother = cfg["decaychain"]["pdg"].as<int>();
 
-    std::string kinemFile = cfg["decaychain"]["kinemfile"].as<std::string>();
-    std::string ptshape = cfg["decaychain"]["ptshape"].as<std::string>();
-    std::string yshape = cfg["decaychain"]["yshape"].as<std::string>();
-    std::string etashape = cfg["decaychain"]["etashape"].as<std::string>();
-    bool corr = cfg["decaychain"]["corr"].as<bool>();
+    std::string kinemFile = load<std::string>(cfg["decaychain"], "kinemfile");
+    std::string ptshape = load<std::string>(cfg["decaychain"], "ptshape");
+    std::string yshape = load<std::string>(cfg["decaychain"], "yshape");
+    std::string etashape = load<std::string>(cfg["decaychain"], "etashape");
+    bool corr = load<bool>(cfg["decaychain"], "corr");
 
     if (kinemFile != "" && ptshape != "") {
         printf("\033[31mError: you can't set the kinematics both from 'ptshape' and 'kinemfile'. Kinematics from file will be used.\033[0m\n");
