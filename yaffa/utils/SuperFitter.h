@@ -17,7 +17,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if DO_DEBUG || 1
+#if DO_DEBUG
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -265,6 +265,7 @@ class SuperFitter : public TObject {
     Observable* fObs;                                                    // Observable to be fitted
     TF1* fFit;                                                           // Total fit function
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
+    std::vector<TF1*> fTerms;
     double fFitRangeMin;                                                 // Fit range minimum
     double fFitRangeMax;                                                 // Fit range maximum
     double fDrawRangeMin;                                                // Draw range minimum
@@ -474,7 +475,9 @@ class SuperFitter : public TObject {
     };
 
     // Draw
-    void Draw(std::vector<std::pair<std::string, std::string>> recipes) const {
+    void Draw(std::vector<std::pair<std::string, std::string>> recipes) {
+        this->fTerms = {};
+
         std::cout << "Draw functions" << std::endl;
         for (const auto& [name, _, __] : functions) {
             std::cout << name << std::endl;
@@ -665,6 +668,7 @@ class SuperFitter : public TObject {
                 fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
             }
             fTerm->Draw("same");
+            fTerms.push_back(fTerm);
             leg->AddEntry(fTerm, legend.data());
         }
         leg->DrawClone("same");
@@ -676,6 +680,7 @@ class SuperFitter : public TObject {
     }
 
     TF1* GetFitFunction() { return this->fFit; }
+    std::vector<TF1*> GetTerms() { return this->fTerms; }
 
     ClassDef(SuperFitter, 1)
 };

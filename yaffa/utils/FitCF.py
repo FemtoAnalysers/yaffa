@@ -76,11 +76,11 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
         fitter.Fit(fitCfg['model'], 'MR+')
 
+        oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
         cFit = TCanvas('cFit', '', 600, 600)
         cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
         fitter.Draw(fitCfg['draw_recipes'])
         cFit.SaveAs(f'{cfg["ofile"]}.pdf')
-        cFit.SaveAs(f'{cfg["ofile"]}.root')
 
         # Save fit parameters to file
         fFit = fitter.GetFitFunction()
@@ -94,11 +94,27 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                 f'{fFit.GetParError(iPar):+10.5e}',
                 '-',  # Placeholder for "Step size"
                 '-'   # Placeholder for "Derivative"
-            ])        
+            ])
+
+        a0_re_idx = fFit.GetParNumber('a0_re')
+        a0_im_idx = fFit.GetParNumber('a0_im')
+
+        gScatLen = TGraphErrors(1)
+        gScatLen.SetName('gScatLen')
+        gScatLen.SetPoint(0, fFit.GetParameter(a0_re_idx), fFit.GetParameter(a0_im_idx))
+        gScatLen.SetPointError(0, fFit.GetParError(a0_re_idx), fFit.GetParError(a0_im_idx))
+        gScatLen.Write()
+
         table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
         with open(f'{cfg["ofile"]}_parameters.txt', "w") as file:
             file.write(table)
-        # oFile.Close()
+
+        hObs.Write()
+        cFit.Write()
+        fFit.Write()
+        for term in fitter.GetTerms():
+            term.Write()
+        oFile.Close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -109,7 +125,7 @@ if __name__ == '__main__':
 
     utils.style.SetStyle()
 
-    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1
+    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
     gInterpreter.ProcessLine(f'#define DO_DEBUG {1 if args.debug else 0}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
