@@ -266,18 +266,17 @@ class SuperFitter : public TObject {
     TF1* fFit;                                                           // Total fit function
     std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
-    double fFitRangeMin;                                                 // Fit range minimum
-    double fFitRangeMax;                                                 // Fit range maximum
+    std::vector<std::pair<double, double>> fFitRange;                    // Fit range as the union of different intervals
     double fDrawRangeMin;                                                // Draw range minimum
     double fDrawRangeMax;                                                // Draw range maximum
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fFitRangeMin(0), fFitRangeMax(1) {};
+    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fFitRange({}) {};
 
     // Standard Contructor
-    SuperFitter(Observable* oObservable, double xMin, double xMax)
-        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRangeMin(xMin), fFitRangeMax(xMax) {};
+    SuperFitter(Observable* oObservable, std::vector<std::pair<double, double>> fitRange)
+        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRange(fitRange) {};
 
     // Destructor
     ~SuperFitter() {
@@ -285,8 +284,28 @@ class SuperFitter : public TObject {
         functions.clear();
     };
 
+    bool IsInFitRange(double x) {
+        return true;
+        for (const auto &[xMin, xMax] : this->fFitRange) {
+            if (xMin < x && x < xMax) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Fit
     void Fit(std::string model, const char* opt = "") {
+        if (fFitRange.size() == 0) {
+            throw std::runtime_error("Fit range is not specified!");
+        }
+
+        printf("Starting fit in Fit Range: ");
+        for (const auto &[xMin, xMax] : this->fFitRange) {
+            printf("[%.3f %.3f] U ", xMin, xMax);
+        }
+        printf("\n");
+
         // Tokenization of the model
         auto tokens = Tokenize(model);
         DEBUG(0, "Expression in infix: %s", join(" ", tokens).data());
@@ -363,6 +382,12 @@ class SuperFitter : public TObject {
             if (false) DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
+
+            // Reject points outside of the fit range
+            if (!IsInFitRange(x[0])) {
+                TF1::RejectPoint();
+            }
+
             return stack.top();
         };
 
@@ -394,7 +419,7 @@ class SuperFitter : public TObject {
                 this->fFit->SetParLimits(iPar, min, max);
             }
         }
-        this->fObs->Fit(this->fFit, opt, fFitRangeMin, fFitRangeMax);
+        this->fObs->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
     };
 
     // Add fit component
@@ -478,7 +503,6 @@ class SuperFitter : public TObject {
     void Draw(std::vector<std::pair<std::string, std::string>> recipes) {
         this->fTerms = {};
 
-        std::cout << "Draw functions" << std::endl;
         for (const auto& [name, _, __] : functions) {
             std::cout << name << std::endl;
         }
@@ -682,7 +706,7 @@ class SuperFitter : public TObject {
     TF1* GetFitFunction() { return this->fFit; }
     std::vector<TF1*> GetTerms() { return this->fTerms; }
 
-    ClassDef(SuperFitter, 1)
+    ClassDef(SuperFitter, 2)
 };
 
 ClassImp(SuperFitter);

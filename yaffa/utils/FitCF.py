@@ -29,7 +29,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         oObs = Observable(hObs)
         inFile.Close()
 
-        fitter = SuperFitter(oObs, fitCfg['fitrange'][0][0], fitCfg['fitrange'][0][1])
+        fitter = SuperFitter(oObs, fitCfg['fitrange'])
         fitter.SetDrawRange(*fitCfg['drawrange'])
 
         # Add template to the fitter
