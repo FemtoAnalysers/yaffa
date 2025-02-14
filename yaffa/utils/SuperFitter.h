@@ -209,6 +209,16 @@ double Pol8(double* x, double* p) { return Pol7(x, p) + p[8] * pow(x[0], 8); }
 // Polynomial of degree 9
 double Pol9(double* x, double* p) { return Pol8(x, p) + p[9] * pow(x[0], 9); }
 
+double BreitWigner(double *x, double *par) {
+    double kstar = x[0];
+
+    double yield = par[0];
+    double mean = par[1];
+    double gamma = par[2];
+
+    return yield * TMath::BreitWigner(kstar, mean, gamma);
+}
+
 const double FmToNu(5.067731237e-3);
 const double Pi(3.141592653589793);
 const std::complex<double> i(0, 1);
@@ -448,6 +458,8 @@ class SuperFitter : public TObject {
             functions.push_back({name, Pol9, 10});
         } else if (func == "gaus") {
             functions.push_back({name, Gaus, 3});
+        } else if (func == "breit_wigner") {
+            functions.push_back({name, BreitWigner, 3});
         } else if (func == "lednicky") {
             functions.push_back({name, Lednicky, 7});
         } else {
