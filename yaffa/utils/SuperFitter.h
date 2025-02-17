@@ -29,6 +29,8 @@
 #define DEBUG(msg, ...)
 #endif
 
+#define TINY std::numeric_limits<double>::min()
+
 // List of TF1-compatible functions that can be used in the fit
 std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>> functions = {};
 
@@ -234,6 +236,7 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
     }
 
     kstar *= 1000;  // change units to GeV/c
+    kstar = std::max(kstar, TINY); // avoid problems with k* = 0
 
     const double Radius = GaussR * FmToNu;
     const complex<double> IsLen1 = 1. / (a0 * FmToNu + 1e-64);
