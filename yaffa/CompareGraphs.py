@@ -430,7 +430,7 @@ for iPlot, plot in enumerate(cfg):
                 elif isinstance(inObj, TGraph):
                     hPulls.Draw('same l')
         else:
-            log.error('Pulls not implemented for a reference of type %(type(refObj))')
+            log.error('Pulls not implemented for a reference of type %s', type(refObj))
 
     cPlot.Modified()
     cPlot.Update()
