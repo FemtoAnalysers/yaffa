@@ -113,10 +113,10 @@ int GetPrecedence(const std::string& op) {
 // Check if token is an operator
 bool IsOperator(const std::string& token) { return token == "+" || token == "-" || token == "*" || token == "/"; }
 
-// Check if token is a function
+// Check if token is a function. "raw" is a special token used for the total fit function
 bool IsFunction(const std::string& token) {
     for (const auto& [name, _, __] : functions) {
-        if (token == name) return true;
+        if (token == name || token == "raw") return true;
     }
     return false;
 }
@@ -695,9 +695,12 @@ class SuperFitter : public TObject {
 
             TF1* fTerm =
                 new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
-            int color = iRecipe + 2;
-            if (color >= 5) color++;
-            fTerm->SetLineColor(color);
+
+            int colors[12] = {kBlue+2, kRed+1, kGreen+3, kMagenta+2, kCyan+3, 
+                  kOrange+7, kViolet+3, kAzure+4, kPink+4, kSpring-7, 
+                  kTeal+2, kGray+2};
+
+            fTerm->SetLineColor(colors[iRecipe]);
             fTerm->SetLineWidth(3);
             fTerm->SetNpx(1000);
 
@@ -719,10 +722,163 @@ class SuperFitter : public TObject {
     }
 
     TF1* GetFitFunction() { return this->fFit; }
+    TH1D* GetGenuineCF(std::string recipe);
     std::vector<TF1*> GetTerms() { return this->fTerms; }
 
     ClassDef(SuperFitter, 2)
 };
+
+
+TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
+    TH1D *hRawCF = (TH1D *) this->fObs->GetHistogram();
+    TH1D *hGenCF = (TH1D *)hRawCF->Clone("hGenCF");
+    hGenCF->Reset();
+
+    // Draw the fitted observable
+    this->fObs->Draw("hist same pe");
+
+    // Draw the final fit function
+    this->fFit->Draw("same");
+
+    // Tokenization of the recipe
+    auto tokens = Tokenize(recipe);
+
+    // Count the number of parameters
+    std::set<int> paraList = {};
+    std::vector<int> nParsDraw = {};
+    std::set<std::string> used_tokens = {};
+    for (const auto& token : tokens) {
+        int counter = 0;
+        for (const auto& [name, _, __] : functions) {
+            if (name == token) break;
+            counter++;
+        }
+
+        int offset = 0;
+        for (int iFunc = 0; iFunc < counter; iFunc++) {
+            offset += std::get<2>(functions[iFunc]);
+        }
+
+        // Determine the number of parameters
+        for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
+            auto name = std::get<0>(functions[iFunc]);
+            if (name == token && used_tokens.find(token) == used_tokens.end()) {
+                int nPars = std::get<2>(functions[iFunc]);
+                nParsDraw.push_back(nPars);
+                // Determine the position of the function in the list of functions
+                for (int iPar = 0; iPar < nPars; iPar++) {
+                    paraList.insert(offset + iPar);
+                }
+                break;
+            }
+        }
+    }
+
+    // Convert to Reverse Polish Notation
+    auto rpn = toRPN(tokens);
+
+    // The following lambda evaluates the fit function
+    for (int iBin = 0; iBin < hGenCF->GetNbinsX(); iBin++) {
+        double x = hGenCF->GetBinCenter(iBin + 1);
+
+        std::stack<double> stack;
+
+        std::vector<std::pair<std::string, int>> nParameters = {};  // token, npars
+        int idx = 0;
+        for (const std::string& token : rpn) {
+            if (isdigit(token[0]) || token[0] == '.') {
+                // Push numbers
+                stack.push(std::stod(token));
+            } else if(token == "raw") {
+                stack.push(hRawCF->GetBinContent(iBin + 1));
+            } else if (IsFunction(token)) {
+                // inly insert if not already present -> avoid duplicates
+                // if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) ==
+                //     nParameters.end()) {
+                //     for (const auto& [name, _, npar] : functions) {
+                //         if (name == token) {
+                //             nParameters.push_back({token, npar});
+                //         }
+                //     }
+                // }
+
+                // // Compute offset
+                // int offset = 0;
+                // for (const auto& [name, np] : nParameters) {
+                //     printf("offset name token %d %s %s\n", offset, name.data(), token.data());
+                //     if (name == token) break;
+                //     offset += np;
+                // }
+
+                // Determine the position of the function in the list of functions
+                int counter = 0;
+                for (const auto& [name, _, __] : functions) {
+                    if (name == token) break;
+                    counter++;
+                }
+                
+                printf("\n\ntoken; %s\n", token.data());
+                int offset = 0;
+                for (const auto& [name, _, npar] : functions) {
+                    std::cout << "in functions:" <<name << "   " << npar << std::endl;
+                    if (name == token) break;
+
+
+                    offset += npar;
+                }
+
+
+                auto func = std::get<1>(functions[counter]);
+                std::cout << "token :" << token << "  Offset:  " << offset << std::endl;
+                double *pars = fFit->GetParameters();
+                // for (int iPar = 0; iPar < fFit->GetNpar(); iPar++) {
+                //     std::cout << "iPar: " << iPar << " = " << pars[iPar] << " " << fFit->GetParName(iPar)<<  std::endl;
+                // }
+                double value = func(&x, pars + offset);
+
+                stack.push(value);
+            } else if (IsOperator(token)) {
+                // Apply operator
+                if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+                double b = stack.top();
+                stack.pop();
+                double a = stack.top();
+                stack.pop();
+
+                if (token == "+")
+                    stack.push(a + b);
+                else if (token == "-")
+                    stack.push(a - b);
+                else if (token == "*")
+                    stack.push(a * b);
+                else if (token == "/")
+                    stack.push(a / b);
+                else
+                    throw std::runtime_error("Unknown operator");
+            } else {
+                throw std::runtime_error("Unknown token: " + token);
+            }
+        }
+
+        if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
+        
+        hGenCF->SetBinContent(iBin + 1, stack.top());
+        hGenCF->SetBinError(iBin + 1, hRawCF->GetBinError(iBin + 1) * 2); //! Use proper uncertainty
+        // return stack.top();
+    }
+
+    // TF1* fTerm = new TF1(Form("fTerm"), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
+    // fTerm->SetNpx(1000);
+
+    // int counter = 0;
+    // for (const int& par : paraList) {
+    //     fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
+    // }
+
+    // fTerm->Draw("same");
+    
+    return hGenCF;
+}
 
 ClassImp(SuperFitter);
 

@@ -84,6 +84,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
         # Save fit parameters to file
         fFit = fitter.GetFitFunction()
+        hGenCF = fitter.GetGenuineCF(fitCfg['gencf'])
         colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
         pars = []
         for iPar in range(fFit.GetNpar()):
@@ -110,6 +111,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             file.write(table)
 
         hObs.Write()
+        hGenCF.Write()
         cFit.Write()
         fFit.Write()
         for term in fitter.GetTerms():
