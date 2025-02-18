@@ -371,7 +371,7 @@ for plot in cfg:
                 hPulls.SetLineColor(inObj.GetLineColor())
                 hPulls.SetMarkerColor(inObj.GetMarkerColor())
                 if isinstance(inObj, TH1):
-                    hPulls.DrawCopy('same l')
+                    hPulls.DrawCopy('same b')
                 elif isinstance(inObj, TGraph):
                     hPulls.Draw('same l')
         else:
