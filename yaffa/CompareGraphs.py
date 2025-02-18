@@ -312,6 +312,9 @@ for iPlot, plot in enumerate(cfg):
         hSpread = inObjs[0].Clone('hSpread')
         hSpread.Reset()
 
+        x1 = plot['opt']['rangex'][0]
+        x2 = plot['opt']['rangex'][1]
+
         for iBin in range(hSpread.GetXaxis().FindBin(x1 * 1.0001), hSpread.GetXaxis().FindBin(x2 * 0.9999)):
             yValues = np.array([obj.GetBinContent(iBin + 1) for obj in inObjs[1:]])
             spread = np.std(yValues) / inObjs[0].GetBinContent(iBin + 1)
