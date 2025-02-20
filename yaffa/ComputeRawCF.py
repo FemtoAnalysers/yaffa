@@ -121,7 +121,7 @@ for ncomb, comb in enumerate(combs):
                 hSEAnc = Load(inFile, f'{folder}/SEDist{ancestor}_{fdcomb}')
                 hSEAncMultk = Load(inFile, f'{folder}/SEMultDist{ancestor}_{fdcomb}')
                 hSE[comb][f'{region}/{ancestor}'] = TH1D()
-                hSEmultk[comb][f'{region}/{ancestor}'] = TH1D()
+                hSEmultk[comb][f'{region}/{ancestor}'] = TH2D()
                 hSEAnc.Copy(hSE[comb][f'{region}/{ancestor}'])
                 hSEAncMultk.Copy(hSEmultk[comb][f'{region}/{ancestor}'])
 
