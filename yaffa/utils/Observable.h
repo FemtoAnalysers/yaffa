@@ -19,6 +19,9 @@ class Observable : public TObject {
     // Destructor
     ~Observable();
 
+
+    TH1* GetHistogram() {return this->fHObs; };
+
     // Draw
     void Draw(const char* opt = "") const;
 
