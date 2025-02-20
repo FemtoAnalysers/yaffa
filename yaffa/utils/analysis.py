@@ -2,7 +2,33 @@
 Module that contains various functions useful for the post-processing of the data.
 '''
 
+import numpy as np
+
 from ROOT import TH1F, TH2D, TGraph  # pylint: disable=import-error
+
+def GetSpread(objects):
+    '''
+    Given a list of TH1, returns a TH1 where the points are the averages of the bins and the width is the spread
+    (standard deviation) of the bin entries.
+
+    Args:
+        objects (list[TH1]): list of histograms
+
+    Returns:
+        TH1: histogram containing the average and spread of the input histograms
+    '''
+    hSpread = objects[0].Clone('hSpread')
+    hSpread.Reset()
+
+    for iBin in range(hSpread.GetNbinsX()):
+        yValues = np.array([obj.GetBinContent(iBin + 1) for obj in objects[1:]])
+        spread = np.std(yValues)
+        avg = np.average(yValues)
+        hSpread.SetBinContent(iBin + 1, avg)
+        hSpread.SetBinError(iBin + 1, spread)
+
+    return hSpread
+
 
 def ChangeUnits(hist, multiplier, name=None, title=''):
     '''
