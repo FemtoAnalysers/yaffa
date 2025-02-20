@@ -1,5 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
-# Prevent the push if the linting fails, but only if you are not on the batchfarm since there docker is not available
-isBatchFarm="$hostname" == "nidoking.ktas.ph.tum.de" || "$hostname" == "nidoqueen.ktas.ph.tum.de"
-isBatchFarm && exec yaffa-lint || exit 0
+# Prevent the push if the linting fails
+
+HOSTNAME=$(hostname -f)
+
+# Skip linting on the batchfarm where docker is not available
+if [[ "$HOSTNAME" == "nidoking.ktas.ph.tum.de" || "$HOSTNAME" == "nidoqueen.ktas.ph.tum.de" ]]; then
+    exit 0
+fi
+
+yaffa-lint
