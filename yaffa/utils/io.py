@@ -49,7 +49,8 @@ def Load(container, path):
             yaffa.logger.critical('The container %s of type %s is not valid', container.GetName(), type(container))
 
         if obj == None:  # pylint: disable=singleton-comparison
-            yaffa.logger.critical('The container %s does not contain an object named %s', container.GetName(), name)
+            yaffa.logger.warning('The container %s does not contain an object named %s', container.GetName(), name)
+            return None
         container = obj
 
     yaffa.logger.debug('The object %s:%s was succesfully loaded', container.GetName(), path)
