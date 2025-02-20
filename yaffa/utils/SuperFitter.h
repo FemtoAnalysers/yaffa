@@ -817,25 +817,15 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
                     counter++;
                 }
                 
-                printf("\n\ntoken; %s\n", token.data());
                 int offset = 0;
                 for (const auto& [name, _, npar] : functions) {
-                    std::cout << "in functions:" <<name << "   " << npar << std::endl;
                     if (name == token) break;
-
-
                     offset += npar;
                 }
 
-
                 auto func = std::get<1>(functions[counter]);
-                std::cout << "token :" << token << "  Offset:  " << offset << std::endl;
                 double *pars = fFit->GetParameters();
-                // for (int iPar = 0; iPar < fFit->GetNpar(); iPar++) {
-                //     std::cout << "iPar: " << iPar << " = " << pars[iPar] << " " << fFit->GetParName(iPar)<<  std::endl;
-                // }
                 double value = func(&x, pars + offset);
-
                 stack.push(value);
             } else if (IsOperator(token)) {
                 // Apply operator
