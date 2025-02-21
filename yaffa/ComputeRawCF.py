@@ -17,13 +17,12 @@ from ROOT import TFile, TH1D, TH2D
 from yaffa import logger as log
 from yaffa.utils.io import Load, GetKeyNames
 
-def LoadMultVsKstarFemtoDream(inFile, distr, **kwargs):
+from rich import print
+
+def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
     suffix = kwargs['suffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
-
-    if distr not in ['SE', 'ME']:
-        log.fatal('distr is not valid. Choose between SE and ME.')
 
     if regions != ['sgn']:
         log.fatal('Only signal region is implemented.')
@@ -38,41 +37,108 @@ def LoadMultVsKstarFemtoDream(inFile, distr, **kwargs):
             fdcomb = f'Particle{comb[1]}_Particle{comb[2]}'
             folder = f'HMResults{suffix}/HMResults{suffix}/{fdcomb}/'
 
-            hDistr[comb][region] = Load(inFile, f'{folder}/{distr}MultDist_{fdcomb}')
-            hDistr[comb][region].SetDirectory(0)
+            for ancestor in ['Common', 'NonCommon']:
+                hAncestor = Load(inFile, f'{folder}/SEMultDist{ancestor}_{fdcomb}')
+                if hAncestor == None:
+                    log.info('Ancestors were not found')
+                    return {}
 
-            if hAncestor := Load(inFile, f'{folder}/SEMultDistCommon_{fdcomb}'):
-                log.info('Loading Common ancestor')
-                hDistr[comb][f'{region}/Common'] = hAncestor
-                hDistr[comb][f'{region}/Common'].SetDirectory(0)
-            if hAncestor := Load(inFile, f'{folder}/SEMultDistNonCommon_{fdcomb}'):
-                log.info('Loading Non-Common ancestor')
-                hDistr[comb][f'{region}/NonCommon'] = hAncestor
-                hDistr[comb][f'{region}/NonCommon'].SetDirectory(0)
-
-            iMt = 0
-            while hDistrMt := Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}'):
-                log.info('Loading mT bins')
- 
-                hDistr[comb][f'{region}/mT{iMt}'] = hDistrMt
-                hDistr[comb][f'{region}/mT{iMt}'].SetDirectory(0)
-
-                if hAncestor := Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}'):
-                    log.info(f'Loading Common Ancestor for mT bin = {iMt}')
-                    
-                    hDistr[comb][f'{region}/mT{iMt}/Common'] = hAncestor
-                    hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
-
-                if hAncestor := Load(inFile, f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}'):
-                    log.info(f'Loading Non-Common Ancestor for mT bin = {iMt}')
-                    
-                    hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hAncestor
-                    hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
-
-                iMt += 1
-                
+                log.info(f'Loading {ancestor} ancestor')
+                hDistr[comb][f'{region}/{ancestor}'] = hAncestor
+                hDistr[comb][f'{region}/{ancestor}'].SetDirectory(0)
 
     return hDistr
+
+# iMt = 0
+# while hDistrMt := Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}'):
+#     log.info('Loading mT bins')
+
+#     if hAncestor := Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}'):
+#         log.info(f'Loading Common Ancestor for mT bin = {iMt}')
+        
+#         hDistr[comb][f'{region}/mT{iMt}/Common'] = hAncestor
+#         hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
+
+#     if hAncestor := Load(inFile, f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}'):
+#         log.info(f'Loading Non-Common Ancestor for mT bin = {iMt}')
+        
+#         hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hAncestor
+#         hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
+
+#     iMt += 1
+
+# def LoadMultVsKstarMtFemtoDream(inFile, distr, **kwargs):
+#     suffix = kwargs['suffix']
+#     regions = kwargs['regions']
+#     combs = kwargs['combs']
+
+#     if distr not in ['SE', 'ME']:
+#         log.fatal('distr is not valid. Choose between SE and ME.')
+
+#     if regions != ['sgn']:
+#         log.fatal('Only signal region is implemented.')
+
+#     if combs != ['p02', 'p03', 'p12', 'p13']:
+#         log.fatal('Combinations not implemented')
+
+#     hDistr = {}
+#     for comb in combs:
+#         hDistr[comb] = {}
+#         for region in regions:
+#             fdcomb = f'Particle{comb[1]}_Particle{comb[2]}'
+#             folder = f'HMResults{suffix}/HMResults{suffix}/{fdcomb}/'
+
+#             iMt = 0
+#             while hDistrMt := Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}'):
+#                 log.info('Loading mT bins')
+ 
+#                 hDistr[comb][f'{region}/mT{iMt}'] = hDistrMt
+#                 hDistr[comb][f'{region}/mT{iMt}'].SetDirectory(0)
+
+#                 # if hAncestor := Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}'):
+#                 #     log.info(f'Loading Common Ancestor for mT bin = {iMt}')
+                    
+#                 #     hDistr[comb][f'{region}/mT{iMt}/Common'] = hAncestor
+#                 #     hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
+
+#                 # if hAncestor := Load(inFile, f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}'):
+#                 #     log.info(f'Loading Non-Common Ancestor for mT bin = {iMt}')
+                    
+#                 #     hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hAncestor
+#                 #     hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
+
+#                 iMt += 1
+                
+
+#     return hDistr
+
+def LoadMultVsKstarFemtoDream(inFile, **kwargs):
+    suffix = kwargs['suffix']
+    regions = kwargs['regions']
+    combs = kwargs['combs']
+
+    if regions != ['sgn']:
+        log.fatal('Only signal region is implemented.')
+
+    if combs != ['p02', 'p03', 'p12', 'p13']:
+        log.fatal('Combinations not implemented')
+
+    hSE = {}
+    hME = {}
+    for comb in combs:
+        hSE[comb] = {}
+        hME[comb] = {}
+        for region in regions:
+            fdcomb = f'Particle{comb[1]}_Particle{comb[2]}'
+            folder = f'HMResults{suffix}/HMResults{suffix}/{fdcomb}/'
+
+            hSE[comb][region] = Load(inFile, f'{folder}/SEMultDist_{fdcomb}')
+            hME[comb][region] = Load(inFile, f'{folder}/MEMultDist_{fdcomb}')
+            hSE[comb][region].SetDirectory(0)
+            hME[comb][region].SetDirectory(0)
+
+    return hSE, hME
+
 
 def LoadMultVsKstar(inFile, **kwargs):
     suffix = kwargs['suffix']
@@ -80,8 +146,10 @@ def LoadMultVsKstar(inFile, **kwargs):
     hME = {}
 
     if f'HMResults{suffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
-        hSE = LoadMultVsKstarFemtoDream(inFile, 'SE', **kwargs)
-        hME = LoadMultVsKstarFemtoDream(inFile, 'ME', **kwargs)
+        hSE, hME = LoadMultVsKstarFemtoDream(inFile, **kwargs)
+        hAnc = LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs)
+        for comb in hSE.keys():
+            hSE[comb].update(hAnc[comb])
 
     # Comment this old section of the code in order to simplify the script
     # elif comb in GetKeyNames(inFile): # Make correlation functions from ALICE3 simulations
@@ -145,13 +213,16 @@ def Reweight(hSE, hME, normRange = None, multRange = None):
     return hMERew, hWeights, (hSEMultSlices, hMEMultSlices, hCFMultSlices)
 
 
-def ProjectDistr(hDistrMult):
+def ProjectDistr(hDistrMult, doAncestors = False):
     hDistr = {}
     for comb in hDistrMult.keys():
         hDistr[comb] = {}
         for region in ['sgn']:
             hDistr[comb][region] = hDistrMult[comb][region].ProjectionX(f'{comb}SEdistr', 1, hDistrMult[comb][region].GetNbinsX())
             hDistr[comb][region].SetDirectory(0)
+
+            if not doAncestors:
+                continue
 
             hCommon = hDistrMult[comb][f'{region}/Common']
             hNonCommon = hDistrMult[comb][f'{region}/NonCommon']
@@ -206,7 +277,8 @@ def main(cfg):
         hMErew[comb] = {}
         hWeightsRew[comb] = {}
         for region in regions:
-            hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][region], cfg['norm'])
+            regionME = region.replace('/Common', '').replace('/NonCommon', '')
+            hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'])
 
             for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
                 if hME.Integral() > 0:
@@ -222,9 +294,7 @@ def main(cfg):
             hMErew[comb][region] = hMERew
             hWeightsRew[comb][region] = hWeights
 
-
-    
-    hSE = ProjectDistr(hSEmultk)
+    hSE = ProjectDistr(hSEmultk, True)
     hME = ProjectDistr(hMEmultk)
 
     # Sum pair and antipair
@@ -255,7 +325,7 @@ def main(cfg):
             rebin = round(float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000))
             hSE[comb][region].Rebin(rebin)
             # remove '/Common' and '/NonCommon' since the ME is the same as the inclusive ancestor
-            regionME = region.split('/')[0]
+            regionME = region.replace('/Common', '').replace('/NonCommon', '')
             hME[comb][regionME].Rebin(rebin)
             hMErew[comb][regionME].Rebin(rebin)
 
