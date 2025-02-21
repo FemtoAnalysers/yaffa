@@ -49,23 +49,7 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
 
     return hDistr
 
-# iMt = 0
-# while hDistrMt := Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}'):
-#     log.info('Loading mT bins')
 
-#     if hAncestor := Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}'):
-#         log.info(f'Loading Common Ancestor for mT bin = {iMt}')
-        
-#         hDistr[comb][f'{region}/mT{iMt}/Common'] = hAncestor
-#         hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
-
-#     if hAncestor := Load(inFile, f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}'):
-#         log.info(f'Loading Non-Common Ancestor for mT bin = {iMt}')
-        
-#         hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hAncestor
-#         hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
-
-#     iMt += 1
 
 # def LoadMultVsKstarMtFemtoDream(inFile, distr, **kwargs):
 #     suffix = kwargs['suffix']
@@ -137,6 +121,41 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
             hSE[comb][region].SetDirectory(0)
             hME[comb][region].SetDirectory(0)
 
+
+            iMt = 0
+            while True:
+                hSEmT = Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}')
+                hMEmT = Load(inFile, f'{folder}/MEmTMult_{iMt}_{fdcomb}')
+
+                if hSEmT == None or hMEmT == None:
+                    break
+
+                log.info('Loading mT bins')
+
+                hSE[comb][f'{region}/mT{iMt}'] = hSEmT
+                hSE[comb][f'{region}/mT{iMt}'].SetDirectory(0)
+                hME[comb][f'{region}/mT{iMt}'] = hMEmT
+                hME[comb][f'{region}/mT{iMt}'].SetDirectory(0)
+            
+
+            # iMt = 0#
+            # while hDistrMt := Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}'):
+            #     log.info('Loading mT bins')
+
+            #     if hAncestor := Load(inFile, f'{folder}/
+            #                          {iMt}_{fdcomb}'):
+            #         log.info(f'Loading Common Ancestor for mT bin = {iMt}')
+                    
+            #         hDistr[comb][f'{region}/mT{iMt}/Common'] = hAncestor
+            #         hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
+
+            #     if hAncestor := Load(inFile, f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}'):
+            #         log.info(f'Loading Non-Common Ancestor for mT bin = {iMt}')
+                    
+            #         hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hAncestor
+            #         hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
+
+                iMt += 1
     return hSE, hME
 
 
@@ -297,6 +316,8 @@ def main(cfg):
     hSE = ProjectDistr(hSEmultk, True)
     hME = ProjectDistr(hMEmultk)
 
+    print(hSEmultk)
+    print(hMEmultk)
     # Sum pair and antipair
     for comb in combs:
         hSE['p02_13'] = {}
