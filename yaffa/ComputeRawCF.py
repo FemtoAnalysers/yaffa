@@ -47,8 +47,6 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
                 hDistr[comb][f'{region}/{ancestor}'] = hAncestor
                 hDistr[comb][f'{region}/{ancestor}'].SetDirectory(0)
 
-
-
             iMt = 0
             while True:
                 hSECommon = Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}')
@@ -149,7 +147,7 @@ def LoadMultVsKstar(inFile, **kwargs):
 
     return hSE, hME
 
-def Reweight(hSE, hME, normRange = None, multRange = None):
+def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
     hSEMultSlices = []
     hMEMultSlices = []
     hCFMultSlices = []
@@ -157,12 +155,13 @@ def Reweight(hSE, hME, normRange = None, multRange = None):
     nBins = hME.GetYaxis().GetNbins() + 2
     xMin = hME.GetYaxis().GetXmin()
     xMax = hME.GetYaxis().GetXmax()
-    hWeights = TH1D('hWeights', ';Mult bin (a.u.); Weight', nBins, xMin, xMax)
+    suffix = f"_{name}" if name else ''
+    hWeights = TH1D(f'hWeights{suffix}', ';Mult bin (a.u.); Weight', nBins, xMin, xMax)
 
     nBins = hME.GetXaxis().GetNbins()
     xMin = hME.GetXaxis().GetXmin()
     xMax = hME.GetXaxis().GetXmax()
-    hMERew = TH1D('hMERew', ';#it{k}* (GeV/#it{c});Counts', nBins, xMin, xMax)
+    hMERew = TH1D(f'hMERew{suffix}', ';#it{k}* (GeV/#it{c});Counts', nBins, xMin, xMax)
 
     startBinMultRew, endBinMultRew = multRange if multRange is not None else [0, nBins]
     for iBin in range(startBinMultRew, endBinMultRew): # Loop over underflow, all bins, and overflow
@@ -171,13 +170,13 @@ def Reweight(hSE, hME, normRange = None, multRange = None):
         hSEMultSlices.append(hSEbinmult)
         hMEMultSlices.append(hMEbinmult)
 
-        if hMEbinmult.Integral() > 0:
+        firstBin = hSEbinmult.FindBin(normRange[0] * 1.0001)
+        lastBin = hSEbinmult.FindBin(normRange[1] * 0.9999)
+        if hSEbinmult.Integral(firstBin, lastBin) > 0 and hMEbinmult.Integral() > 0:
             hMERew.Add(hMEbinmult, hSEbinmult.Integral()/hMEbinmult.Integral())
             hWeights.SetBinContent(iBin, hSEbinmult.Integral()/hMEbinmult.Integral())
 
             # Compute the CFs for each multiplicity bin
-            firstBin = hSEbinmult.FindBin(normRange[0] * 1.0001)
-            lastBin = hSEbinmult.FindBin(normRange[1] * 0.9999)
             norm = hMEbinmult.Integral(firstBin, lastBin) / hSEbinmult.Integral(firstBin, lastBin)
             hCFbinmult = norm * hSEbinmult / hMEbinmult
             hCFbinmult.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
@@ -189,25 +188,16 @@ def Reweight(hSE, hME, normRange = None, multRange = None):
     return hMERew, hWeights, (hSEMultSlices, hMEMultSlices, hCFMultSlices)
 
 
-def ProjectDistr(hDistrMult, doAncestors = False):
+def ProjectDistr(hDistrMult):
     hDistr = {}
     for comb in hDistrMult.keys():
         hDistr[comb] = {}
-        for region in ['sgn']:
+
+        for region in hDistrMult[comb].keys():
             hDistr[comb][region] = hDistrMult[comb][region].ProjectionX(f'{comb}SEdistr', 1, hDistrMult[comb][region].GetNbinsX())
             hDistr[comb][region].SetDirectory(0)
 
-            if not doAncestors:
-                continue
-
-            hCommon = hDistrMult[comb][f'{region}/Common']
-            hNonCommon = hDistrMult[comb][f'{region}/NonCommon']
-            if hCommon and hNonCommon:
-                hDistr[comb][f'{region}/Common'] = hCommon.ProjectionX(f'{comb}SEdistrCommon', 1, hCommon.GetNbinsX())
-                hDistr[comb][f'{region}/NonCommon'] = hNonCommon.ProjectionX(f'{comb}SEdistrNonCommon', 1, hNonCommon.GetNbinsX())
-
     return hDistr
-
 
 def main(cfg):
     '''
@@ -252,14 +242,14 @@ def main(cfg):
 
         hMErew[comb] = {}
         hWeightsRew[comb] = {}
-        for region in regions:
+        for region in hSEmultk[comb].keys():
             regionME = region.replace('/Common', '').replace('/NonCommon', '')
-            hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'])
+            hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
 
             for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
                 if hME.Integral() > 0:
-                    oFile.mkdir(f'{comb}/multbins/{iSlice}')
-                    oFile.cd(f'{comb}/multbins/{iSlice}')
+                    oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
+                    oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
 
                     hCF.Write(f'hCF_multbin{iSlice}')
                     hSE.Write(f'hSE_multbin{iSlice}')
@@ -270,7 +260,7 @@ def main(cfg):
             hMErew[comb][region] = hMERew
             hWeightsRew[comb][region] = hWeights
 
-    hSE = ProjectDistr(hSEmultk, True)
+    hSE = ProjectDistr(hSEmultk)
     hME = ProjectDistr(hMEmultk)
 
     print(hSE)
@@ -286,16 +276,18 @@ def main(cfg):
         hWeightsRew['p02_13'] = {}
         hWeightsRew['p03_12'] = {}
 
-        for region in regions:
+        for region in hSE[comb].keys():
             hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
-            hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
             hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
             hWeightsRew['p02_13'][region] = hWeightsRew['p02'][region] + hWeightsRew['p13'][region]
 
             hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
-            hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
             hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
             hWeightsRew['p03_12'][region] = hWeightsRew['p03'][region] + hWeightsRew['p12'][region]
+
+        for region in hME[comb].keys():
+            hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
+            hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
 
     # Compute the CF and write to file
     for iComb, comb in enumerate(combs + ['p02_13', 'p03_12']):
