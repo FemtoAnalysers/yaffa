@@ -156,20 +156,22 @@ def LoadMultVsKstar(inFile, **kwargs):
 
 def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
     '''reweight'''
+
+    suffix = f"_{name}" if name else ''
+
     hSEMultSlices = []
     hMEMultSlices = []
     hCFMultSlices = []
-
-    nBins = hME.GetYaxis().GetNbins() + 2
-    xMin = hME.GetYaxis().GetXmin()
-    xMax = hME.GetYaxis().GetXmax()
-    suffix = f"_{name}" if name else ''
-    hWeights = TH1D(f'hWeights{suffix}', ';Mult bin (a.u.); Weight', nBins, xMin, xMax)
 
     nBins = hME.GetXaxis().GetNbins()
     xMin = hME.GetXaxis().GetXmin()
     xMax = hME.GetXaxis().GetXmax()
     hMERew = TH1D(f'hMERew{suffix}', ';#it{k}* (GeV/#it{c});Counts', nBins, xMin, xMax)
+
+    nBins = hME.GetYaxis().GetNbins() + 2
+    xMin = hME.GetYaxis().GetXmin()
+    xMax = hME.GetYaxis().GetXmax()
+    hWeights = TH1D(f'hWeights{suffix}', ';Mult bin (a.u.); Weight', nBins, xMin, xMax)
 
     startBinMultRew, endBinMultRew = multRange if multRange is not None else [0, nBins]
     for iBin in range(startBinMultRew, endBinMultRew): # Loop over underflow, all bins, and overflow
@@ -260,15 +262,16 @@ def main(cfg): # pylint: disable=too-many-statements
             hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
 
             for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
-                if hME.Integral() > 0:
-                    oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
-                    oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
+                log.info("Slice: %d", iSlice)
+                
+                oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
+                oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
 
-                    hCF.Write(f'hCF_multbin{iSlice}')
-                    hSE.Write(f'hSE_multbin{iSlice}')
-                    hME.Write(f'hME_multbin{iSlice}')
+                hCF.Write(f'hCF_multbin{iSlice}')
+                hSE.Write(f'hSE_multbin{iSlice}')
+                hME.Write(f'hME_multbin{iSlice}')
 
-                    oFile.cd(comb)
+                oFile.cd(comb)
 
             hMErew[comb][region] = hMERew
             hWeightsRew[comb][region] = hWeights
