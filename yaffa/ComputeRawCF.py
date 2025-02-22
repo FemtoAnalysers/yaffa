@@ -20,6 +20,7 @@ from yaffa.utils.io import Load, GetKeyNames
 from rich import print
 
 def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
+    '''Load Mult vs k* ancestors from FD'''
     suffix = kwargs['suffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
@@ -34,16 +35,17 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
     for comb in combs:
         hDistr[comb] = {}
         for region in regions:
+            log.info('Loading %s %s', comb, region)
             fdcomb = f'Particle{comb[1]}_Particle{comb[2]}'
             folder = f'HMResults{suffix}/HMResults{suffix}/{fdcomb}/'
 
             for ancestor in ['Common', 'NonCommon']:
                 hAncestor = Load(inFile, f'{folder}/SEMultDist{ancestor}_{fdcomb}')
-                if hAncestor == None:
+                if hAncestor == None: # pylint: disable=singleton-comparison
                     log.info('Ancestors were not found')
                     return {}
 
-                log.info(f'Loading {ancestor} ancestor')
+                log.info('Loading %s ancestor', ancestor)
                 hDistr[comb][f'{region}/{ancestor}'] = hAncestor
                 hDistr[comb][f'{region}/{ancestor}'].SetDirectory(0)
 
@@ -52,16 +54,16 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
                 hSECommon = Load(inFile, f'{folder}/SEmTMultCommon_{iMt}_{fdcomb}')
                 hSENonCommon = Load(inFile,f'{folder}/SEmTMultNonCommon_{iMt}_{fdcomb}')
 
-                if hSECommon == None or hSENonCommon == None:
+                if hSECommon == None or hSENonCommon == None:  # pylint: disable=singleton-comparison
                     break
 
-                log.info('Loading mT bins')
+                log.info('Loading mT %d bins', iMt)
 
                 hDistr[comb][f'{region}/mT{iMt}/Common'] = hSECommon
                 hDistr[comb][f'{region}/mT{iMt}/Common'].SetDirectory(0)
                 hDistr[comb][f'{region}/mT{iMt}/NonCommon'] = hSENonCommon
                 hDistr[comb][f'{region}/mT{iMt}/NonCommon'].SetDirectory(0)
-            
+
                 iMt += 1
 
     return hDistr
@@ -70,6 +72,8 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
 
 
 def LoadMultVsKstarFemtoDream(inFile, **kwargs):
+    '''Load Mult vs k* from FD'''
+
     suffix = kwargs['suffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
@@ -86,6 +90,8 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
         hSE[comb] = {}
         hME[comb] = {}
         for region in regions:
+            log.info('Loading %s %s', comb, region)
+
             fdcomb = f'Particle{comb[1]}_Particle{comb[2]}'
             folder = f'HMResults{suffix}/HMResults{suffix}/{fdcomb}/'
 
@@ -100,10 +106,10 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
                 hSEmT = Load(inFile, f'{folder}/SEmTMult_{iMt}_{fdcomb}')
                 hMEmT = Load(inFile, f'{folder}/MEmTMult_{iMt}_{fdcomb}')
 
-                if hSEmT == None or hMEmT == None:
+                if hSEmT == None or hMEmT == None: # pylint: disable=singleton-comparison
                     break
 
-                log.info('Loading mT bins')
+                log.info('Loading mT %d bins', iMt)
 
                 hSE[comb][f'{region}/mT{iMt}'] = hSEmT
                 hSE[comb][f'{region}/mT{iMt}'].SetDirectory(0)
@@ -115,6 +121,7 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
 
 
 def LoadMultVsKstar(inFile, **kwargs):
+    ''' Load Mult vs k*'''
     suffix = kwargs['suffix']
     hSE = {}
     hME = {}
@@ -148,6 +155,7 @@ def LoadMultVsKstar(inFile, **kwargs):
     return hSE, hME
 
 def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
+    '''reweight'''
     hSEMultSlices = []
     hMEMultSlices = []
     hCFMultSlices = []
@@ -189,6 +197,8 @@ def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
 
 
 def ProjectDistr(hDistrMult):
+    '''Project distributions
+    '''
     hDistr = {}
     for comb in hDistrMult.keys():
         hDistr[comb] = {}
@@ -199,7 +209,7 @@ def ProjectDistr(hDistrMult):
 
     return hDistr
 
-def main(cfg):
+def main(cfg): # pylint: disable=too-many-statements
     '''
     main function
 
@@ -232,8 +242,10 @@ def main(cfg):
 
     # Load input file with 2D Mult-vs-kstar same- and mixed-event distributions
     inFile = TFile(cfg['infile'])
+    log.info("Loading Mult vs k* histograms")
     hSEmultk, hMEmultk = LoadMultVsKstar(inFile, suffix=cfg['runsuffix'], regions=regions, combs=combs)
 
+    log.info("Computing mult-reweighted ME")
     hMErew = {}
     hWeightsRew = {}
     for comb in combs:
@@ -244,6 +256,7 @@ def main(cfg):
         hWeightsRew[comb] = {}
         for region in hSEmultk[comb].keys():
             regionME = region.replace('/Common', '').replace('/NonCommon', '')
+            log.info('reweight %s %s', comb, region)
             hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
 
             for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
@@ -260,8 +273,11 @@ def main(cfg):
             hMErew[comb][region] = hMERew
             hWeightsRew[comb][region] = hWeights
 
+            
+    log.info("Projecting 2D histograms")
     hSE = ProjectDistr(hSEmultk)
     hME = ProjectDistr(hMEmultk)
+
 
     print(hSE)
     print(hME)
