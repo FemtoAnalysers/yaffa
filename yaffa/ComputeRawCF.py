@@ -11,13 +11,13 @@ python3 ComputeRawCF.py cfg.yml
 import os
 import argparse
 import yaml
+from rich import print # pylint: disable=redefined-builtin
 
 from ROOT import TFile, TH1D, TH2D
 
 from yaffa import logger as log
 from yaffa.utils.io import Load, GetKeyNames
 
-from rich import print
 
 def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
     '''Load Mult vs k* ancestors from FD'''
@@ -202,10 +202,10 @@ def ProjectDistr(hDistrMult):
     '''Project distributions
     '''
     hDistr = {}
-    for comb in hDistrMult.keys():
+    for comb in hDistrMult:
         hDistr[comb] = {}
 
-        for region in hDistrMult[comb].keys():
+        for region in hDistrMult[comb]:
             hDistr[comb][region] = hDistrMult[comb][region].ProjectionX(f'{comb}SEdistr', 1, hDistrMult[comb][region].GetNbinsX())
             hDistr[comb][region].SetDirectory(0)
 
@@ -256,7 +256,8 @@ def main(cfg): # pylint: disable=too-many-statements
 
         hMErew[comb] = {}
         hWeightsRew[comb] = {}
-        for region in hSEmultk[comb].keys():
+        for region in hSEmultk[comb]:
+            log.info("Reweight for %s %s", comb, region)
             regionME = region.replace('/Common', '').replace('/NonCommon', '')
             log.info('reweight %s %s', comb, region)
             hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
@@ -295,7 +296,7 @@ def main(cfg): # pylint: disable=too-many-statements
         hWeightsRew['p02_13'] = {}
         hWeightsRew['p03_12'] = {}
 
-        for region in hSE[comb].keys():
+        for region in hSE[comb]:
             hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
             hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
             hWeightsRew['p02_13'][region] = hWeightsRew['p02'][region] + hWeightsRew['p13'][region]
@@ -304,7 +305,7 @@ def main(cfg): # pylint: disable=too-many-statements
             hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
             hWeightsRew['p03_12'][region] = hWeightsRew['p03'][region] + hWeightsRew['p12'][region]
 
-        for region in hME[comb].keys():
+        for region in hME[comb]:
             hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
             hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
 
