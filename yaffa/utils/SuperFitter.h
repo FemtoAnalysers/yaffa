@@ -852,8 +852,13 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
         
-        hGenCF->SetBinContent(iBin + 1, stack.top());
-        hGenCF->SetBinError(iBin + 1, hRawCF->GetBinError(iBin + 1) * 2); //! Use proper uncertainty
+        double cf = stack.top();
+        double cfUnc = hRawCF->GetBinError(iBin + 1) * 2; //! Use proper uncertainty
+
+        if (std::isfinite(cf) && std::isfinite(cfUnc)) {
+            hGenCF->SetBinContent(iBin + 1, stack.top());
+            hGenCF->SetBinError(iBin + 1, cfUnc); 
+        }
         // return stack.top();
     }
 
