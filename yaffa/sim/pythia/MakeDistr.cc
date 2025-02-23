@@ -530,6 +530,8 @@ void MakeDistr(
     int pdgMother = cfg["decaychain"]["pdg"].as<int>();
 
     std::string kinemFile = load<std::string>(cfg["decaychain"], "kinemfile");
+    std::string efficiency0 = load<std::string>(cfg["part0"], "efficiency");
+    std::string efficiency1 = load<std::string>(cfg["part1"], "efficiency");
     std::string ptshape = load<std::string>(cfg["decaychain"], "ptshape");
     std::string yshape = load<std::string>(cfg["decaychain"], "yshape");
     std::string etashape = load<std::string>(cfg["decaychain"], "etashape");
@@ -562,9 +564,13 @@ void MakeDistr(
 
     // Load 2D histogram for kinematics
     TH2D *hYvsPt = nullptr;
+    TH1D *hEff0 = nullptr;
+    TH1D *hEff1 = nullptr;
     TH1D *hPt = nullptr;
     TH1D *hY = nullptr;
     TH1D *hEta = nullptr;
+    TF1 *fEff0 = nullptr;
+    TF1 *fEff1 = nullptr;
     TF1 *fPt = nullptr;
     TF1 *fY = nullptr;
     TF1 *fEta = nullptr;
@@ -593,6 +599,28 @@ void MakeDistr(
             delete hYvsPt;
             hYvsPt = nullptr;
         }
+    }
+
+    // Load Efficiency
+    if (size_t pos = efficiency0.find(':'); pos != std::string::npos) {
+        TFile *effFile = TFile::Open(efficiency0.substr(0, pos).data());
+        if (!effFile) exit(1);
+        hEff0 = (TH1D *) effFile->Get(efficiency0.substr(pos + 1).data());
+        hEff0->SetDirectory(0);
+        effFile->Close();
+    } else {
+        fEff0 = new TF1("fEff0", efficiency0.data(), 0, 10);
+    }
+
+    // Load Efficiency
+    if (size_t pos = efficiency1.find(':'); pos != std::string::npos) {
+        TFile *effFile = TFile::Open(efficiency1.substr(0, pos).data());
+        if (!effFile) exit(1);
+        hEff1 = (TH1D *) effFile->Get(efficiency1.substr(pos + 1).data());
+        hEff1->SetDirectory(0);
+        effFile->Close();
+    } else {
+        fEff1 = new TF1("fEff1", efficiency1.data(), 0, 10);
     }
 
     // Set pT shape
@@ -903,6 +931,13 @@ void MakeDistr(
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = pythia.event[part0[i0]];
 
+            double eff0 = 1;
+            if (fEff0) {
+                eff0 = fEff0->Eval(p0.pT());
+            } else if (hEff0) {
+                eff0 = hEff0->GetBinContent(hEff0->FindBin(p0.pT()));
+            }
+
             // don't pair twice in case of same-part femto
             int start = pdg0 == pdg1 ? i0 + 1 : 0;
             auto buffer = pdg0 == pdg1 ? part0 : part1;
@@ -912,8 +947,15 @@ void MakeDistr(
                 std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
                 DEBUG("    SE(idx=%zu, idx=%zu): pdg0=%d pdg1=%d  --->  (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
 
-                hSE[pair]->Fill(kStar);
-                hPtMotherVsKstar[pair]->Fill(kStar, ptMother);
+                double eff1 = 1;
+                if (fEff1) {
+                    eff1 = fEff1->Eval(p1.pT());
+                } else if (hEff1) {
+                    eff1 = hEff1->GetBinContent(hEff1->FindBin(p1.pT()));
+                }
+
+                hSE[pair]->Fill(kStar, eff0 * eff1);
+                hPtMotherVsKstar[pair]->Fill(kStar, ptMother, eff0 * eff1);
             }
         }
 
