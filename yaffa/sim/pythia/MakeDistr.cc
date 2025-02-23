@@ -156,6 +156,34 @@ bool IsDetectable(const int &pdg) {
            absPdg == 2212;   // protons
 }
 
+bool TriggerHM(Pythia8::Pythia &pythia) {
+    // evaluate multiplicity at forward rapidity
+    int nChForward = 0;
+    for (auto iPart = 3; iPart < pythia.event.size(); iPart++) {
+        auto &part = pythia.event[iPart];
+
+        int pdg = std::abs(part.id());
+        float eta = part.eta();
+
+        if (IsDetectable(pdg) && ((-3.7 < eta && eta < -1.7) || (2.8 < eta && eta < 5.1))) {  // V0A and V0C acceptance
+            nChForward++;
+        }
+    }
+    return nChForward > 130;
+}
+
+bool Trigger(Pythia8::Pythia &pythia, triggers trigger) {
+    if (trigger == triggers::kMB) {
+        return true;
+    }
+
+    if (trigger == triggers::kHM) {
+        return TriggerHM(pythia);
+    }
+
+    throw std::runtime_error("Invalid trigger");
+}
+
 // Compute the multiplicity of charged particles in the TPC acceptance
 int ComputeMultTPC(const Pythia8::Pythia &pythia) {
     int mult = 0;
@@ -462,6 +490,15 @@ void MakeDistr(
     } else {
         std::cout << "\033[31mError: Tune not implemented. Exit!\033[0m" << std::endl;
         exit(1);
+    }
+
+    triggers trigger;
+    if (cfg["trigger"].as<std::string>() == "MB") {
+        trigger = triggers::kMB;
+    } else if (cfg["trigger"].as<std::string>() == "HM") {
+        trigger = triggers::kHM;
+    } else {
+        throw runtime_error("\033[31mError: Trigger not implemented. Exit!\033[0m");
     }
 
     // Set decay channel for part0
@@ -851,6 +888,10 @@ void MakeDistr(
         } else {
             cerr << "Error in injection configuration. Exit!" << std::endl;
             exit(1);
+        }
+
+        if (!Trigger(pythia, trigger)) {
+            continue;
         }
 
         hEvt->Fill(1);
