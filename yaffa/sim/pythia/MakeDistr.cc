@@ -831,8 +831,6 @@ void LoadKinematics(YAML::Node cfg) {
         }
     }
 
-    
-
     // Set pT shape
     size_t pos = ptshape.find(':');
     if (pos != std::string::npos) {
@@ -1069,6 +1067,8 @@ void MakeDistr(
             printf("no tree \n");
             exit(1);
         }
+        tEvents->SetCacheSize(200*1024*1024);  // 200 MB cache
+        tEvents->AddBranchToCache("events", kTRUE);  // Cache the branch
         tEvents->SetBranchAddress("events", &particles);
         nEvents = tEvents->GetEntries();
     }
@@ -1096,9 +1096,9 @@ void MakeDistr(
     TH1D * hEvtMult = new TH1D("hEvtMult", ";#it{N}_{ch}|_{|#eta|<0.8};Counts", 100, 0., 100);
 
     // Pairs
-    std::map<std::tuple<int, int, int>, std::map<std::string, TH1D *>> hSE;
-    std::map<std::tuple<int, int, int>, TH1D *> hME;
-    
+    std::map<std::tuple<int, int, int>, std::map<std::string, TH2D *>> hSE;
+    std::map<std::tuple<int, int, int>, TH2D *> hME;
+
     // Pair QA
     std::map<std::tuple<int, int, int>, TH2D *> hPairMultSE;
     std::map<std::tuple<int, int, int>, TH2D *> hPtMotherVsKstar;
@@ -1110,23 +1110,65 @@ void MakeDistr(
             // mT = -1 corresponds to mT integrated
             std::tuple<int, int, int> pair = {iPart0, iPart1, -1};
             DEBUG("Inserting histograms for pair (%d, %d)\n", iPart0, iPart1);
+            
             hSE.insert({pair, {}});
-            hSE[pair].insert(std::pair<std::string, TH1D *>({"Common",  new TH1D(Form("hSE%d%dCommon", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
-            hSE[pair].insert(std::pair<std::string, TH1D *>({"NonCommon", new TH1D(Form("hSE%d%dNonCommon", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
-            hME.insert({pair, new TH1D(Form("hME%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
-            hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
-            hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
+            const char *name = Form("hSE%d%dCommon", iPart0, iPart1);
+            const char *title = ";#it{k}* (GeV/#it{c});pairs";
+            hSE[pair].insert(std::pair<std::string, TH2D *>({"Common",  new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)}));
+
+            name = Form("hSE%d%dNonCommon", iPart0, iPart1);
+            hSE[pair].insert(std::pair<std::string, TH2D *>({"NonCommon", new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)}));
+
+            name = Form("hME%d%d", iPart0, iPart1);
+            hME.insert({pair, new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)});
+
+            name = Form("hPairMultSE%d%d", iPart0, iPart1);
+            title = ";#it{N}_{0};#it{N}_{1};Counts";
+            hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), title, 51, -0.5, 50.5, 31, -0.5, 50.5)});
+
+            name = Form("hPtMotherVsKstar%d%d", iPart0, iPart1);
+            title = ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts";
+            hPtMotherVsKstar.insert({pair, new TH2D(name, title, 2000, 0, 2, 1000, 0, 10)});
             
             for (size_t iMt = 0; iMt < mTMins.size(); iMt++) {
                 std::tuple<int, int, int> pair = {iPart0, iPart1, iMt};
                 DEBUG("Inserting histograms for pair (%d, %d) iMt=%d\n", iPart0, iPart1, iMt);
                 hSE.insert({pair, {}});
-                hSE[pair].insert(std::pair<std::string, TH1D *>({"Common",  new TH1D(Form("hSE%d%d_mT%zu_Common", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
-                hSE[pair].insert(std::pair<std::string, TH1D *>({"NonCommon", new TH1D(Form("hSE%d%d_mT%zu_NonCommon", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
-                hME.insert({pair, new TH1D(Form("hME%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
-                hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
-                hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
+
+                name = Form("hSE%d%d_mT%zu_Common", iPart0, iPart1, iMt);
+                title = ";#it{k}* (GeV/#it{c});pairs";
+                hSE[pair].insert(std::pair<std::string, TH2D *>({"Common",  new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)}));
+
+                name = Form("hSE%d%d_mT%zu_NonCommon", iPart0, iPart1, iMt);
+                title = ";#it{k}* (GeV/#it{c});pairs";
+                hSE[pair].insert(std::pair<std::string, TH2D *>({"NonCommon", new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)}));
+
+                name = Form("hME%d%d_mT%zu", iPart0, iPart1, iMt);
+                title = ";#it{k}* (GeV/#it{c});pairs";
+                hME.insert({pair, new TH2D(name, title, 2000, 0., 2., 201, -0.5, 200.5)});
+
+                name = Form("hPairMultSE%d%d_mT%zu", iPart0, iPart1, iMt);
+                title = ";#it{N}_{0};#it{N}_{1};Counts";
+                hPairMultSE.insert({pair, new TH2D(name, title, 51, -0.5, 50.5, 31, -0.5, 50.5)});
+
+                name = Form("hPtMotherVsKstar%d%d_mT%zu", iPart0, iPart1, iMt);
+                title = ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts";
+                hPtMotherVsKstar.insert({pair, new TH2D(name, title, 2000, 0, 2, 1000, 0, 10)});
             }
+            // std::string name = Form("hSE%d%d", iPart0, iPart1);
+            // std::string title = ";#it{k}* (GeV/#it{c});pairs";
+            // hSE.insert({pair, new TH2D(name.data(), title.data(), 2000, 0., 2., 101, -0.5, 100.5)});
+
+            // name = Form("hME%d%d", iPart0, iPart1);
+            // hME.insert({pair, new TH2D(name.data(), title.data(), 2000, 0., 2., 101, -0.5, 100.5)});
+
+            // name = Form("hPairMultSE%d%d", iPart0, iPart1);
+            // title = ";#it{N}_{0};#it{N}_{1};Counts";
+            // hPairMultSE.insert({pair, new TH2D(name.data(), title.data(), 51, -0.5, 50.5, 31, -0.5, 50.5)});
+
+            // name = Form("hPtMotherVsKstar%d%d", iPart0, iPart1);
+            // title = ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts";
+            // hPtMotherVsKstar.insert({pair, new TH2D(name.data(), title.data(), 2000, 0, 2, 1000, 0, 10)});
         }
     }
 
@@ -1290,8 +1332,7 @@ void MakeDistr(
                 }
 
                 std::string ancestor = haveCommonAncestor(p0, p1) ? "Common" : "NonCommon";
-                // std::cout << std::get<0>(pair) << "  " << std::get<1>(pair) << "  "<< std::get<2>(pair) << "  " << ancestor <<std::endl;
-                hSE[pair][ancestor]->Fill(kStar, eff0 * eff1);
+                hSE[pair][ancestor]->Fill(kStar, mult, eff0 * eff1);
                 hPtMotherVsKstar[pair]->Fill(kStar, ptMother, eff0 * eff1);
             }
         }
@@ -1324,8 +1365,7 @@ void MakeDistr(
                     } else if (hEff1) {
                         eff1 = hEff1->GetBinContent(hEff1->FindBin(p1.pT()));
                     }
-
-                    hME[pair]->Fill(kStar, eff0 * eff1);
+                    hME[pair]->Fill(kStar, mult,  eff0 * eff1);
                 }
             }
         }
