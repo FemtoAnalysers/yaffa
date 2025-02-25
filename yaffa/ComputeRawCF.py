@@ -9,6 +9,7 @@ python3 ComputeRawCF.py cfg.yml
 
 '''
 import os
+import re
 import argparse
 import yaml
 from rich import print # pylint: disable=redefined-builtin
@@ -120,38 +121,53 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
     return hSE, hME
 
 
+def LoadMultVsKstarPythia(inFile, **kwargs):
+    '''Load Mult vs k* from Pythia simulations'''
+    
+    suffix = kwargs['suffix']
+    regions = kwargs['regions']
+    combs = kwargs['combs']
+
+    if regions != ['sgn']:
+        log.fatal('Only signal region is implemented.')
+
+    hSE = {}
+    hME = {}
+    for comb in combs:
+        hSE[comb] = {}
+        hME[comb] = {}
+        for region in regions:
+            log.info('Loading %s %s', comb, region)
+
+            hSE[comb][region] = Load(inFile, f'{comb}/hSE')
+            hME[comb][region] = Load(inFile, f'{comb}/hME')
+            hSE[comb][region].SetDirectory(0)
+            hME[comb][region].SetDirectory(0)
+
+    return hSE, hME
+
+
 def LoadMultVsKstar(inFile, **kwargs):
     ''' Load Mult vs k*'''
     suffix = kwargs['suffix']
     hSE = {}
     hME = {}
 
+    print(kwargs)
+    print(GetKeyNames(inFile))
     if f'HMResults{suffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
         hSE, hME = LoadMultVsKstarFemtoDream(inFile, **kwargs)
         hAnc = LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs)
         for comb in hSE.keys():
             hSE[comb].update(hAnc[comb])
-
-    # Comment this old section of the code in order to simplify the script
-    # elif comb in GetKeyNames(inFile): # Make correlation functions from ALICE3 simulations
-    #     # The histograms are casted to TH1D with TH1::Copy to avoid NotImplementedError when computing hSE/hME
-    #     hSE[comb][region] = TH1D()
-    #     Load(inFile, f'{comb}/hSE').Copy(hSE[comb][region])
-
-    #     # The histograms are casted to TH1D with TH1::Copy to avoid NotImplementedError when computing hSE/hME
-    #     hME[comb][region] = TH1D()
-    #     Load(inFile, f'{comb}/hME').Copy(hME[comb][region])
-
-    #     # Mult reweighting not implemented. Keep dummy histogram for now
-    #     nbins = hSE[comb][region].GetNbinsX()
-    #     xMin = hSE[comb][region].GetXaxis().GetXmin()
-    #     xMax = hSE[comb][region].GetXaxis().GetXmax()
-    #     hSE[comb][region] = TH2F('hSEMult', '', nbins, xMin, xMax, 200, 0, 200)
-    #     hME[comb][region] = TH2F('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
-
     else:
-        raise NotImplementedError("Only femto dream input is supported.")
+        hSE, hME = LoadMultVsKstarPythia(inFile, **kwargs)
 
+    if not hSE:
+        raise ValueError('Same Event could not be loaded properly')
+
+    if not hME:
+        raise ValueError('Mixed Event could not be loaded properly')
     return hSE, hME
 
 def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
@@ -201,6 +217,7 @@ def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
 def ProjectDistr(hDistrMult):
     '''Project distributions
     '''
+    log.info('Projecting distributions...')
     hDistr = {}
     for comb in hDistrMult:
         hDistr[comb] = {}
@@ -211,6 +228,29 @@ def ProjectDistr(hDistrMult):
 
     return hDistr
 
+
+def Combine(hDistr, recipes):
+    '''
+    Sums histograms based on the given recipes.
+    
+    Args:
+        hDistr (dict(dict(TH1))): histograms to be summed
+
+        recipes dict(list(str)): instructions on how to combine the histograms
+    '''
+
+    print(recipes)
+    print(hDistr)
+    
+    for target, (comb1, comb2) in recipes.items():
+        hDistr[target] = {}
+        for region in hDistr[comb1]:
+            log.info("Summing %s = %s + %s for region '%s'", target, comb1, comb2, region)
+            hDistr[target][region] = hDistr[comb1][region] +  hDistr[comb1][region]
+
+    return hDistr
+    
+    
 def main(cfg): # pylint: disable=too-many-statements
     '''
     main function
@@ -220,7 +260,12 @@ def main(cfg): # pylint: disable=too-many-statements
     '''
 
     regions = ['sgn']
-    combs = ['p02', 'p03', 'p12', 'p13']
+    sumRecipe = cfg['combine']
+
+    inFile = TFile(cfg['infile'])
+    combs = [comb for comb in GetKeyNames(inFile) if re.match('p[0-9][0-9]', comb)]
+    if not combs:
+        combs = ['p02', 'p03', 'p12', 'p13']
 
     # Define the output file
     oFileBaseName = 'RawCF'
@@ -242,8 +287,7 @@ def main(cfg): # pylint: disable=too-many-statements
     hFemtoPairs.GetYaxis().SetLabelSize(50)
     hFemtoPairs.GetXaxis().SetLabelSize(50)
 
-    # Load input file with 2D Mult-vs-kstar same- and mixed-event distributions
-    inFile = TFile(cfg['infile'])
+    # Load 2D Mult-vs-kstar same- and mixed-event distributions
     log.info("Loading Mult vs k* histograms")
     hSEmultk, hMEmultk = LoadMultVsKstar(inFile, suffix=cfg['runsuffix'], regions=regions, combs=combs)
 
@@ -282,35 +326,19 @@ def main(cfg): # pylint: disable=too-many-statements
     hSE = ProjectDistr(hSEmultk)
     hME = ProjectDistr(hMEmultk)
 
+    print(hSE)
+    print(hME)
+
+    hSE = Combine(hSE, sumRecipe)
+    hME = Combine(hME, sumRecipe)
+    hMErew = Combine(hMErew, sumRecipe)
+    hWeightsRew = Combine(hWeightsRew, sumRecipe)
 
     print(hSE)
     print(hME)
-    # Sum pair and antipair
-    for comb in combs:
-        hSE['p02_13'] = {}
-        hSE['p03_12'] = {}
-        hME['p02_13'] = {}
-        hME['p03_12'] = {}
-        hMErew['p02_13'] = {}
-        hMErew['p03_12'] = {}
-        hWeightsRew['p02_13'] = {}
-        hWeightsRew['p03_12'] = {}
-
-        for region in hSE[comb]:
-            hSE['p02_13'][region] = hSE['p02'][region] + hSE['p13'][region]
-            hMErew['p02_13'][region] = hMErew['p02'][region] + hMErew['p13'][region]
-            hWeightsRew['p02_13'][region] = hWeightsRew['p02'][region] + hWeightsRew['p13'][region]
-
-            hSE['p03_12'][region] = hSE['p03'][region] + hSE['p12'][region]
-            hMErew['p03_12'][region] = hMErew['p03'][region] + hMErew['p12'][region]
-            hWeightsRew['p03_12'][region] = hWeightsRew['p03'][region] + hWeightsRew['p12'][region]
-
-        for region in hME[comb]:
-            hME['p02_13'][region] = hME['p02'][region] + hME['p13'][region]
-            hME['p03_12'][region] = hME['p03'][region] + hME['p12'][region]
 
     # Compute the CF and write to file
-    for iComb, comb in enumerate(combs + ['p02_13', 'p03_12']):
+    for iComb, comb in enumerate(hSE):
         for region in hSE[comb]:
             rebin = round(float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000))
             hSE[comb][region].Rebin(rebin)
