@@ -88,6 +88,22 @@ void SetProcess(Pythia8::Pythia &pythia, std::string process) {
     throw std::invalid_argument("Process not implemented. Exit!");
 }
 
+bool haveCommonAncestor(Pythia8::Particle p1, Pythia8::Particle p2) {
+    int status1 = std::abs(p1.status());
+    int status2 = std::abs(p2.status());
+
+    if (!(81 <= status1 && status1 <= 89)) {
+        std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron. Status: " << status1 << std::endl;
+        throw std::invalid_argument("abs(status) of p1 must be in [81, 89]");
+    }
+    if (!(81 <= status2 && status2 <= 89)) {
+        std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron" << std::endl;
+        throw std::invalid_argument("abs(status) of p2 must be in [81, 89]");
+    }
+    
+    return p1.mother1() == p2.mother1() && p1.mother2() == p2.mother2() && p1.mother1() < p1.mother2() && p1.mother1() > 0 && p2.mother1() > 0;
+}
+
 void SetTune(Pythia8::Pythia &pythia, std::string tune) {
     if (tune == "Monash") {
         pythia.readString(Form("Tune:pp = 14"));
@@ -764,7 +780,8 @@ void MakeDistr(
     TH1D * hEvtMult = new TH1D("hEvtMult", ";#it{N}_{ch}|_{|#eta|<0.8};Counts", 100, 0., 100);
 
     // Pairs
-    std::map<std::pair<int, int>, TH1D *> hSE, hME;
+    std::map<std::pair<int, int>, std::map<std::string, TH1D *>> hSE;
+    std::map<std::pair<int, int>, TH1D *> hME;
     
     // Pair QA
     std::map<std::pair<int, int>, TH2D *> hPairMultSE;
@@ -776,7 +793,9 @@ void MakeDistr(
         for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
             std::pair<int, int> pair = {iPart0, iPart1};
             DEBUG("Inserting histograms for pair (%d, %d)\n", iPart0, iPart1);
-            hSE.insert({pair, new TH1D(Form("hSE%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
+            hSE.insert({pair, {}});
+            hSE[pair].insert(std::pair<std::string, TH1D *>({"Common",  new TH1D(Form("hSE%d%dCommon", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
+            hSE[pair].insert(std::pair<std::string, TH1D *>({"NonCommon", new TH1D(Form("hSE%d%dNonCommon", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
             hME.insert({pair, new TH1D(Form("hME%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
             hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
             hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
@@ -1016,7 +1035,8 @@ void MakeDistr(
                     eff1 = hEff1->GetBinContent(hEff1->FindBin(p1.pT()));
                 }
 
-                hSE[pair]->Fill(kStar, eff0 * eff1);
+                std::string ancestor = haveCommonAncestor(p0, p1) ? "Common" : "NonCommon";
+                hSE[pair][ancestor]->Fill(kStar, eff0 * eff1);
                 hPtMotherVsKstar[pair]->Fill(kStar, ptMother, eff0 * eff1);
             }
         }
@@ -1073,8 +1093,13 @@ void MakeDistr(
             std::string pairName = Form("p%d%d", iPart0, iPart1);
             oFile->mkdir(pairName.data());
             oFile->cd(pairName.data());
-            hSE[pair]->Write("hSE");
+            TH2D* hSETot = (TH2D *) hSE[pair]["Common"]->Clone("hSE");
+            hSETot->Add(hSE[pair]["NonCommon"]);
+            hSETot->Write("hSE");
             hME[pair]->Write("hME");
+
+            hSE[pair]["Common"]->Write("hSECommon");
+            hSE[pair]["NonCommon"]->Write("hSENonCommon");
             hPairMultSE[pair]->Write("hPairMult");
             hPtMotherVsKstar[pair]->Write("hPtMotherVsKstar");
         }
