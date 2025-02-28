@@ -158,8 +158,10 @@ def LoadMultVsKstar(inFile, **kwargs):
     if f'HMResults{suffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
         hSE, hME = LoadMultVsKstarFemtoDream(inFile, **kwargs)
         hAnc = LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs)
-        for comb in hSE.keys():
-            hSE[comb].update(hAnc[comb])
+
+        if hAnc:
+            for comb in hSE:
+                hSE[comb].update(hAnc[comb])
     else:
         hSE, hME = LoadMultVsKstarPythia(inFile, **kwargs)
 
@@ -384,8 +386,9 @@ def main(cfg): # pylint: disable=too-many-statements
             hME[comb][regionME].SetTitle(';#it{k}* (GeV/#it{c});Counts')
             hME[comb][regionME].Write()
 
-            hMErew[comb][regionME].SetName('hMErew')
-            hMErew[comb][regionME].SetTitle(';#it{k}* (GeV/#it{c});Counts')
+            hMErew[comb][region].SetName('hMErew')
+            hMErew[comb][region].SetTitle(';#it{k}* (GeV/#it{c});Counts')
+            hMErew[comb][region].Write('hMErew')
 
             hWeightsRew[comb][regionME].SetName('hWeightsRew')
             hWeightsRew[comb][regionME].SetTitle(';Mult bin;Weight')
