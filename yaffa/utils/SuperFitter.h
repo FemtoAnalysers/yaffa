@@ -291,7 +291,7 @@ double Lednicky(double* x, double* par) {
 class SuperFitter : public TObject {
    private:
     std::vector<Observable*> fObs;                  // Observable to be fitted
-    TF1* fFit;                         // Total fit function
+    std::vector<TF1*> fFit;                         // Total fit function
     std::vector<sf::parameter> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
     std::vector<std::pair<double, double>> fFitRange;  // Fit range as the union of different intervals
@@ -300,7 +300,7 @@ class SuperFitter : public TObject {
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs({}), fFit(nullptr), fPars({}), fFitRange({}) {};
+    SuperFitter() : TObject(), fObs({}), fFit({}), fPars({}), fFitRange({}) {};
 
     // Destructor
     ~SuperFitter();
@@ -337,7 +337,7 @@ class SuperFitter : public TObject {
         this->fDrawRangeMax = xMax;
     }
 
-    TF1* GetFitFunction() { return this->fFit; }
+    TF1* GetFitFunction(int idx = 0) { return this->fFit[idx]; }
     TH1D* GetGenuineCF(std::string recipe);
     std::vector<TF1*> GetTerms() { return this->fTerms; }
 
@@ -346,7 +346,6 @@ class SuperFitter : public TObject {
 
 // Destructor
 SuperFitter::~SuperFitter() {
-    delete fFit;
     fTerms.clear();
     functions.clear();
 };
@@ -506,8 +505,8 @@ void SuperFitter::SetModel(std::string model) {
     for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
         nPars += std::get<2>(functions[iFunc]);
     }
-    this->fFit = new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars);
-    this->fFit->SetNpx(1000);
+    this->fFit.push_back(new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
+    this->fFit[this->fFit.size() - 1]->SetNpx(1000);
 
     for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
         auto par = this->fPars[iPar];
@@ -516,18 +515,18 @@ void SuperFitter::SetModel(std::string model) {
         double min = std::get<2>(par);
         double max = std::get<3>(par);
 
-        this->fFit->SetParName(iPar, name.data());
+        this->fFit[this->fFit.size() - 1]->SetParName(iPar, name.data());
 
         if (min > max) {
-            this->fFit->FixParameter(iPar, centr);
+            this->fFit[this->fFit.size() - 1]->FixParameter(iPar, centr);
         } else {
             if (!(min < centr && centr < max)) {
                 printf("\033[33mWARNING: parameter '%s' is outside the allowed range\033[0m\n", name.data());
                 centr = (min + max) / 2;
             }
 
-            this->fFit->SetParameter(iPar, centr);
-            this->fFit->SetParLimits(iPar, min, max);
+            this->fFit[this->fFit.size() - 1]->SetParameter(iPar, centr);
+            this->fFit[this->fFit.size() - 1]->SetParLimits(iPar, min, max);
         }
     }
 };
@@ -535,7 +534,7 @@ void SuperFitter::SetModel(std::string model) {
 // Fit
 void SuperFitter::Fit(const char* opt) {
     // todo: change
-    this->fObs[0]->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    this->fObs[0]->Fit(this->fFit[0], opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
 }
 
 // Add TF1 function // todo: remove units mult here and put in .py
@@ -590,9 +589,9 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
     leg->AddEntry(this->fObs[0], "data", "pe");
 
     // Draw the final fit function
-    this->fFit->Draw("same");
+    this->fFit[0]->Draw("same");
 
-    leg->AddEntry(this->fFit, "Total");
+    leg->AddEntry(this->fFit[0], "Total");
     // Draw components based on the draw recipes
     for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
         std::string legend = recipes[iRecipe].first;
@@ -645,7 +644,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
         DEBUG(0, "ParaList:");
         for (const auto& e : paraList) {
-            DEBUG(1, "%d value: %.3f", e, this->fFit->GetParameter(e));
+            DEBUG(1, "%d value: %.3f", e, this->fFit[0]->GetParameter(e));
         }
 
         // Convert to Reverse Polish Notation
@@ -761,8 +760,8 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
         int counter = 0;
         for (const int& par : paraList) {
-            DEBUG(2, "parameter val: %.3f", this->fFit->GetParameter(par));
-            fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
+            DEBUG(2, "parameter val: %.3f", this->fFit[0]->GetParameter(par));
+            fTerm->FixParameter(counter++, this->fFit[0]->GetParameter(par));
         }
         fTerm->Draw("same");
         fTerms.push_back(fTerm);
@@ -783,7 +782,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
     this->fObs[0]->Draw("hist same pe");
 
     // Draw the final fit function
-    this->fFit->Draw("same");
+    this->fFit[0]->Draw("same");
 
     // Tokenization of the recipe
     auto tokens = Tokenize(recipe);
@@ -869,7 +868,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
                 }
 
                 auto func = std::get<1>(functions[counter]);
-                double* pars = fFit->GetParameters();
+                double* pars = fFit[0]->GetParameters();
                 double value = func(&x, pars + offset);
                 stack.push(value);
             } else if (IsOperator(token)) {
@@ -906,16 +905,6 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
         }
         // return stack.top();
     }
-
-    // TF1* fTerm = new TF1(Form("fTerm"), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
-    // fTerm->SetNpx(1000);
-
-    // int counter = 0;
-    // for (const int& par : paraList) {
-    //     fTerm->FixParameter(counter++, this->fFit->GetParameter(par));
-    // }
-
-    // fTerm->Draw("same");
 
     return hGenCF;
 }
