@@ -325,6 +325,13 @@ class SuperFitter : public TObject {
     // Draw
     void Draw(std::vector<std::pair<std::string, std::string>> recipes);
 
+    // Set observable
+    void SetObservable(Observable *obs) { this->fObs = obs; }
+
+    // Set Fit range
+    void SetFitRange(std::vector<std::pair<double, double>> fitRange) { this->fFitRange = fitRange; }
+
+    // Set Draw range
     void SetDrawRange(double xMin, double xMax) {
         this->fDrawRangeMin = xMin;
         this->fDrawRangeMax = xMax;
