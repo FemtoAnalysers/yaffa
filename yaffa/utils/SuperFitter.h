@@ -306,8 +306,12 @@ class SuperFitter : public TObject {
     ~SuperFitter();
 
     bool IsInFitRange(double x);
+
+    // SetModel
+    void SetModel(std::string model);
+
     // Fit
-    void Fit(std::string model, const char* opt = "");
+    void Fit(const char* opt = "");
 
     // Add fit component
     void Add(std::string name, std::string func, std::vector<sf::parameter> pars);
@@ -401,8 +405,8 @@ void SuperFitter::Add(std::string name, std::string func, std::vector<sf::parame
     }
 };
 
-// Fit
-void SuperFitter::Fit(std::string model, const char* opt = "") {
+// SetModel
+void SuperFitter::SetModel(std::string model) {
     if (fFitRange.size() == 0) {
         throw std::runtime_error("Fit range is not specified!");
     }
@@ -526,9 +530,13 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
             this->fFit->SetParLimits(iPar, min, max);
         }
     }
+};
+
+// Fit
+void SuperFitter::Fit(const char* opt) {
     // todo: change
     this->fObs[0]->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
-};
+}
 
 // Add TF1 function // todo: remove units mult here and put in .py
 void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
