@@ -43,7 +43,7 @@ using parameter = std::tuple<std::string, double, double, double>;
 // Definition of variables ---------------------------------------------------------------------------------------------
 
 // List of TF1-compatible functions that can be used in the fit
-std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>> functions = {};
+std::vector<std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>>> functions = {};
 
 // Utils ---------------------------------------------------------------------------------------------------------------
 
@@ -131,8 +131,10 @@ bool IsOperator(const std::string& token) { return token == "+" || token == "-" 
 
 // Check if token is a function. "raw" is a special token used for the total fit function
 bool IsFunction(const std::string& token) {
-    for (const auto& [name, _, __] : functions) {
-        if (token == name || token == "raw") return true;
+    for (const auto& functionList : functions) {
+        for (const auto& [name, _, __] : functionList) {
+            if (token == name || token == "raw") return true;
+        }
     }
     return false;
 }
@@ -166,10 +168,10 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             }
             operators.push(token);
         } else {
-            std::cout << "List of functions:" << std::endl;
-            for (const auto& [fn, _, __] : functions) {
-                std::cout << fn << std::endl;
-            }
+            // std::cout << "List of functions:" << std::endl;
+            // for (const auto& [fn, _, __] : functions) {
+            //     std::cout << fn << std::endl;
+            // }
             throw std::runtime_error("Unrecognized token '" + token + "'");
         }
     }
@@ -246,6 +248,7 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
         printf(
             "\033[1;33mWARNING:\033[0m GeneralLednicky got a bad value for the Radius (nan). Returning default value "
             "of 1.\n");
+        exit(1);
         return 1;
     }
 
@@ -308,19 +311,19 @@ class SuperFitter : public TObject {
     bool IsInFitRange(double x);
 
     // SetModel
-    void SetModel(std::string model);
+    void SetModel(int idx, std::string model);
 
     // Fit
     void Fit(const char* opt = "");
 
     // Add fit component
-    void Add(std::string name, std::string func, std::vector<sf::parameter> pars);
+    void Add(int idx, std::string name, std::string func, std::vector<sf::parameter> pars);
 
     // Add template function
-    void Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
+    void Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
 
     // Add TF1 function
-    void Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
+    void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Draw
     void Draw(std::vector<std::pair<std::string, std::string>> recipes);
@@ -338,7 +341,7 @@ class SuperFitter : public TObject {
     }
 
     TF1* GetFitFunction(int idx = 0) { return this->fFit[idx]; }
-    TH1D* GetGenuineCF(std::string recipe);
+    TH1D* GetGenuineCF(int idx, std::string recipe);
     std::vector<TF1*> GetTerms() { return this->fTerms; }
 
     ClassDef(SuperFitter, 2)
@@ -362,35 +365,43 @@ bool SuperFitter::IsInFitRange(double x) {
 }
 
 // Add fit component
-void SuperFitter::Add(std::string name, std::string func, std::vector<sf::parameter> pars) {
+void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<sf::parameter> pars) {
     DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
+    if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
     if (func == "pol0") {
-        functions.push_back({name, Pol0, 1});
+        functions[idx].push_back({name, Pol0, 1});
     } else if (func == "pol1") {
-        functions.push_back({name, Pol1, 2});
+        functions[idx].push_back({name, Pol1, 2});
     } else if (func == "pol2") {
-        functions.push_back({name, Pol2, 3});
+        functions[idx].push_back({name, Pol2, 3});
     } else if (func == "pol3") {
-        functions.push_back({name, Pol3, 4});
+        functions[idx].push_back({name, Pol3, 4});
     } else if (func == "pol4") {
-        functions.push_back({name, Pol4, 5});
+        functions[idx].push_back({name, Pol4, 5});
     } else if (func == "pol5") {
-        functions.push_back({name, Pol5, 6});
+        functions[idx].push_back({name, Pol5, 6});
     } else if (func == "pol6") {
-        functions.push_back({name, Pol6, 7});
+        functions[idx].push_back({name, Pol6, 7});
     } else if (func == "pol7") {
-        functions.push_back({name, Pol7, 8});
+        functions[idx].push_back({name, Pol7, 8});
     } else if (func == "pol8") {
-        functions.push_back({name, Pol8, 9});
+        functions[idx].push_back({name, Pol8, 9});
     } else if (func == "pol9") {
-        functions.push_back({name, Pol9, 10});
+        functions[idx].push_back({name, Pol9, 10});
     } else if (func == "gaus") {
-        functions.push_back({name, Gaus, 3});
+        functions[idx].push_back({name, Gaus, 3});
     } else if (func == "breit_wigner") {
-        functions.push_back({name, BreitWigner, 3});
+        functions[idx].push_back({name, BreitWigner, 3});
     } else if (func == "lednicky") {
-        functions.push_back({name, Lednicky, 7});
+        functions[idx].push_back({name, Lednicky, 7});
     } else {
         throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
     }
@@ -405,7 +416,7 @@ void SuperFitter::Add(std::string name, std::string func, std::vector<sf::parame
 };
 
 // SetModel
-void SuperFitter::SetModel(std::string model) {
+void SuperFitter::SetModel(int idx, std::string model) {
     if (fFitRange.size() == 0) {
         throw std::runtime_error("Fit range is not specified!");
     }
@@ -425,7 +436,7 @@ void SuperFitter::SetModel(std::string model) {
     DEBUG(0, "Expression in RPN: %s", join(" ", rpn).data());
 
     // The following lambda evaluates the fit function
-    auto lambda = [this, rpn](double* x, double* p) -> double {
+    auto lambda = [this, rpn, idx](double* x, double* p) -> double {
         std::stack<double> stack;
 
         if (false) DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
@@ -445,20 +456,20 @@ void SuperFitter::SetModel(std::string model) {
 
                 // Determine the position of the function in the list of functions
                 int counter = 0;
-                for (const auto& [name, _, __] : functions) {
+                for (const auto& [name, _, __] : functions[idx]) {
                     if (name == token) break;
                     counter++;
                 }
 
                 int offset = 0;
                 for (int iFunc = 0; iFunc < counter; iFunc++) {
-                    offset += std::get<2>(functions[iFunc]);
+                    offset += std::get<2>(functions[idx][iFunc]);
                 }
                 if (false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                           counter, offset);
 
-                auto func = std::get<1>(functions[counter]);
+                auto func = std::get<1>(functions[idx][counter]);
                 double value = func(x, p + offset);
                 if (false) DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
@@ -502,8 +513,8 @@ void SuperFitter::SetModel(std::string model) {
     };
 
     int nPars = 0;
-    for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
-        nPars += std::get<2>(functions[iFunc]);
+    for (int iFunc = 0; iFunc < functions[idx].size(); iFunc++) {
+        nPars += std::get<2>(functions[idx][iFunc]);
     }
     this->fFit.push_back(new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
     this->fFit[this->fFit.size() - 1]->SetNpx(1000);
@@ -531,18 +542,143 @@ void SuperFitter::SetModel(std::string model) {
     }
 };
 
+// definition of shared parameter
+// background function
+int iparB[18] = {
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+};
+
+// signal + background function
+int iparSB[21] = {
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+};
+
+
+struct GlobalChi2 {
+   GlobalChi2(ROOT::Math::IMultiGenFunction &f1, ROOT::Math::IMultiGenFunction &f2) : fChi2_1(&f1), fChi2_2(&f2) {}
+
+   // parameter vector is first background (in common 1 and 2)
+   // and then is signal (only in 2)
+   double operator()(const double *par) const
+   {
+      double p1[2];
+      for (int i = 0; i < 2; ++i)
+         p1[i] = par[iparB[i]];
+
+      double p2[5];
+      for (int i = 0; i < 5; ++i)
+         p2[i] = par[iparSB[i]];
+
+      return (*fChi2_1)(p1) + (*fChi2_2)(p2);
+   }
+
+   const ROOT::Math::IMultiGenFunction *fChi2_1;
+   const ROOT::Math::IMultiGenFunction *fChi2_2;
+};
+
+
 // Fit
-void SuperFitter::Fit(const char* opt) {
+void SuperFitter::Fit(const char* option) {
+    ROOT::Fit::DataOptions opt;
+
+    ROOT::Math::WrappedMultiTF1 wf0(*fFit[0], 1);
+    ROOT::Math::WrappedMultiTF1 wf1(*fFit[1], 1);
+
+    ROOT::Fit::DataRange range0;
+    range0.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    ROOT::Fit::BinData data0(opt, range0);
+    ROOT::Fit::FillData(data0, fObs[0]->GetHistogram());
+
+    ROOT::Fit::DataRange range1;
+    range1.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    ROOT::Fit::BinData data1(opt, range1);
+    ROOT::Fit::FillData(data1, fObs[1]->GetHistogram());
+
+    ROOT::Fit::Chi2Function chi2_B(data0, wf0);
+    ROOT::Fit::Chi2Function chi2_1(data1, wf1);
+
+    GlobalChi2 globalChi2(chi2_B, chi2_1);
+
+    ROOT::Fit::Fitter fitter;
+
+    std::vector<double> pars = {};
+    int nPars = 0;
+    for (int iFunc = 0; iFunc < fFit.size(); iFunc++) {
+        int np = this->fFit[iFunc]->GetNpar();
+
+        for (int iPar = 0; iPar < np; iPar++) {
+            pars.push_back(fFit[iFunc]->GetParameter(iPar));
+        }
+
+        printf("np: %d\n", np);
+        nPars += np;
+    }
+
+    // create before the parameter settings in order to fix or set range on them
+    fitter.Config().SetParamsSettings(nPars, pars.data());
+    // fix 5-th parameter
+    // fitter.Config().ParSettings(4).Fix();
+    // // set limits on the third and 4-th parameter
+    // fitter.Config().ParSettings(2).SetLimits(-10, -1.E-4);
+    // fitter.Config().ParSettings(3).SetLimits(0, 10000);
+    // fitter.Config().ParSettings(3).SetStepSize(5);
+
+    fitter.Config().MinimizerOptions().SetPrintLevel(0);
+    fitter.Config().SetMinimizer("Minuit2", "Migrad");
+
+    // fit FCN function directly
+    // (specify optionally data size and flag to indicate that is a chi2 fit)
+    fitter.FitFCN(nPars, globalChi2, nullptr, data0.Size() + data1.Size(), true);
+    ROOT::Fit::FitResult result = fitter.Result();
+    result.Print(std::cout);
+    
     // todo: change
-    this->fObs[0]->Fit(this->fFit[0], opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    // this->fObs[0]->Fit(this->fFit[0], opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
 }
 
 // Add TF1 function // todo: remove units mult here and put in .py
-void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
+void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
     DEBUG(0, "Adding the function '%s' to the fitter", name.data());
     std::cout << "kekek" << fTemplate << std::endl;
 
-    functions.push_back(
+    functions[idx].push_back(
         {name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); },
          1});
 
@@ -556,10 +692,10 @@ void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::paramete
 };
 
 // Add template function
-void SuperFitter::Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
+void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
     DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
-    functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
+    functions[idx].push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
 
     // Save fit settings
     DEBUG(0, "Parameters are:");
@@ -574,7 +710,7 @@ void SuperFitter::Add(std::string name, TH1* hTemplate, std::vector<sf::paramete
 void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes) {
     this->fTerms = {};
 
-    for (const auto& [name, _, __] : functions) {
+    for (const auto& [name, _, __] : functions[0]) {
         std::cout << name << std::endl;
     }
 
@@ -615,22 +751,22 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
             }
 
             int counter = 0;
-            for (const auto& [name, _, __] : functions) {
+            for (const auto& [name, _, __] : functions[0]) {
                 if (name == token) break;
                 counter++;
             }
 
             int offset = 0;
             for (int iFunc = 0; iFunc < counter; iFunc++) {
-                offset += std::get<2>(functions[iFunc]);
+                offset += std::get<2>(functions[0][iFunc]);
             }
 
             // Determine the number of parameters
-            for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
-                auto name = std::get<0>(functions[iFunc]);
+            for (int iFunc = 0; iFunc < functions[0].size(); iFunc++) {
+                auto name = std::get<0>(functions[0][iFunc]);
                 DEBUG(2, "Comparing with function '%s'", name.data());
                 if (name == token && used_tokens.find(token) == used_tokens.end()) {
-                    int nPars = std::get<2>(functions[iFunc]);
+                    int nPars = std::get<2>(functions[0][iFunc]);
                     DEBUG(3, "It's a match! Number of parameters: %d", nPars);
                     nParsDraw.push_back(nPars);
                     // Determine the position of the function in the list of functions
@@ -681,7 +817,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
                     // inly insert if not already present -> avoid duplicates
                     if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
-                        for (const auto& [name, _, npar] : functions) {
+                        for (const auto& [name, _, npar] : functions[0]) {
                             if (name == token) {
                                 nParameters.push_back({token, npar});
                             }
@@ -699,15 +835,15 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
                     // Determine the position of the function in the list of functions
                     int counter = 0;
-                    for (const auto& [name, _, __] : functions) {
+                    for (const auto& [name, _, __] : functions[0]) {
                         if (name == token) break;
                         counter++;
                     }
-                    auto func = std::get<1>(functions[counter]);
+                    auto func = std::get<1>(functions[0][counter]);
                     double value = func(x, p + offset);
 
                     if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions.size(), offset);
+                        DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions[0].size(), offset);
                     if (0.12 < x[0] && x[0] < .16)
                         DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
@@ -771,7 +907,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 };
 
 // Get genuine correlation function
-TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
+TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
     // todo: change
     TH1D* hRawCF = (TH1D*)this->fObs[0]->GetHistogram();
     TH1D* hGenCF = (TH1D*)hRawCF->Clone("hGenCF");
@@ -793,21 +929,21 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
     std::set<std::string> used_tokens = {};
     for (const auto& token : tokens) {
         int counter = 0;
-        for (const auto& [name, _, __] : functions) {
+        for (const auto& [name, _, __] : functions[idx]) {
             if (name == token) break;
             counter++;
         }
 
         int offset = 0;
         for (int iFunc = 0; iFunc < counter; iFunc++) {
-            offset += std::get<2>(functions[iFunc]);
+            offset += std::get<2>(functions[idx][iFunc]);
         }
 
         // Determine the number of parameters
-        for (int iFunc = 0; iFunc < functions.size(); iFunc++) {
-            auto name = std::get<0>(functions[iFunc]);
+        for (int iFunc = 0; iFunc < functions[idx].size(); iFunc++) {
+            auto name = std::get<0>(functions[idx][iFunc]);
             if (name == token && used_tokens.find(token) == used_tokens.end()) {
-                int nPars = std::get<2>(functions[iFunc]);
+                int nPars = std::get<2>(functions[idx][iFunc]);
                 nParsDraw.push_back(nPars);
                 // Determine the position of the function in the list of functions
                 for (int iPar = 0; iPar < nPars; iPar++) {
@@ -856,18 +992,18 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
 
                 // Determine the position of the function in the list of functions
                 int counter = 0;
-                for (const auto& [name, _, __] : functions) {
+                for (const auto& [name, _, __] : functions[idx]) {
                     if (name == token) break;
                     counter++;
                 }
 
                 int offset = 0;
-                for (const auto& [name, _, npar] : functions) {
+                for (const auto& [name, _, npar] : functions[idx]) {
                     if (name == token) break;
                     offset += npar;
                 }
 
-                auto func = std::get<1>(functions[counter]);
+                auto func = std::get<1>(functions[idx][counter]);
                 double* pars = fFit[0]->GetParameters();
                 double value = func(&x, pars + offset);
                 stack.push(value);
