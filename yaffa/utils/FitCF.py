@@ -24,7 +24,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     fitter.SetFitRange(cfg['fits'][0]['fitrange'])
     fitter.SetDrawRange(*cfg['fits'][0]['drawrange'])
 
-    for fitCfg in cfg['fits']:
+    for iFit, fitCfg in enumerate(cfg['fits']):
         inFile = TFile(fitCfg['infile'])
         hObs = utils.io.Load(inFile, fitCfg['path'])
         hObs.SetDirectory(0)
@@ -41,7 +41,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                 if isinstance(template, TH1):
                     hTemplate = utils.analysis.ChangeUnits(template, term.get('unit_mult', 1))
                     hTemplate.SetDirectory(0)
-                    fitter.Add(term['name'], hTemplate, term['params'])
+                    fitter.Add(iFit, term['name'], hTemplate, term['params'])
 
                 # elif isinstance(template, TF1):
                     # Ccnvert to hist
@@ -73,9 +73,9 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     sys.exit()
                 templFile.Close()
             else:
-                fitter.Add(term['name'], term['func'], term['params'])
+                fitter.Add(iFit, term['name'], term['func'], term['params'])
 
-        fitter.SetModel(fitCfg['model'])
+        fitter.SetModel(iFit, fitCfg['model'])
     fitter.Fit('MR+')
 
     oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
@@ -86,7 +86,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     # Save fit parameters to file
     fFit = fitter.GetFitFunction()
-    hGenCF = fitter.GetGenuineCF(fitCfg['gencf'])
+    hGenCF = fitter.GetGenuineCF(0, fitCfg['gencf'])
     colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
     pars = []
     for iPar in range(fFit.GetNpar()):
