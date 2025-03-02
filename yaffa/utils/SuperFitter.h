@@ -290,7 +290,7 @@ double Lednicky(double* x, double* par) {
 // Class for advanced fitting ------------------------------------------------------------------------------------------
 class SuperFitter : public TObject {
    private:
-    Observable* fObs;                  // Observable to be fitted
+    std::vector<Observable*> fObs;                  // Observable to be fitted
     TF1* fFit;                         // Total fit function
     std::vector<sf::parameter> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
@@ -300,11 +300,7 @@ class SuperFitter : public TObject {
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs(nullptr), fFit(nullptr), fPars({}), fFitRange({}) {};
-
-    // Standard Contructor
-    SuperFitter(Observable* oObservable, std::vector<std::pair<double, double>> fitRange)
-        : TObject(), fObs(oObservable), fFit(nullptr), fPars({}), fFitRange(fitRange) {};
+    SuperFitter() : TObject(), fObs({}), fFit(nullptr), fPars({}), fFitRange({}) {};
 
     // Destructor
     ~SuperFitter();
@@ -326,7 +322,7 @@ class SuperFitter : public TObject {
     void Draw(std::vector<std::pair<std::string, std::string>> recipes);
 
     // Set observable
-    void SetObservable(Observable *obs) { this->fObs = obs; }
+    void AddObservable(Observable *obs) { this->fObs.push_back(obs); }
 
     // Set Fit range
     void SetFitRange(std::vector<std::pair<double, double>> fitRange) { this->fFitRange = fitRange; }
@@ -346,7 +342,6 @@ class SuperFitter : public TObject {
 
 // Destructor
 SuperFitter::~SuperFitter() {
-    delete fObs;
     delete fFit;
     fTerms.clear();
     functions.clear();
@@ -531,7 +526,8 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
             this->fFit->SetParLimits(iPar, min, max);
         }
     }
-    this->fObs->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    // todo: change
+    this->fObs[0]->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
 };
 
 // Add TF1 function // todo: remove units mult here and put in .py
@@ -580,8 +576,10 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
     TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
 
     // Draw the fitted observable
-    this->fObs->Draw("hist same pe");
-    leg->AddEntry(this->fObs, "data", "pe");
+    // todo: change
+    this->fObs[0]->Draw("hist same pe");
+    // todo: change
+    leg->AddEntry(this->fObs[0], "data", "pe");
 
     // Draw the final fit function
     this->fFit->Draw("same");
@@ -767,12 +765,14 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
 // Get genuine correlation function
 TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
-    TH1D* hRawCF = (TH1D*)this->fObs->GetHistogram();
+    // todo: change
+    TH1D* hRawCF = (TH1D*)this->fObs[0]->GetHistogram();
     TH1D* hGenCF = (TH1D*)hRawCF->Clone("hGenCF");
     hGenCF->Reset();
 
     // Draw the fitted observable
-    this->fObs->Draw("hist same pe");
+    // todo: change
+    this->fObs[0]->Draw("hist same pe");
 
     // Draw the final fit function
     this->fFit->Draw("same");
