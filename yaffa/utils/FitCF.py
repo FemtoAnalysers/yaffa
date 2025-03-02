@@ -81,12 +81,12 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
     cFit = TCanvas('cFit', '', 600, 600)
     cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
-    fitter.Draw(fitCfg['draw_recipes'])
+    # fitter.Draw(fitCfg['draw_recipes'])
     cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
     # Save fit parameters to file
     fFit = fitter.GetFitFunction()
-    hGenCF = fitter.GetGenuineCF(0, fitCfg['gencf'])
+    # hGenCF = fitter.GetGenuineCF(0, fitCfg['gencf'])
     colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
     pars = []
     for iPar in range(fFit.GetNpar()):
@@ -113,7 +113,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         file.write(table)
 
     hObs.Write()
-    hGenCF.Write()
+    # hGenCF.Write()
     cFit.Write()
     fFit.Write()
     for term in fitter.GetTerms():
