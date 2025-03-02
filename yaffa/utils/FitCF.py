@@ -20,7 +20,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     '''
 
     # oFile = TFile('ancestors_LPiplus.root', 'create')
-
+    fitter = SuperFitter()
 
     for fitCfg in cfg['fits']:
         inFile = TFile(fitCfg['infile'])
@@ -29,7 +29,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         oObs = Observable(hObs)
         inFile.Close()
 
-        fitter = SuperFitter(oObs, fitCfg['fitrange'])
+        fitter.SetObservable(oObs)
+        fitter.SetFitRange(fitCfg['fitrange'])
         fitter.SetDrawRange(*fitCfg['drawrange'])
 
         # Add template to the fitter
