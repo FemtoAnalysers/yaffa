@@ -75,7 +75,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             else:
                 fitter.Add(term['name'], term['func'], term['params'])
 
-    fitter.Fit(fitCfg['model'], 'MR+')
+        fitter.SetModel(fitCfg['model'])
+    fitter.Fit('MR+')
 
     oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
     cFit = TCanvas('cFit', '', 600, 600)
