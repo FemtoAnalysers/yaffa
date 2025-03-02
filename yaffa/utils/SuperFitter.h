@@ -17,7 +17,7 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if DO_DEBUG
+#if DO_DEBUG || 1
 #define DEBUG(scopes, msg, ...)                          \
     do {                                                 \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
@@ -295,7 +295,7 @@ class SuperFitter : public TObject {
    private:
     std::vector<Observable*> fObs;                  // Observable to be fitted
     std::vector<TF1*> fFit;                         // Total fit function
-    std::vector<sf::parameter> fPars;  // List of fit pars: (name, init, min, max)
+    std::vector<std::vector<sf::parameter>> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
     std::vector<std::pair<double, double>> fFitRange;  // Fit range as the union of different intervals
     double fDrawRangeMin;                              // Draw range minimum
@@ -372,8 +372,16 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         throw std::invalid_argument("Index is larger than current length of the function list.");
     }
 
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
     if (idx == functions.size()) {
         functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
     }
 
     if (func == "pol0") {
@@ -411,7 +419,7 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
               std::get<2>(par), std::get<3>(par));
-        this->fPars.push_back(par);
+        this->fPars[idx].push_back(par);
     }
 };
 
@@ -516,30 +524,43 @@ void SuperFitter::SetModel(int idx, std::string model) {
     for (int iFunc = 0; iFunc < functions[idx].size(); iFunc++) {
         nPars += std::get<2>(functions[idx][iFunc]);
     }
-    this->fFit.push_back(new TF1("fFit", lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
-    this->fFit[this->fFit.size() - 1]->SetNpx(1000);
+    this->fFit.push_back(new TF1(Form("fFit_%d", idx), lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
+    this->fFit[idx]->SetNpx(1000);
 
-    for (int iPar = 0; iPar < this->fPars.size(); iPar++) {
-        auto par = this->fPars[iPar];
+    for (int iPar = 0; iPar < this->fPars[idx].size(); iPar++) {
+        auto par = this->fPars[idx][iPar];
         std::string name = std::get<0>(par);
         double centr = std::get<1>(par);
         double min = std::get<2>(par);
         double max = std::get<3>(par);
 
-        this->fFit[this->fFit.size() - 1]->SetParName(iPar, name.data());
+        printf("idx=%d\t par=%d\t name=%s\n", idx, iPar, name.data());
+        this->fFit[idx]->SetParName(iPar, name.data());
 
         if (min > max) {
-            this->fFit[this->fFit.size() - 1]->FixParameter(iPar, centr);
+            this->fFit[idx]->FixParameter(iPar, centr);
         } else {
             if (!(min < centr && centr < max)) {
                 printf("\033[33mWARNING: parameter '%s' is outside the allowed range\033[0m\n", name.data());
                 centr = (min + max) / 2;
             }
 
-            this->fFit[this->fFit.size() - 1]->SetParameter(iPar, centr);
-            this->fFit[this->fFit.size() - 1]->SetParLimits(iPar, min, max);
+            this->fFit[idx]->SetParameter(iPar, centr);
+            this->fFit[idx]->SetParLimits(iPar, min, max);
         }
     }
+
+    printf("Fit n. %d has %d parameters\n", idx, nPars);
+    for (int iPar = 0; iPar < nPars; iPar++) {
+        printf("\t%d\t%s\n", iPar, this->fFit[idx]->GetParName(iPar));
+    }
+    // for (int iFit = 0; iFit < fFit.size(); iFit++) {
+    //     int np = this->fFit[iFit]->GetNpar();
+
+    //     printf("Fit lalala %d has %d parameters:\n", iFit, np);
+
+    //     nPars += np;
+    // }  
 };
 
 // definition of shared parameter
@@ -640,14 +661,15 @@ void SuperFitter::Fit(const char* option) {
 
     std::vector<double> pars = {};
     int nPars = 0;
-    for (int iFunc = 0; iFunc < fFit.size(); iFunc++) {
-        int np = this->fFit[iFunc]->GetNpar();
+    for (int iFit = 0; iFit < fFit.size(); iFit++) {
+        int np = this->fFit[iFit]->GetNpar();
 
+        // printf("Fit %d has %d parameters:\n", iFit, np);
         for (int iPar = 0; iPar < np; iPar++) {
-            pars.push_back(fFit[iFunc]->GetParameter(iPar));
+            // printf("\t%d\t%s\n", nPars + iPar, fFit[iFit]->GetParName(nPars + iPar));
+            pars.push_back(fFit[iFit]->GetParameter(nPars + iPar));
         }
 
-        printf("np: %d\n", np);
         nPars += np;
     }
 
@@ -687,7 +709,7 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
               std::get<2>(par), std::get<3>(par));
-        this->fPars.push_back(par);
+        this->fPars[idx].push_back(par);
     }
 };
 
@@ -702,7 +724,7 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
               std::get<2>(par), std::get<3>(par));
-        this->fPars.push_back(par);
+        this->fPars[idx].push_back(par);
     }
 };
 
