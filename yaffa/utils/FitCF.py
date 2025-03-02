@@ -75,49 +75,49 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             else:
                 fitter.Add(term['name'], term['func'], term['params'])
 
-        fitter.Fit(fitCfg['model'], 'MR+')
+    fitter.Fit(fitCfg['model'], 'MR+')
 
-        oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
-        cFit = TCanvas('cFit', '', 600, 600)
-        cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
-        fitter.Draw(fitCfg['draw_recipes'])
-        cFit.SaveAs(f'{cfg["ofile"]}.pdf')
+    oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
+    cFit = TCanvas('cFit', '', 600, 600)
+    cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
+    fitter.Draw(fitCfg['draw_recipes'])
+    cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
-        # Save fit parameters to file
-        fFit = fitter.GetFitFunction()
-        hGenCF = fitter.GetGenuineCF(fitCfg['gencf'])
-        colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
-        pars = []
-        for iPar in range(fFit.GetNpar()):
-            pars.append([
-                iPar,
-                fFit.GetParName(iPar),
-                f'{fFit.GetParameter(iPar):+10.5e}',
-                f'{fFit.GetParError(iPar):+10.5e}',
-                '-',  # Placeholder for "Step size"
-                '-'   # Placeholder for "Derivative"
-            ])
+    # Save fit parameters to file
+    fFit = fitter.GetFitFunction()
+    hGenCF = fitter.GetGenuineCF(fitCfg['gencf'])
+    colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
+    pars = []
+    for iPar in range(fFit.GetNpar()):
+        pars.append([
+            iPar,
+            fFit.GetParName(iPar),
+            f'{fFit.GetParameter(iPar):+10.5e}',
+            f'{fFit.GetParError(iPar):+10.5e}',
+            '-',  # Placeholder for "Step size"
+            '-'   # Placeholder for "Derivative"
+        ])
 
-        a0_re_idx = fFit.GetParNumber('a0_re')
-        a0_im_idx = fFit.GetParNumber('a0_im')
+    a0_re_idx = fFit.GetParNumber('a0_re')
+    a0_im_idx = fFit.GetParNumber('a0_im')
 
-        gScatLen = TGraphErrors(1)
-        gScatLen.SetName('gScatLen')
-        gScatLen.SetPoint(0, fFit.GetParameter(a0_re_idx), fFit.GetParameter(a0_im_idx))
-        gScatLen.SetPointError(0, fFit.GetParError(a0_re_idx), fFit.GetParError(a0_im_idx))
-        gScatLen.Write()
+    gScatLen = TGraphErrors(1)
+    gScatLen.SetName('gScatLen')
+    gScatLen.SetPoint(0, fFit.GetParameter(a0_re_idx), fFit.GetParameter(a0_im_idx))
+    gScatLen.SetPointError(0, fFit.GetParError(a0_re_idx), fFit.GetParError(a0_im_idx))
+    gScatLen.Write()
 
-        table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
-        with open(f'{cfg["ofile"]}_parameters.txt', "w") as file:
-            file.write(table)
+    table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
+    with open(f'{cfg["ofile"]}_parameters.txt', "w") as file:
+        file.write(table)
 
-        hObs.Write()
-        hGenCF.Write()
-        cFit.Write()
-        fFit.Write()
-        for term in fitter.GetTerms():
-            term.Write()
-        oFile.Close()
+    hObs.Write()
+    hGenCF.Write()
+    cFit.Write()
+    fFit.Write()
+    for term in fitter.GetTerms():
+        term.Write()
+    oFile.Close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
