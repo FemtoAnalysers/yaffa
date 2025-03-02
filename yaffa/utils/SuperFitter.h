@@ -242,6 +242,7 @@ double BreitWigner(double* x, double* par) {
 
 // General Lednicky
 double GeneralLednicky(double kstar, const double& GaussR, const complex<double>& a0, const double& effRange) {
+    // printf("led\n");
     // Taken from
     // https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L215
     if (GaussR != GaussR) {
@@ -637,6 +638,7 @@ struct GlobalChi2 {
 
 // Fit
 void SuperFitter::Fit(const char* option) {
+    printf("Performing Combined fit\n");
     ROOT::Fit::DataOptions opt;
 
     ROOT::Math::WrappedMultiTF1 wf0(*fFit[0], 1);
@@ -660,21 +662,52 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::Fitter fitter;
 
     std::vector<double> pars = {};
+
+    // Count the number of fit parameters
     int nPars = 0;
+    for (int iFit = 0; iFit < fFit.size(); iFit++) {
+        nPars += this->fFit[iFit]->GetNpar();
+    }
+
+    fitter.Config().SetParamsSettings(nPars, pars.data());
+
+    // Set Parameter limits and fix
+    nPars = 0;
     for (int iFit = 0; iFit < fFit.size(); iFit++) {
         int np = this->fFit[iFit]->GetNpar();
 
-        // printf("Fit %d has %d parameters:\n", iFit, np);
+        printf("Fit %d has %d parameters:\n", iFit, np);
         for (int iPar = 0; iPar < np; iPar++) {
-            // printf("\t%d\t%s\n", nPars + iPar, fFit[iFit]->GetParName(nPars + iPar));
-            pars.push_back(fFit[iFit]->GetParameter(nPars + iPar));
+            printf("\t%d\t%s value=%.3f\n", nPars + iPar, this->fFit[iFit]->GetParName(iPar), this->fFit[iFit]->GetParameter(iPar));
+            pars.push_back(this->fFit[iFit]->GetParameter(iPar));
+
+            // Set Par Limits
+            auto par = this->fPars[iFit][iPar];
+            std::string name = std::get<0>(par);
+            double centr = std::get<1>(par);
+            double min = std::get<2>(par);
+            double max = std::get<3>(par);
+
+            fitter.Config().ParSettings(nPars + iPar).SetName(name.data());
+
+            if (min > max) {
+                fitter.Config().ParSettings(nPars + iPar).SetValue(centr);
+                fitter.Config().ParSettings(nPars + iPar).Fix();
+            } else {
+                if (!(min < centr && centr < max)) {
+                    printf("\033[33mWARNING: parameter '%s' is outside the allowed range\033[0m\n", name.data());
+                    centr = (min + max) / 2;
+                }
+
+                fitter.Config().ParSettings(nPars + iPar).SetValue(centr);
+                fitter.Config().ParSettings(nPars + iPar).SetLimits(min, max);
+            }
         }
 
         nPars += np;
     }
 
     // create before the parameter settings in order to fix or set range on them
-    fitter.Config().SetParamsSettings(nPars, pars.data());
     // fix 5-th parameter
     // fitter.Config().ParSettings(4).Fix();
     // // set limits on the third and 4-th parameter
@@ -683,7 +716,7 @@ void SuperFitter::Fit(const char* option) {
     // fitter.Config().ParSettings(3).SetStepSize(5);
 
     fitter.Config().MinimizerOptions().SetPrintLevel(0);
-    fitter.Config().SetMinimizer("Minuit2", "Migrad");
+    fitter.Config().SetMinimizer("Minuit2", "MR+");
 
     // fit FCN function directly
     // (specify optionally data size and flag to indicate that is a chi2 fit)
