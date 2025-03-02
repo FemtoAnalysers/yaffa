@@ -272,12 +272,16 @@ double Lednicky(double* x, double* par) {
     return sourcePar3 * (sourcePar2 * ll1 + (1 - sourcePar2) * ll2) + 1. - sourcePar3;
 }
 
+namespace sf {
+    using parameter = std::tuple<std::string, double, double, double>;
+}
+
 // Class for advanced fitting
 class SuperFitter : public TObject {
    private:
     Observable* fObs;                                                    // Observable to be fitted
     TF1* fFit;                                                           // Total fit function
-    std::vector<std::tuple<std::string, double, double, double>> fPars;  // List of fit pars: (name, init, min, max)
+    std::vector<sf::parameter> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
     std::vector<std::pair<double, double>> fFitRange;                    // Fit range as the union of different intervals
     double fDrawRangeMin;                                                // Draw range minimum
@@ -299,13 +303,13 @@ class SuperFitter : public TObject {
     void Fit(std::string model, const char* opt = "");
 
     // Add fit component
-    void Add(std::string name, std::string func, std::vector<std::tuple<std::string, double, double, double>> pars);
+    void Add(std::string name, std::string func, std::vector<sf::parameter> pars);
 
     // Add template function
-    void Add(std::string name, TH1* hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars);
+    void Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
 
     // Add TF1 function
-    void Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars,
+    void Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars,
              double unitMult);
 
     // Draw
@@ -342,7 +346,7 @@ bool SuperFitter::IsInFitRange(double x) {
 }
 
 // Add fit component
-void SuperFitter::Add(std::string name, std::string func, std::vector<std::tuple<std::string, double, double, double>> pars) {
+void SuperFitter::Add(std::string name, std::string func, std::vector<sf::parameter> pars) {
     DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
 
     if (func == "pol0") {
@@ -514,7 +518,7 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
 };
 
 // Add TF1 function
-void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<std::tuple<std::string, double, double, double>> pars,
+void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars,
             double unitMult) {  // todo: remove units mult here and put in .py
     DEBUG(0, "Adding the function '%s' to the fitter", name.data());
     std::cout << "kekek" << fTemplate << std::endl;
@@ -534,7 +538,7 @@ void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<std::tuple<s
 };
 
 // Add template function
-void SuperFitter::Add(std::string name, TH1* hTemplate, std::vector<std::tuple<std::string, double, double, double>> pars) {
+void SuperFitter::Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
     DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
     functions.push_back(
