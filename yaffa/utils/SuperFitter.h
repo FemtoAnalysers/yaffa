@@ -1,13 +1,13 @@
 #ifndef SUPERFITTER_H
 #define SUPERFITTER_H
 
+#include <stdio.h>
+
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <string>
 #include <vector>
-#include <stdio.h>
-#include <algorithm>
-
 #include "gsl/gsl_sf_dawson.h"
 
 #include "Observable.h"
@@ -29,10 +29,23 @@
 #define DEBUG(msg, ...)
 #endif
 
+// Definition of constants ---------------------------------------------------------------------------------------------
 #define TINY std::numeric_limits<double>::min()
+const double FmToNu(5.067731237e-3);
+const double Pi(3.141592653589793);
+const std::complex<double> i(0, 1);
+
+// Definition of types -------------------------------------------------------------------------------------------------
+namespace sf {
+using parameter = std::tuple<std::string, double, double, double>;
+}
+
+// Definition of variables ---------------------------------------------------------------------------------------------
 
 // List of TF1-compatible functions that can be used in the fit
 std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>> functions = {};
+
+// Utils ---------------------------------------------------------------------------------------------------------------
 
 // Concatenate the elements of a std::vector via a separator. Equivalent of python's `" ".join(mylist)`
 template <typename T>
@@ -52,6 +65,9 @@ std::string join(const std::string& separator, const std::vector<T>& list) {
     return output;
 }
 
+// Processing of formulas ----------------------------------------------------------------------------------------------
+
+// Convert a stack to a vector
 template <typename T>
 std::vector<T> stack_to_vector(const std::stack<T>& stack) {
     std::stack<T> tempStack = stack;  // Copy the original stack to preserve it
@@ -167,7 +183,7 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
     return output;
 }
 
-// Fit functions ---------------------------------------------------------------
+// Fit functions -------------------------------------------------------------------------------------------------------
 
 // Normalized Gaussian
 double Gaus(double* x, double* p) {
@@ -211,7 +227,8 @@ double Pol8(double* x, double* p) { return Pol7(x, p) + p[8] * pow(x[0], 8); }
 // Polynomial of degree 9
 double Pol9(double* x, double* p) { return Pol8(x, p) + p[9] * pow(x[0], 9); }
 
-double BreitWigner(double *x, double *par) {
+// Breit Wigner
+double BreitWigner(double* x, double* par) {
     double kstar = x[0];
 
     double yield = par[0];
@@ -221,10 +238,7 @@ double BreitWigner(double *x, double *par) {
     return yield * TMath::BreitWigner(kstar, mean, gamma);
 }
 
-const double FmToNu(5.067731237e-3);
-const double Pi(3.141592653589793);
-const std::complex<double> i(0, 1);
-
+// General Lednicky
 double GeneralLednicky(double kstar, const double& GaussR, const complex<double>& a0, const double& effRange) {
     // Taken from
     // https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L215
@@ -235,8 +249,8 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
         return 1;
     }
 
-    kstar *= 1000;  // change units to GeV/c
-    kstar = std::max(kstar, TINY); // avoid problems with k* = 0
+    kstar *= 1000;                  // change units to GeV/c
+    kstar = std::max(kstar, TINY);  // avoid problems with k* = 0
 
     const double Radius = GaussR * FmToNu;
     const complex<double> IsLen1 = 1. / (a0 * FmToNu + 1e-64);
@@ -254,6 +268,7 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
     return CkValue;
 }
 
+// Lednicky
 double Lednicky(double* x, double* par) {
     // Taken from
     // https://github.com/dimihayl/DLM/blob/c40f03eac38006f89eac8e5fa1533c9e48f2b455/CATS_Extentions/DLM_CkModels.cpp#L504C8-L504C53
@@ -272,20 +287,16 @@ double Lednicky(double* x, double* par) {
     return sourcePar3 * (sourcePar2 * ll1 + (1 - sourcePar2) * ll2) + 1. - sourcePar3;
 }
 
-namespace sf {
-    using parameter = std::tuple<std::string, double, double, double>;
-}
-
-// Class for advanced fitting
+// Class for advanced fitting ------------------------------------------------------------------------------------------
 class SuperFitter : public TObject {
    private:
-    Observable* fObs;                                                    // Observable to be fitted
-    TF1* fFit;                                                           // Total fit function
+    Observable* fObs;                  // Observable to be fitted
+    TF1* fFit;                         // Total fit function
     std::vector<sf::parameter> fPars;  // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;
-    std::vector<std::pair<double, double>> fFitRange;                    // Fit range as the union of different intervals
-    double fDrawRangeMin;                                                // Draw range minimum
-    double fDrawRangeMax;                                                // Draw range maximum
+    std::vector<std::pair<double, double>> fFitRange;  // Fit range as the union of different intervals
+    double fDrawRangeMin;                              // Draw range minimum
+    double fDrawRangeMax;                              // Draw range maximum
 
    public:
     // Empty Contructor
@@ -309,8 +320,7 @@ class SuperFitter : public TObject {
     void Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
 
     // Add TF1 function
-    void Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars,
-             double unitMult);
+    void Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Draw
     void Draw(std::vector<std::pair<std::string, std::string>> recipes);
@@ -327,7 +337,7 @@ class SuperFitter : public TObject {
     ClassDef(SuperFitter, 2)
 };
 
-
+// Destructor
 SuperFitter::~SuperFitter() {
     delete fObs;
     delete fFit;
@@ -335,9 +345,10 @@ SuperFitter::~SuperFitter() {
     functions.clear();
 };
 
+// Check if value is in fit range
 bool SuperFitter::IsInFitRange(double x) {
     return true;
-    for (const auto &[xMin, xMax] : this->fFitRange) {
+    for (const auto& [xMin, xMax] : this->fFitRange) {
         if (xMin < x && x < xMax) {
             return true;
         }
@@ -383,11 +394,10 @@ void SuperFitter::Add(std::string name, std::string func, std::vector<sf::parame
     DEBUG(0, "Parameters are:");
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
-                std::get<2>(par), std::get<3>(par));
+              std::get<2>(par), std::get<3>(par));
         this->fPars.push_back(par);
     }
 };
-
 
 // Fit
 void SuperFitter::Fit(std::string model, const char* opt = "") {
@@ -396,7 +406,7 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
     }
 
     printf("Starting fit in Fit Range: ");
-    for (const auto &[xMin, xMax] : this->fFitRange) {
+    for (const auto& [xMin, xMax] : this->fFitRange) {
         printf("[%.3f %.3f] U ", xMin, xMax);
     }
     printf("\n");
@@ -441,7 +451,7 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
                 }
                 if (false)
                     DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
-                            counter, offset);
+                          counter, offset);
 
                 auto func = std::get<1>(functions[counter]);
                 double value = func(x, p + offset);
@@ -517,22 +527,20 @@ void SuperFitter::Fit(std::string model, const char* opt = "") {
     this->fObs->Fit(this->fFit, opt, fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
 };
 
-// Add TF1 function
-void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars,
-            double unitMult) {  // todo: remove units mult here and put in .py
+// Add TF1 function // todo: remove units mult here and put in .py
+void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
     DEBUG(0, "Adding the function '%s' to the fitter", name.data());
     std::cout << "kekek" << fTemplate << std::endl;
 
     functions.push_back(
-        {name,
-            [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); },
-            1});
+        {name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); },
+         1});
 
     // Save fit settings
     DEBUG(0, "Parameters are:");
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
-                std::get<2>(par), std::get<3>(par));
+              std::get<2>(par), std::get<3>(par));
         this->fPars.push_back(par);
     }
 };
@@ -541,19 +549,16 @@ void SuperFitter::Add(std::string name, TF1* fTemplate, std::vector<sf::paramete
 void SuperFitter::Add(std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
     DEBUG(0, "Adding the template '%s' to the fitter", name.data());
 
-    functions.push_back(
-        {name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
+    functions.push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
 
     // Save fit settings
     DEBUG(0, "Parameters are:");
     for (const auto& par : pars) {
         DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", std::get<0>(par).data(), std::get<1>(par),
-                std::get<2>(par), std::get<3>(par));
+              std::get<2>(par), std::get<3>(par));
         this->fPars.push_back(par);
     }
 };
-
-
 
 // Draw
 void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes) {
@@ -663,8 +668,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
                     if (0.12 < x[0] && x[0] < .16) DEBUG(2, "Inserting token; %s   npar: %d\n", token.data(), 1);
 
                     // inly insert if not already present -> avoid duplicates
-                    if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) ==
-                        nParameters.end()) {
+                    if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
                         for (const auto& [name, _, npar] : functions) {
                             if (name == token) {
                                 nParameters.push_back({token, npar});
@@ -720,13 +724,11 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
                     throw std::runtime_error("Unknown token: " + token);
                 }
                 if (0.12 < x[0] && x[0] < .16)
-                    DEBUG(1, "[DRAW] Stack after processing the token: '%s'",
-                            join(" ", stack_to_vector(stack)).data());
+                    DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
             }
 
             if (0.12 < x[0] && x[0] < .16)
-                DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'",
-                        join(" ", stack_to_vector(stack)).data());
+                DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
             return stack.top();
@@ -737,9 +739,8 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
         TF1* fTerm =
             new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
 
-        int colors[12] = {kBlue+2, kRed+1, kGreen+3, kMagenta+2, kCyan+3, 
-                kOrange+7, kViolet+3, kAzure+4, kPink+4, kSpring-7, 
-                kTeal+2, kGray+2};
+        int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, kOrange + 7,
+                          kViolet + 3, kAzure + 4, kPink + 4,  kSpring - 7,  kTeal + 2, kGray + 2};
 
         fTerm->SetLineColor(colors[iRecipe]);
         fTerm->SetLineWidth(3);
@@ -757,9 +758,10 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
     leg->DrawClone("same");
 };
 
+// Get genuine correlation function
 TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
-    TH1D *hRawCF = (TH1D *) this->fObs->GetHistogram();
-    TH1D *hGenCF = (TH1D *)hRawCF->Clone("hGenCF");
+    TH1D* hRawCF = (TH1D*)this->fObs->GetHistogram();
+    TH1D* hGenCF = (TH1D*)hRawCF->Clone("hGenCF");
     hGenCF->Reset();
 
     // Draw the fitted observable
@@ -817,7 +819,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
             if (isdigit(token[0]) || token[0] == '.') {
                 // Push numbers
                 stack.push(std::stod(token));
-            } else if(token == "raw") {
+            } else if (token == "raw") {
                 stack.push(hRawCF->GetBinContent(iBin + 1));
             } else if (IsFunction(token)) {
                 // inly insert if not already present -> avoid duplicates
@@ -844,7 +846,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
                     if (name == token) break;
                     counter++;
                 }
-                
+
                 int offset = 0;
                 for (const auto& [name, _, npar] : functions) {
                     if (name == token) break;
@@ -852,7 +854,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
                 }
 
                 auto func = std::get<1>(functions[counter]);
-                double *pars = fFit->GetParameters();
+                double* pars = fFit->GetParameters();
                 double value = func(&x, pars + offset);
                 stack.push(value);
             } else if (IsOperator(token)) {
@@ -879,13 +881,13 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
         }
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
-        
+
         double cf = stack.top();
-        double cfUnc = hRawCF->GetBinError(iBin + 1) * 2; //! Use proper uncertainty
+        double cfUnc = hRawCF->GetBinError(iBin + 1) * 2;  //! Use proper uncertainty
 
         if (std::isfinite(cf) && std::isfinite(cfUnc)) {
             hGenCF->SetBinContent(iBin + 1, stack.top());
-            hGenCF->SetBinError(iBin + 1, cfUnc); 
+            hGenCF->SetBinError(iBin + 1, cfUnc);
         }
         // return stack.top();
     }
@@ -899,7 +901,7 @@ TH1D* SuperFitter::GetGenuineCF(std::string recipe) {
     // }
 
     // fTerm->Draw("same");
-    
+
     return hGenCF;
 }
 
