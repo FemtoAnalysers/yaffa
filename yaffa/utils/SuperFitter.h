@@ -254,7 +254,7 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
     }
 
     kstar *= 1000;                  // change units to GeV/c
-    kstar = std::max(kstar, TINY);  // avoid problems with k* = 0
+    kstar = std::max(kstar, 1.e-6);  // avoid problems with k* = 0
 
     const double Radius = GaussR * FmToNu;
     const complex<double> IsLen1 = 1. / (a0 * FmToNu + 1e-64);
@@ -614,39 +614,50 @@ int iparSB[21] = {
 
 
 struct GlobalChi2 {
-   GlobalChi2(ROOT::Math::IMultiGenFunction &f1, ROOT::Math::IMultiGenFunction &f2) : fChi2_1(&f1), fChi2_2(&f2) {}
+    GlobalChi2(ROOT::Math::IMultiGenFunction &f1, ROOT::Math::IMultiGenFunction &f2) : fChi2_1(&f1), fChi2_2(&f2) {}
 
-   // parameter vector is first background (in common 1 and 2)
-   // and then is signal (only in 2)
-   double operator()(const double *par) const
-   {
-      double p1[2];
-      for (int i = 0; i < 2; ++i)
-         p1[i] = par[iparB[i]];
+    // parameter vector is first background (in common 1 and 2)
+    // and then is signal (only in 2)
+    double operator()(const double *par) const
+    {
+        double p1[18];
+        for (int i = 0; i < 18; ++i)
+            p1[i] = par[iparB[i]];
 
-      double p2[5];
-      for (int i = 0; i < 5; ++i)
-         p2[i] = par[iparSB[i]];
+        double p2[21];
+        for (int i = 0; i < 21; ++i)
+            p2[i] = par[iparSB[i]];
 
-      return (*fChi2_1)(p1) + (*fChi2_2)(p2);
-   }
+        double chi2_1 = (*fChi2_1)(p1);
+        double chi2_2 = (*fChi2_2)(p2);
+        double chi2 = chi2_1 + chi2_2;
+        printf("Chi2: %.3f = %.3f + %.3f\n", chi2, chi2_1, chi2_2);
+        return chi2;
+    }
 
-   const ROOT::Math::IMultiGenFunction *fChi2_1;
-   const ROOT::Math::IMultiGenFunction *fChi2_2;
+    const ROOT::Math::IMultiGenFunction *fChi2_1;
+    const ROOT::Math::IMultiGenFunction *fChi2_2;
 };
 
 
 // Fit
 void SuperFitter::Fit(const char* option) {
+
+    printf("--- %.3f\n", fFit[0]->Eval(0.1));
+    
+    
     printf("Performing Combined fit\n");
     ROOT::Fit::DataOptions opt;
 
-    ROOT::Math::WrappedMultiTF1 wf0(*fFit[0], 1);
-    ROOT::Math::WrappedMultiTF1 wf1(*fFit[1], 1);
+    ROOT::Math::WrappedMultiTF1 wf0(*(fFit[0]), 1);
+    ROOT::Math::WrappedMultiTF1 wf1(*(fFit[1]), 1);
+
+    printf("range: [%.3f, %.3f]\n", fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
 
     ROOT::Fit::DataRange range0;
     range0.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
     ROOT::Fit::BinData data0(opt, range0);
+    fObs[0]->GetHistogram()->SetName("lala1");
     ROOT::Fit::FillData(data0, fObs[0]->GetHistogram());
 
     ROOT::Fit::DataRange range1;
@@ -654,10 +665,10 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::BinData data1(opt, range1);
     ROOT::Fit::FillData(data1, fObs[1]->GetHistogram());
 
-    ROOT::Fit::Chi2Function chi2_B(data0, wf0);
+    ROOT::Fit::Chi2Function chi2_0(data0, wf0);
     ROOT::Fit::Chi2Function chi2_1(data1, wf1);
 
-    GlobalChi2 globalChi2(chi2_B, chi2_1);
+    GlobalChi2 globalChi2(chi2_0, chi2_1);
 
     ROOT::Fit::Fitter fitter;
 
@@ -666,9 +677,16 @@ void SuperFitter::Fit(const char* option) {
     // Count the number of fit parameters
     int nPars = 0;
     for (int iFit = 0; iFit < fFit.size(); iFit++) {
-        nPars += this->fFit[iFit]->GetNpar();
+        int np = this->fFit[iFit]->GetNpar();
+        for (int iPar = 0; iPar < np; iPar++) {
+            printf("\t%d\t%s value=%.3f\n", nPars + iPar, this->fFit[iFit]->GetParName(iPar), this->fFit[iFit]->GetParameter(iPar));
+            pars.push_back(this->fFit[iFit]->GetParameter(iPar));
+        }
+        nPars += np;
     }
 
+    double x[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    printf("lolo %.3f %.3f\n", wf0(x), chi2_0(x));
     fitter.Config().SetParamsSettings(nPars, pars.data());
 
     // Set Parameter limits and fix
@@ -678,8 +696,7 @@ void SuperFitter::Fit(const char* option) {
 
         printf("Fit %d has %d parameters:\n", iFit, np);
         for (int iPar = 0; iPar < np; iPar++) {
-            printf("\t%d\t%s value=%.3f\n", nPars + iPar, this->fFit[iFit]->GetParName(iPar), this->fFit[iFit]->GetParameter(iPar));
-            pars.push_back(this->fFit[iFit]->GetParameter(iPar));
+            // pars.push_back(this->fFit[iFit]->GetParameter(iPar));
 
             // Set Par Limits
             auto par = this->fPars[iFit][iPar];
@@ -689,9 +706,9 @@ void SuperFitter::Fit(const char* option) {
             double max = std::get<3>(par);
 
             fitter.Config().ParSettings(nPars + iPar).SetName(name.data());
+            fitter.Config().ParSettings(nPars + iPar).SetValue(centr);
 
             if (min > max) {
-                fitter.Config().ParSettings(nPars + iPar).SetValue(centr);
                 fitter.Config().ParSettings(nPars + iPar).Fix();
             } else {
                 if (!(min < centr && centr < max)) {
@@ -699,9 +716,9 @@ void SuperFitter::Fit(const char* option) {
                     centr = (min + max) / 2;
                 }
 
-                fitter.Config().ParSettings(nPars + iPar).SetValue(centr);
                 fitter.Config().ParSettings(nPars + iPar).SetLimits(min, max);
             }
+            printf("\t%d\t%s value=%.3f\n", nPars + iPar, this->fFit[iFit]->GetParName(iPar), this->fFit[iFit]->GetParameter(iPar));
         }
 
         nPars += np;
@@ -715,8 +732,11 @@ void SuperFitter::Fit(const char* option) {
     // fitter.Config().ParSettings(3).SetLimits(0, 10000);
     // fitter.Config().ParSettings(3).SetStepSize(5);
 
+    for (int iPar = 0; iPar < nPars; iPar++) {
+        printf(" -> %s %.3f\n", fitter.Config().ParSettings(iPar).Name().data(), fitter.Config().ParSettings(iPar).Value());
+    }
     fitter.Config().MinimizerOptions().SetPrintLevel(0);
-    fitter.Config().SetMinimizer("Minuit2", "MR+");
+    fitter.Config().SetMinimizer("Minuit2", "Migrad");
 
     // fit FCN function directly
     // (specify optionally data size and flag to indicate that is a chi2 fit)
