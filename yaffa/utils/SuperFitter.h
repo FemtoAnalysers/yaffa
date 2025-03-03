@@ -614,8 +614,7 @@ int iparSB[21] = {
 
 
 struct GlobalChi2 {
-    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2_1(chi2[0]), fChi2_2(chi2[0]) {}
-    // GlobalChi2(ROOT::Math::IMultiGenFunction *f1, ROOT::Math::IMultiGenFunction *f2) : fChi2_1(f1), fChi2_2(f2) {}
+    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2(chi2) {}
 
     // parameter vector is first background (in common 1 and 2)
     // and then is signal (only in 2)
@@ -629,15 +628,14 @@ struct GlobalChi2 {
         for (int i = 0; i < 21; ++i)
             p2[i] = par[iparSB[i]];
 
-        double chi2_1 = (*fChi2_1)(p1);
-        double chi2_2 = (*fChi2_2)(p2);
+        double chi2_1 = (*fChi2[0])(p1);
+        double chi2_2 = (*fChi2[1])(p2);
         double chi2 = chi2_1 + chi2_2;
         printf("Chi2: %.3f = %.3f + %.3f\n", chi2, chi2_1, chi2_2);
         return chi2;
     }
 
-    const ROOT::Fit::Chi2Function *fChi2_1;
-    const ROOT::Fit::Chi2Function *fChi2_2;
+    const std::vector<ROOT::Fit::Chi2Function *> fChi2;
 };
 
 
