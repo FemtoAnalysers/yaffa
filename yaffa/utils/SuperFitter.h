@@ -564,77 +564,26 @@ void SuperFitter::SetModel(int idx, std::string model) {
     // }  
 };
 
-// definition of shared parameter
-// background function
-std::vector<std::vector<int>> iPars = {
-    {
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-    },
-    {
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-    },
-};
-
-
+// Global Chi2
 struct GlobalChi2 {
-    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2(chi2) {}
+    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2, std::vector<std::vector<int>> parIndeces) : fChi2(chi2), fParIndeces(parIndeces) {}
 
     double operator()(const double *par) const { 
-        std::vector<int> sizes = {18, 21};
-
-        double *pars[fChi2.size()];
-        pars[0] = new double[sizes[0]];
-        pars[1] = new double[sizes[1]];
-        
         double chi2 = 0;
         for (size_t iChi2 = 0; iChi2 < fChi2.size(); iChi2++) {
-            for (int i = 0; i < sizes[iChi2]; ++i) {
-                pars[iChi2][i] = par[iPars[iChi2][i]];
+            double *pars = new double[fParIndeces[iChi2].size()];
+
+            for (int iPar = 0; iPar < fParIndeces[iChi2].size(); iPar++) {
+                pars[iPar] = par[fParIndeces[iChi2][iPar]];
             }
-            chi2 += (*fChi2[iChi2])(pars[iChi2]);
+            chi2 += (*fChi2[iChi2])(pars);
         }
 
         return chi2;
     }
 
     const std::vector<ROOT::Fit::Chi2Function *> fChi2;
+    std::vector<std::vector<int>> fParIndeces;
 };
 
 
@@ -666,9 +615,57 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::Chi2Function *chi2_0 = new ROOT::Fit::Chi2Function(data0, wf0);
     ROOT::Fit::Chi2Function *chi2_1 = new ROOT::Fit::Chi2Function(data1, wf1);
 
+
+
+    std::vector<std::vector<int>> iPars = {
+        {
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+        },
+        {
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+        },
+    };
+
+    
     std::vector<ROOT::Fit::Chi2Function *> chi2 = {chi2_0, chi2_1};
-    // GlobalChi2 globalChi2(chi2_0, chi2_1);
-    GlobalChi2 globalChi2(chi2);
+    GlobalChi2 globalChi2(chi2, iPars);
 
     ROOT::Fit::Fitter fitter;
 
