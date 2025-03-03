@@ -614,7 +614,8 @@ int iparSB[21] = {
 
 
 struct GlobalChi2 {
-    GlobalChi2(ROOT::Math::IMultiGenFunction *f1, ROOT::Math::IMultiGenFunction *f2) : fChi2_1(f1), fChi2_2(f2) {}
+    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2_1(chi2[0]), fChi2_2(chi2[0]) {}
+    // GlobalChi2(ROOT::Math::IMultiGenFunction *f1, ROOT::Math::IMultiGenFunction *f2) : fChi2_1(f1), fChi2_2(f2) {}
 
     // parameter vector is first background (in common 1 and 2)
     // and then is signal (only in 2)
@@ -635,8 +636,8 @@ struct GlobalChi2 {
         return chi2;
     }
 
-    const ROOT::Math::IMultiGenFunction *fChi2_1;
-    const ROOT::Math::IMultiGenFunction *fChi2_2;
+    const ROOT::Fit::Chi2Function *fChi2_1;
+    const ROOT::Fit::Chi2Function *fChi2_2;
 };
 
 
@@ -668,7 +669,9 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::Chi2Function *chi2_0 = new ROOT::Fit::Chi2Function(data0, wf0);
     ROOT::Fit::Chi2Function *chi2_1 = new ROOT::Fit::Chi2Function(data1, wf1);
 
-    GlobalChi2 globalChi2(chi2_0, chi2_1);
+    std::vector<ROOT::Fit::Chi2Function *> chi2 = {chi2_0, chi2_1};
+    // GlobalChi2 globalChi2(chi2_0, chi2_1);
+    GlobalChi2 globalChi2(chi2);
 
     ROOT::Fit::Fitter fitter;
 
