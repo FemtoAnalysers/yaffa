@@ -566,72 +566,72 @@ void SuperFitter::SetModel(int idx, std::string model) {
 
 // definition of shared parameter
 // background function
-int iparB[18] = {
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-};
-
-// signal + background function
-int iparSB[21] = {
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    36,
-    37,
-    38,
+std::vector<std::vector<int>> iPars = {
+    {
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+    },
+    {
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+    },
 };
 
 
 struct GlobalChi2 {
     GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2(chi2) {}
 
-    // parameter vector is first background (in common 1 and 2)
-    // and then is signal (only in 2)
-    double operator()(const double *par) const
-    {
-        double p1[18];
+    double operator()(const double *par) const { 
+        double *pars[fChi2.size()];
+        pars[0] = new double[18];
+        pars[1] = new double[21];
         for (int i = 0; i < 18; ++i)
-            p1[i] = par[iparB[i]];
 
-        double p2[21];
+            pars[0][i] = par[iPars[0][i]];
+
         for (int i = 0; i < 21; ++i)
-            p2[i] = par[iparSB[i]];
+            pars[1][i] = par[iPars[1][i]];
 
-        double chi2_1 = (*fChi2[0])(p1);
-        double chi2_2 = (*fChi2[1])(p2);
-        double chi2 = chi2_1 + chi2_2;
-        printf("Chi2: %.3f = %.3f + %.3f\n", chi2, chi2_1, chi2_2);
+        double chi2 = 0;
+        for (size_t iChi2 = 0; iChi2 < fChi2.size(); iChi2++) {
+            chi2 += (*fChi2[iChi2])(pars[iChi2]);
+        }
+
         return chi2;
     }
 
