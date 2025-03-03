@@ -617,18 +617,17 @@ struct GlobalChi2 {
     GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2) : fChi2(chi2) {}
 
     double operator()(const double *par) const { 
+        std::vector<int> sizes = {18, 21};
+
         double *pars[fChi2.size()];
-        pars[0] = new double[18];
-        pars[1] = new double[21];
-        for (int i = 0; i < 18; ++i)
-
-            pars[0][i] = par[iPars[0][i]];
-
-        for (int i = 0; i < 21; ++i)
-            pars[1][i] = par[iPars[1][i]];
-
+        pars[0] = new double[sizes[0]];
+        pars[1] = new double[sizes[1]];
+        
         double chi2 = 0;
         for (size_t iChi2 = 0; iChi2 < fChi2.size(); iChi2++) {
+            for (int i = 0; i < sizes[iChi2]; ++i) {
+                pars[iChi2][i] = par[iPars[iChi2][i]];
+            }
             chi2 += (*fChi2[iChi2])(pars[iChi2]);
         }
 
