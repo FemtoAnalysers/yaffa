@@ -614,7 +614,7 @@ int iparSB[21] = {
 
 
 struct GlobalChi2 {
-    GlobalChi2(ROOT::Math::IMultiGenFunction &f1, ROOT::Math::IMultiGenFunction &f2) : fChi2_1(&f1), fChi2_2(&f2) {}
+    GlobalChi2(ROOT::Math::IMultiGenFunction *f1, ROOT::Math::IMultiGenFunction *f2) : fChi2_1(f1), fChi2_2(f2) {}
 
     // parameter vector is first background (in common 1 and 2)
     // and then is signal (only in 2)
@@ -665,8 +665,8 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::BinData data1(opt, range1);
     ROOT::Fit::FillData(data1, fObs[1]->GetHistogram());
 
-    ROOT::Fit::Chi2Function chi2_0(data0, wf0);
-    ROOT::Fit::Chi2Function chi2_1(data1, wf1);
+    ROOT::Fit::Chi2Function *chi2_0 = new ROOT::Fit::Chi2Function(data0, wf0);
+    ROOT::Fit::Chi2Function *chi2_1 = new ROOT::Fit::Chi2Function(data1, wf1);
 
     GlobalChi2 globalChi2(chi2_0, chi2_1);
 
@@ -685,8 +685,6 @@ void SuperFitter::Fit(const char* option) {
         nPars += np;
     }
 
-    double x[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-    printf("lolo %.3f %.3f\n", wf0(x), chi2_0(x));
     fitter.Config().SetParamsSettings(nPars, pars.data());
 
     // Set Parameter limits and fix
