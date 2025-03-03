@@ -589,33 +589,22 @@ struct GlobalChi2 {
 
 // Fit
 void SuperFitter::Fit(const char* option) {
-
-    printf("--- %.3f\n", fFit[0]->Eval(0.1));
-    
-    
     printf("Performing Combined fit\n");
+
     ROOT::Fit::DataOptions opt;
+    ROOT::Fit::DataRange range;
+    range.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
+    
+    std::vector<ROOT::Fit::BinData> data = {};
+    std::vector<ROOT::Math::WrappedMultiTF1> wf = {};
+    std::vector<ROOT::Fit::Chi2Function *> chi2Func = {};
 
-    ROOT::Math::WrappedMultiTF1 wf0(*(fFit[0]), 1);
-    ROOT::Math::WrappedMultiTF1 wf1(*(fFit[1]), 1);
-
-    printf("range: [%.3f, %.3f]\n", fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
-
-    ROOT::Fit::DataRange range0;
-    range0.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
-    ROOT::Fit::BinData data0(opt, range0);
-    fObs[0]->GetHistogram()->SetName("lala1");
-    ROOT::Fit::FillData(data0, fObs[0]->GetHistogram());
-
-    ROOT::Fit::DataRange range1;
-    range1.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
-    ROOT::Fit::BinData data1(opt, range1);
-    ROOT::Fit::FillData(data1, fObs[1]->GetHistogram());
-
-    ROOT::Fit::Chi2Function *chi2_0 = new ROOT::Fit::Chi2Function(data0, wf0);
-    ROOT::Fit::Chi2Function *chi2_1 = new ROOT::Fit::Chi2Function(data1, wf1);
-
-
+    for (size_t iFit = 0; iFit < fFit.size(); iFit++) {
+        data.push_back(ROOT::Fit::BinData(opt, range));
+        wf.push_back(ROOT::Math::WrappedMultiTF1(*(fFit[iFit]), 1));
+        ROOT::Fit::FillData(data[iFit], fObs[iFit]->GetHistogram());
+        chi2Func.push_back(new ROOT::Fit::Chi2Function(data[iFit], wf[iFit]));
+    }
 
     std::vector<std::vector<int>> iPars = {
         {
@@ -663,9 +652,7 @@ void SuperFitter::Fit(const char* option) {
         },
     };
 
-    
-    std::vector<ROOT::Fit::Chi2Function *> chi2 = {chi2_0, chi2_1};
-    GlobalChi2 globalChi2(chi2, iPars);
+    GlobalChi2 globalChi2(chi2Func, iPars);
 
     ROOT::Fit::Fitter fitter;
 
@@ -735,7 +722,7 @@ void SuperFitter::Fit(const char* option) {
 
     // fit FCN function directly
     // (specify optionally data size and flag to indicate that is a chi2 fit)
-    fitter.FitFCN(nPars, globalChi2, nullptr, data0.Size() + data1.Size(), true);
+    fitter.FitFCN(nPars, globalChi2, nullptr, data[0].Size() + data[1].Size(), true);
     ROOT::Fit::FitResult result = fitter.Result();
     result.Print(std::cout);
     
