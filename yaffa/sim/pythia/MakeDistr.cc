@@ -67,6 +67,18 @@ std::map<triggers, const char*> triggerNames = {
     {kHM, "HM"},
 };
 
+// Find Bin
+template<typename T>
+int FindBin(T value, std::vector<T> list) {
+    for (size_t i = 0; i < list.size() - 1; i++) {
+        if (list[i] < value && value <= list[i + 1]) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 
 void SetProcess(Pythia8::Pythia &pythia, std::string process) {
     if (process == "SoftQCD") {
@@ -93,14 +105,16 @@ bool haveCommonAncestor(Pythia8::Particle p1, Pythia8::Particle p2) {
     int status2 = std::abs(p2.status());
 
     if (!(81 <= status1 && status1 <= 89)) {
-        std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron. Status: " << status1 << std::endl;
-        throw std::invalid_argument("abs(status) of p1 must be in [81, 89]");
+        return false;
+        // std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron. Status: " << status1 << std::endl;
+        // throw std::invalid_argument("abs(status) of p1 must be in [81, 89]");
     }
     if (!(81 <= status2 && status2 <= 89)) {
-        std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron" << std::endl;
-        throw std::invalid_argument("abs(status) of p2 must be in [81, 89]");
+        return false;
+        // std::cerr << "Error: the 'haveCommonAncestor' method received a non-primary hadron" << std::endl;
+        // throw std::invalid_argument("abs(status) of p2 must be in [81, 89]");
     }
-    
+
     return p1.mother1() == p2.mother1() && p1.mother2() == p2.mother2() && p1.mother1() < p1.mother2() && p1.mother1() > 0 && p2.mother1() > 0;
 }
 
@@ -251,6 +265,16 @@ float ComputeKstar(Pythia8::Particle part1, Pythia8::Particle part2) {
     ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), part2.m());
 
     return ComputeKstar(p1, p2);
+}
+
+// Compute transverse mass (m_T) of the pair
+double ComputeMt(Pythia8::Particle part1, Pythia8::Particle part2) {
+    ROOT::Math::PxPyPzMVector p1(part1.px(), part1.py(), part1.pz(), part1.m());
+    ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), part2.m());
+
+    double kT = 0.5 * (p1 + p2).Pt();
+    double m = 0.5 * (p1.M() + p2.M());
+    return pow(kT * kT + m * m, 0.5);
 }
 
 // Return true if the PDG code corresponds to a charged and long-lived particle
@@ -488,6 +512,11 @@ void MakeDistr(
     size_t nEvents = cfg["nevts"].as<unsigned int>();
     unsigned int md = cfg["mixdepth"].as<int>();
     bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
+    std::vector<double> mTBins = cfg["mTBins"].as<std::vector<double>>();
+    std::vector<double> mTMins(mTBins);
+    mTMins.pop_back();
+    std::vector<double> mTMaxs(mTBins);
+    mTMaxs.erase(mTMaxs.begin());
 
     // Load selections for mother particle
     cfgMother = YAML::Clone(cfg["decaychain"]);
@@ -780,18 +809,19 @@ void MakeDistr(
     TH1D * hEvtMult = new TH1D("hEvtMult", ";#it{N}_{ch}|_{|#eta|<0.8};Counts", 100, 0., 100);
 
     // Pairs
-    std::map<std::pair<int, int>, std::map<std::string, TH1D *>> hSE;
-    std::map<std::pair<int, int>, TH1D *> hME;
+    std::map<std::tuple<int, int, int>, std::map<std::string, TH1D *>> hSE;
+    std::map<std::tuple<int, int, int>, TH1D *> hME;
     
     // Pair QA
-    std::map<std::pair<int, int>, TH2D *> hPairMultSE;
-    std::map<std::pair<int, int>, TH2D *> hPtMotherVsKstar;
+    std::map<std::tuple<int, int, int>, TH2D *> hPairMultSE;
+    std::map<std::tuple<int, int, int>, TH2D *> hPtMotherVsKstar;
 
     int nPart0 = PDG->GetParticle(pdg0)->AntiParticle() && pdg0 != pdg1 ? 2 : 1;
     int nPart1 = PDG->GetParticle(pdg1)->AntiParticle() ? 2 : 1;
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
         for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
-            std::pair<int, int> pair = {iPart0, iPart1};
+            // mT = -1 corresponds to mT integrated
+            std::tuple<int, int, int> pair = {iPart0, iPart1, -1};
             DEBUG("Inserting histograms for pair (%d, %d)\n", iPart0, iPart1);
             hSE.insert({pair, {}});
             hSE[pair].insert(std::pair<std::string, TH1D *>({"Common",  new TH1D(Form("hSE%d%dCommon", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
@@ -799,6 +829,17 @@ void MakeDistr(
             hME.insert({pair, new TH1D(Form("hME%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
             hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d", iPart0, iPart1), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
             hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d", iPart0, iPart1), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
+            
+            for (size_t iMt = 0; iMt < mTMins.size(); iMt++) {
+                std::tuple<int, int, int> pair = {iPart0, iPart1, iMt};
+                DEBUG("Inserting histograms for pair (%d, %d) iMt=%d\n", iPart0, iPart1, iMt);
+                hSE.insert({pair, {}});
+                hSE[pair].insert(std::pair<std::string, TH1D *>({"Common",  new TH1D(Form("hSE%d%d_mT%zu_Common", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
+                hSE[pair].insert(std::pair<std::string, TH1D *>({"NonCommon", new TH1D(Form("hSE%d%d_mT%zu_NonCommon", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)}));
+                hME.insert({pair, new TH1D(Form("hME%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});pairs", 2000, 0., 2.)});
+                hPairMultSE.insert({pair, new TH2D(Form("hPairMultSE%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{N}_{0};#it{N}_{1};Counts", 51, -0.5, 50.5, 31, -0.5, 50.5)});
+                hPtMotherVsKstar.insert({pair, new TH2D(Form("hPtMotherVsKstar%d%d_mT%zu", iPart0, iPart1, iMt), ";#it{k}* (GeV/#it{c});#it{p}_{T}^{Mother} (GeV/#it{c});Counts", 2000, 0, 2, 1000, 0, 10)});
+            }
         }
     }
 
@@ -997,10 +1038,10 @@ void MakeDistr(
 
         int mult0plus = std::count_if(part0.begin(), part0.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
         int mult1plus = std::count_if(part1.begin(), part1.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
-        hPairMultSE[std::pair<int, int>({0, 0})]->Fill(mult0plus, mult1plus);
-        if (nPart0>1) hPairMultSE[std::pair<int, int>({1, 0})]->Fill(part0.size() - mult0plus, mult1plus);
-        if (nPart1>1) hPairMultSE[std::pair<int, int>({0, 1})]->Fill(mult0plus, part1.size() - mult1plus);
-        if (nPart0 > 1 && nPart1 > 1) hPairMultSE[std::pair<int, int>({1, 1})]->Fill(part0.size() - mult0plus, part1.size() - mult1plus);
+        hPairMultSE[std::tuple<int, int, int>({0, 0, -1})]->Fill(mult0plus, mult1plus);
+        if (nPart0>1) hPairMultSE[std::tuple<int, int, int>({1, 0, -1})]->Fill(part0.size() - mult0plus, mult1plus);
+        if (nPart1>1) hPairMultSE[std::tuple<int, int, int>({0, 1, -1})]->Fill(mult0plus, part1.size() - mult1plus);
+        if (nPart0 > 1 && nPart1 > 1) hPairMultSE[std::tuple<int, int, int>({1, 1, -1})]->Fill(part0.size() - mult0plus, part1.size() - mult1plus);
 
         DEBUG("Particle multiplicities in this event: n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
@@ -1025,7 +1066,10 @@ void MakeDistr(
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
                 const auto p1 = pythia.event[buffer[i1]];
                 double kStar = ComputeKstar(p0, p1);
-                std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
+                double mT = ComputeMt(p0, p1);
+                int iMt = FindBin(mT, mTBins);
+                
+                std::tuple<int, int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0, iMt};
                 DEBUG("    SE(idx=%zu, idx=%zu): pdg0=%d pdg1=%d  --->  (%d, %d)\n", i0, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                 double eff1 = 1;
@@ -1036,6 +1080,7 @@ void MakeDistr(
                 }
 
                 std::string ancestor = haveCommonAncestor(p0, p1) ? "Common" : "NonCommon";
+                // std::cout << std::get<0>(pair) << "  " << std::get<1>(pair) << "  "<< std::get<2>(pair) << "  " << ancestor <<std::endl;
                 hSE[pair][ancestor]->Fill(kStar, eff0 * eff1);
                 hPtMotherVsKstar[pair]->Fill(kStar, ptMother, eff0 * eff1);
             }
@@ -1050,7 +1095,10 @@ void MakeDistr(
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
                     const auto p1 = partBuffer[iME][i1];
                     double kStar = ComputeKstar(p0, p1);
-                    std::pair<int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0};
+                    double mT = ComputeMt(p0, p1);
+                    int iMt = FindBin(mT, mTBins);
+
+                    std::tuple<int, int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0, iMt};
                     DEBUG("    ME(idx0=%zu, iMix=%zu, idx1=%zu): pdg0=%d pdg1=%d   (%d, %d)\n", i0, iME, i1, p0.id(), p1.id(), pair.first, pair.second);
 
                     hME[pair]->Fill(kStar);
@@ -1089,7 +1137,7 @@ void MakeDistr(
 
     for (int iPart0 = 0; iPart0 < nPart0; iPart0++) {
         for (int iPart1 = 0; iPart1 < nPart1; iPart1++) {
-            std::pair<int, int> pair = {iPart0, iPart1};
+            std::tuple<int, int, int> pair = {iPart0, iPart1, -1};
             std::string pairName = Form("p%d%d", iPart0, iPart1);
             oFile->mkdir(pairName.data());
             oFile->cd(pairName.data());
@@ -1102,6 +1150,23 @@ void MakeDistr(
             hSE[pair]["NonCommon"]->Write("hSENonCommon");
             hPairMultSE[pair]->Write("hPairMult");
             hPtMotherVsKstar[pair]->Write("hPtMotherVsKstar");
+
+            for (size_t iMt = 0; iMt < mTMins.size(); iMt++) {
+                std::tuple<int, int, int> pair = {iPart0, iPart1, iMt};
+                std::string pairName = Form("p%d%d/mT%zu", iPart0, iPart1, iMt);
+                oFile->mkdir(pairName.data());
+                oFile->cd(pairName.data());
+
+                TH2D* hSETot = (TH2D *) hSE[pair]["Common"]->Clone("hSE");
+                hSETot->Add(hSE[pair]["NonCommon"]);
+                hSETot->Write("hSE");
+                hME[pair]->Write("hME");
+
+                hSE[pair]["Common"]->Write("hSECommon");
+                hSE[pair]["NonCommon"]->Write("hSENonCommon");
+                hPairMultSE[pair]->Write("hPairMult");
+                hPtMotherVsKstar[pair]->Write("hPtMotherVsKstar");
+            }
         }
     }
 
