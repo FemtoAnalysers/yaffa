@@ -587,6 +587,32 @@ struct GlobalChi2 {
 };
 
 
+std::vector<std::vector<int>> GetParameterIndeces(std::vector<std::vector<sf::parameter>> fPars) {
+    std::map<std::string, int> parIndeces = {};
+    std::vector<std::vector<int>> iPars = {};
+    int idx = 0;
+    for (size_t iFit = 0; iFit < fPars.size(); iFit++) {
+        std::vector<int> pars = {};
+        for (size_t iPar = 0; iPar < fPars[iFit].size(); iPar++) {
+            auto [name, _, __, ___] = fPars[iFit][iPar];
+
+            // Find if the parameter was already inserted in the list of parameters
+            auto it = parIndeces.find(name);
+            if (it != parIndeces.end()) {
+                pars.push_back(it->second);
+            } else {
+                pars.push_back(idx);
+                parIndeces[name] = idx;
+                idx++;
+            }
+        }
+        iPars.push_back(pars);
+    }
+
+    return iPars;
+}
+
+
 // Fit
 void SuperFitter::Fit(const char* option) {
     printf("Performing Combined fit\n");
@@ -606,52 +632,16 @@ void SuperFitter::Fit(const char* option) {
         chi2Func.push_back(new ROOT::Fit::Chi2Function(data[iFit], wf[iFit]));
     }
 
-    std::vector<std::vector<int>> iPars = {
-        {
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-        },
-        {
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-            35,
-            36,
-            37,
-            38,
-        },
-    };
-
+    int iPar = 0;
+    auto iPars = GetParameterIndeces(this->fPars);
+    printf("Listing Parameters:\n");
+    for (size_t iFit = 0; iFit < fFit.size(); iFit++) {
+        printf("Indeces of Fit %2d: ", iFit);
+        for (size_t iPar = 0; iPar < iPars[iFit].size(); iPar++) {
+            printf("%3d  ", iPars[iFit][iPar]);
+        }
+        printf("\n");
+    }
     GlobalChi2 globalChi2(chi2Func, iPars);
 
     ROOT::Fit::Fitter fitter;
