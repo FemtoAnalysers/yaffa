@@ -169,10 +169,6 @@ std::vector<std::string> toRPN(const std::vector<std::string>& tokens) {
             }
             operators.push(token);
         } else {
-            // std::cout << "List of functions:" << std::endl;
-            // for (const auto& [fn, _, __] : functions) {
-            //     std::cout << fn << std::endl;
-            // }
             throw std::runtime_error("Unrecognized token '" + token + "'");
         }
     }
@@ -540,33 +536,18 @@ void SuperFitter::SetModel(int idx, std::string model) {
         return stack.top();
     };
 
+    // Count how many parameter the function has
     int nPars = 0;
     for (int iFunc = 0; iFunc < functions[idx].size(); iFunc++) {
         nPars += std::get<2>(functions[idx][iFunc]);
     }
+
     this->fFit.push_back(new TF1(Form("fFit_%d", idx), lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
     this->fFit[idx]->SetNpx(1000);
 
     for (int iPar = 0; iPar < this->fPars[idx].size(); iPar++) {
-        auto par = this->fPars[idx][iPar];
-        std::string name = std::get<0>(par);
-        double centr = std::get<1>(par);
-        double min = std::get<2>(par);
-        double max = std::get<3>(par);
-
+        auto [name, _, __, ___] = this->fPars[idx][iPar];
         this->fFit[idx]->SetParName(iPar, name.data());
-
-        if (min > max) {
-            this->fFit[idx]->FixParameter(iPar, centr);
-        } else {
-            if (!(min < centr && centr < max)) {
-                printf("\033[33mWARNING: parameter '%s' is outside the allowed range\033[0m\n", name.data());
-                centr = (min + max) / 2;
-            }
-
-            this->fFit[idx]->SetParameter(iPar, centr);
-            this->fFit[idx]->SetParLimits(iPar, min, max);
-        }
     }
 };
 
