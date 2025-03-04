@@ -17,17 +17,15 @@
 #include "TH1.h"
 #include "TObject.h"
 
-#if DO_DEBUG
-#define DEBUG(scopes, msg, ...)                          \
-    do {                                                 \
+#define DEBUG(level, indent, msg, ...)                   \
+do {                                                     \
+    if (level <= DEBUG_LEVEL) {                          \
         printf("[DEBUG] %s: ", __FUNCTION__);            \
-        for (int i = 0; i < scopes; i++) printf("    "); \
+        for (int i = 0; i < indent; i++) printf("    "); \
         printf(msg, ##__VA_ARGS__);                      \
         printf("\n");                                    \
-    } while (0)
-#else
-#define DEBUG(msg, ...)
-#endif
+    }                                                    \
+} while (0)
 
 // Definition of constants ---------------------------------------------------------------------------------------------
 #define TINY std::numeric_limits<double>::min()
@@ -87,12 +85,12 @@ std::vector<T> stack_to_vector(const std::stack<T>& stack) {
 
 // Tokenize a formula
 std::vector<std::string> Tokenize(const std::string& formula) {
-    DEBUG(0, "Start tokenization: formula = %s", formula.data());
+    DEBUG(40, 0, "Start tokenization: formula = %s", formula.data());
     std::vector<std::string> tokens;
     std::string token;
     for (size_t i = 0; i < formula.size(); ++i) {
         char c = formula[i];
-        DEBUG(1, "Analyzing char=%c", c);
+        DEBUG(40, 1, "Analyzing char=%c", c);
         if (isspace(c)) continue;  // Ignore spaces
 
         if (isdigit(c) || c == '.') {
@@ -114,7 +112,7 @@ std::vector<std::string> Tokenize(const std::string& formula) {
     if (!token.empty()) {
         tokens.push_back(token);
     }
-    DEBUG(0, "Tokenization is complete, reconstructed formula is '%s'", join(" ", tokens).data());
+    DEBUG(40, 0, "Tokenization is complete, reconstructed formula is '%s'", join(" ", tokens).data());
 
     return tokens;
 }
@@ -388,8 +386,6 @@ bool SuperFitter::IsParameterPresent(std::string name) {
 
 // Add fit component
 void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<sf::parameter> pars) {
-    DEBUG(0, "Adding a new function '%s' to the fitter", name.data());
-
     if (idx > functions.size()) {
         throw std::invalid_argument("Index is larger than current length of the function list.");
     }
@@ -437,10 +433,10 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     }
 
     // Save fit settings
-    DEBUG(0, "Parameters are:");
+    printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
         std::string name = std::get<0>(par);
-        DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -461,30 +457,30 @@ void SuperFitter::SetModel(int idx, std::string model) {
 
     // Tokenization of the model
     auto tokens = Tokenize(model);
-    DEBUG(0, "Expression in infix: %s", join(" ", tokens).data());
+    DEBUG(50, 0, "Expression in infix: %s", join(" ", tokens).data());
 
     // Convert to Reverse Polish Notation
     auto rpn = toRPN(tokens);
-    DEBUG(0, "Expression in RPN: %s", join(" ", rpn).data());
+    DEBUG(50, 0, "Expression in RPN: %s", join(" ", rpn).data());
 
     // The following lambda evaluates the fit function
     auto lambda = [this, rpn, idx](double* x, double* p) -> double {
         std::stack<double> stack;
 
-        if (false) DEBUG(0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
+        DEBUG(51, 0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
         for (const std::string& token : rpn) {
-            if (false) DEBUG(1, "Start processing the token '%s'", token.data());
+            DEBUG(52, 1, "Start processing the token '%s'", token.data());
             if (stack.size() == 0) {
-                if (false) DEBUG(1, "Stack is empty");
+                DEBUG(53, 1, "Stack is empty");
             } else {
-                if (false) DEBUG(1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                DEBUG(53, 1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
             }
             if (isdigit(token[0]) || token[0] == '.') {
-                if (false) DEBUG(2, "Token '%s' is a number", token.data());
+                DEBUG(53, 2, "Token '%s' is a number", token.data());
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (IsFunction(token)) {
-                if (false) DEBUG(2, "Token '%s' is a function", token.data());
+                DEBUG(53, 2, "Token '%s' is a function", token.data());
 
                 // Determine the position of the function in the list of functions
                 int counter = 0;
@@ -497,17 +493,17 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 for (int iFunc = 0; iFunc < counter; iFunc++) {
                     offset += std::get<2>(functions[idx][iFunc]);
                 }
-                if (false)
-                    DEBUG(2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
-                          counter, offset);
+                
+                DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
+                        counter, offset);
 
                 auto func = std::get<1>(functions[idx][counter]);
                 double value = func(x, p + offset);
-                if (false) DEBUG(2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                 stack.push(value);
             } else if (IsOperator(token)) {
-                if (false) DEBUG(2, "Token '%s' is an operator", token.data());
+                DEBUG(53, 2, "Token '%s' is an operator", token.data());
                 // Apply operator
                 if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
@@ -526,13 +522,13 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 else
                     throw std::runtime_error("Unknown operator");
             } else {
-                if (false) DEBUG(2, "Token '%s' is unknown", token.data());
+                DEBUG(53, 2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
             }
-            if (false) DEBUG(1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+            DEBUG(52, 1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
         }
 
-        if (false) DEBUG(0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+        DEBUG(51, 0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
 
@@ -794,17 +790,15 @@ void SuperFitter::Fit(const char* option) {
 
 // Add TF1 function // todo: remove units mult here and put in .py
 void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
-    DEBUG(0, "Adding the function '%s' to the fitter", name.data());
-
     functions[idx].push_back(
         {name, [&, fTemplate, unitMult, this](double* x, double* p) { return p[0] * fTemplate->Eval(x[0] * unitMult); },
          1});
 
     // Save fit settings
-    DEBUG(0, "Parameters are:");
+    printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
         std::string name = std::get<0>(par);
-        DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
 
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
@@ -814,16 +808,14 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
 
 // Add template function
 void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
-    DEBUG(0, "Adding the template '%s' to the fitter", name.data());
-
     functions[idx].push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
 
     // Save fit settings
-    DEBUG(0, "Parameters are:");
+    printf("Adding '%s' template with parameters:\n", name.data());
     for (const auto& par : pars) {
         std::string name = std::get<0>(par);
 
-        DEBUG(1, "name: %s   init: %.3f   min: %.3f   max: %.3f", name.data(), std::get<1>(par),
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par),
               std::get<2>(par), std::get<3>(par));
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
@@ -839,7 +831,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
         std::cout << name << std::endl;
     }
 
-    DEBUG(0, "Start drawing");
+    printf("Start drawing");
 
     TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
 
@@ -857,21 +849,21 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
     for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
         std::string legend = recipes[iRecipe].first;
         std::string recipe = recipes[iRecipe].second;
-        DEBUG(0, "Drawing the recipe '%s'", recipe.data());
+        DEBUG(60, 0, "Drawing the recipe '%s'", recipe.data());
 
         // Tokenization of the recipe
         auto tokens = Tokenize(recipe);
-        DEBUG(0, "[DRAW] recipe in infix: %s", join(" ", tokens).data());
+        DEBUG(60, 0, "[DRAW] recipe in infix: %s", join(" ", tokens).data());
 
         // Count the number of parameters
         std::set<int> paraList = {};
         std::vector<int> nParsDraw = {};
         std::set<std::string> used_tokens = {};
         for (const auto& token : tokens) {
-            DEBUG(1, "Processing token '%s'", token.data());
+            DEBUG(61, 1, "Processing token '%s'", token.data());
 
             if (!IsFunction(token)) {
-                DEBUG(2, "Token '%s' is not a function --> skip!", token.data());
+                DEBUG(62, 2, "Token '%s' is not a function --> skip!", token.data());
                 continue;
             }
 
@@ -889,10 +881,10 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
             // Determine the number of parameters
             for (int iFunc = 0; iFunc < functions[0].size(); iFunc++) {
                 auto name = std::get<0>(functions[0][iFunc]);
-                DEBUG(2, "Comparing with function '%s'", name.data());
+                DEBUG(62, 2, "Comparing with function '%s'", name.data());
                 if (name == token && used_tokens.find(token) == used_tokens.end()) {
                     int nPars = std::get<2>(functions[0][iFunc]);
-                    DEBUG(3, "It's a match! Number of parameters: %d", nPars);
+                    DEBUG(63, 3, "It's a match! Number of parameters: %d", nPars);
                     nParsDraw.push_back(nPars);
                     // Determine the position of the function in the list of functions
                     for (int iPar = 0; iPar < nPars; iPar++) {
@@ -903,42 +895,42 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
             }
         }
 
-        DEBUG(0, "ParaList:");
+        DEBUG(60, 0, "ParaList:");
         for (const auto& e : paraList) {
-            DEBUG(1, "%d value: %.3f", e, this->fFit[0]->GetParameter(e));
+            DEBUG(61, 1, "%d value: %.3f", e, this->fFit[0]->GetParameter(e));
         }
 
         // Convert to Reverse Polish Notation
         auto rpn = toRPN(tokens);
-        DEBUG(0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
+        DEBUG(60, 0, "[DRAW] Expression in RPN: %s", join(" ", rpn).data());
 
         for (const int& d : nParsDraw) {
-            DEBUG(1, "par draw: %d", d);
+            DEBUG(61, 1, "par draw: %d", d);
         }
-
+        
         // The following lambda evaluates the fit function
         auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
             std::stack<double> stack;
 
             if (0.12 < x[0] && x[0] < .16)
-                DEBUG(0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
+                DEBUG(60, 0, "[DRAW] Compute fit function from RPN: '%s'", join(" ", rpn).data());
             std::vector<std::pair<std::string, int>> nParameters = {};  // token, npars
             int idx = 0;
             for (const std::string& token : rpn) {
-                if (0.12 < x[0] && x[0] < .16) DEBUG(1, "[DRAW] Start processing the token '%s'", token.data());
+                if (0.12 < x[0] && x[0] < .16) DEBUG(61, 1, "[DRAW] Start processing the token '%s'", token.data());
                 if (stack.size() == 0) {
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(1, "[DRAW] Stack is empty");
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(61, 1, "[DRAW] Stack is empty");
                 } else {
                     if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                        DEBUG(61, 1, "[DRAW] Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
                 }
 
                 if (isdigit(token[0]) || token[0] == '.') {
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is a number", token.data());
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(62, 2, "[DRAW] Token '%s' is a number", token.data());
                     // Push numbers
                     stack.push(std::stod(token));
                 } else if (IsFunction(token)) {
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(2, "Inserting token; %s   npar: %d\n", token.data(), 1);
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(62, 2, "Inserting token; %s   npar: %d\n", token.data(), 1);
 
                     // inly insert if not already present -> avoid duplicates
                     if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
@@ -956,7 +948,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
                         offset += np;
                     }
 
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is a function", token.data());
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(62, 2, "[DRAW] Token '%s' is a function", token.data());
 
                     // Determine the position of the function in the list of functions
                     int counter = 0;
@@ -968,13 +960,13 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
                     double value = func(x, p + offset);
 
                     if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "Counter: %d/%d    Offset: %d", counter, functions[0].size(), offset);
+                        DEBUG(62, 2, "Counter: %d/%d    Offset: %d", counter, functions[0].size(), offset);
                     if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                        DEBUG(62, 2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                     stack.push(value);
                 } else if (IsOperator(token)) {
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is an operator", token.data());
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(62, 2, "[DRAW] Token '%s' is an operator", token.data());
                     // Apply operator
                     if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                     double b = stack.top();
@@ -993,21 +985,21 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
                     else
                         throw std::runtime_error("Unknown operator");
                 } else {
-                    if (0.12 < x[0] && x[0] < .16) DEBUG(2, "[DRAW] Token '%s' is unknown", token.data());
+                    if (0.12 < x[0] && x[0] < .16) DEBUG(62, 2, "[DRAW] Token '%s' is unknown", token.data());
                     throw std::runtime_error("Unknown token: " + token);
                 }
                 if (0.12 < x[0] && x[0] < .16)
-                    DEBUG(1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+                    DEBUG(61, 1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
             }
 
             if (0.12 < x[0] && x[0] < .16)
-                DEBUG(0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+                DEBUG(60, 0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
             return stack.top();
         };
 
-        DEBUG(0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
+        DEBUG(60, 0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
 
         TF1* fTerm =
             new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
@@ -1021,7 +1013,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
         int counter = 0;
         for (const int& par : paraList) {
-            DEBUG(2, "parameter val: %.3f", this->fFit[0]->GetParameter(par));
+            DEBUG(62, 2, "parameter val: %.3f", this->fFit[0]->GetParameter(par));
             fTerm->FixParameter(counter++, this->fFit[0]->GetParameter(par));
         }
         fTerm->Draw("same");
