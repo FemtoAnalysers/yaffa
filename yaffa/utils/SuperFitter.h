@@ -328,7 +328,7 @@ class SuperFitter : public TObject {
     void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Draw
-    void Draw(std::vector<std::pair<std::string, std::string>> recipes);
+    void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes);
 
     // Set observable
     void AddObservable(Observable *obs) { this->fObs.push_back(obs); }
@@ -467,20 +467,20 @@ void SuperFitter::SetModel(int idx, std::string model) {
     auto lambda = [this, rpn, idx](double* x, double* p) -> double {
         std::stack<double> stack;
 
-        DEBUG(51, 0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
+        if (false) DEBUG(51, 0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
         for (const std::string& token : rpn) {
-            DEBUG(52, 1, "Start processing the token '%s'", token.data());
+            if (false) DEBUG(52, 1, "Start processing the token '%s'", token.data());
             if (stack.size() == 0) {
-                DEBUG(53, 1, "Stack is empty");
+                if (false) DEBUG(53, 1, "Stack is empty");
             } else {
-                DEBUG(53, 1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                if (false) DEBUG(53, 1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
             }
             if (isdigit(token[0]) || token[0] == '.') {
-                DEBUG(53, 2, "Token '%s' is a number", token.data());
+                if (false) DEBUG(53, 2, "Token '%s' is a number", token.data());
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (IsFunction(token)) {
-                DEBUG(53, 2, "Token '%s' is a function", token.data());
+                if (false) DEBUG(53, 2, "Token '%s' is a function", token.data());
 
                 // Determine the position of the function in the list of functions
                 int counter = 0;
@@ -494,16 +494,16 @@ void SuperFitter::SetModel(int idx, std::string model) {
                     offset += std::get<2>(functions[idx][iFunc]);
                 }
                 
-                DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
+                if (false) DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
                         counter, offset);
 
                 auto func = std::get<1>(functions[idx][counter]);
                 double value = func(x, p + offset);
-                DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                if (false) DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                 stack.push(value);
             } else if (IsOperator(token)) {
-                DEBUG(53, 2, "Token '%s' is an operator", token.data());
+                if (false) DEBUG(53, 2, "Token '%s' is an operator", token.data());
                 // Apply operator
                 if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
@@ -522,13 +522,13 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 else
                     throw std::runtime_error("Unknown operator");
             } else {
-                DEBUG(53, 2, "Token '%s' is unknown", token.data());
+                if (false) DEBUG(53, 2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
             }
-            DEBUG(52, 1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+            if (false) DEBUG(52, 1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
         }
 
-        DEBUG(51, 0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+        if (false) DEBUG(51, 0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
 
@@ -824,27 +824,23 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
 };
 
 // Draw
-void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes) {
+void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes) {
     this->fTerms = {};
 
-    for (const auto& [name, _, __] : functions[0]) {
-        std::cout << name << std::endl;
-    }
-
-    printf("Start drawing");
+    printf("Start drawing\n");
 
     TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
 
     // Draw the fitted observable
     // todo: change
-    this->fObs[0]->Draw("hist same pe");
+    this->fObs[iFit]->Draw("hist same pe");
     // todo: change
-    leg->AddEntry(this->fObs[0], "data", "pe");
+    leg->AddEntry(this->fObs[iFit], "data", "pe");
 
     // Draw the final fit function
-    this->fFit[0]->Draw("same");
+    this->fFit[iFit]->Draw("same");
 
-    leg->AddEntry(this->fFit[0], "Total");
+    leg->AddEntry(this->fFit[iFit], "Total");
     // Draw components based on the draw recipes
     for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
         std::string legend = recipes[iRecipe].first;
@@ -868,22 +864,22 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
             }
 
             int counter = 0;
-            for (const auto& [name, _, __] : functions[0]) {
+            for (const auto& [name, _, __] : functions[iFit]) {
                 if (name == token) break;
                 counter++;
             }
 
             int offset = 0;
             for (int iFunc = 0; iFunc < counter; iFunc++) {
-                offset += std::get<2>(functions[0][iFunc]);
+                offset += std::get<2>(functions[iFit][iFunc]);
             }
 
             // Determine the number of parameters
-            for (int iFunc = 0; iFunc < functions[0].size(); iFunc++) {
-                auto name = std::get<0>(functions[0][iFunc]);
+            for (int iFunc = 0; iFunc < functions[iFit].size(); iFunc++) {
+                auto name = std::get<0>(functions[iFit][iFunc]);
                 DEBUG(62, 2, "Comparing with function '%s'", name.data());
                 if (name == token && used_tokens.find(token) == used_tokens.end()) {
-                    int nPars = std::get<2>(functions[0][iFunc]);
+                    int nPars = std::get<2>(functions[iFit][iFunc]);
                     DEBUG(63, 3, "It's a match! Number of parameters: %d", nPars);
                     nParsDraw.push_back(nPars);
                     // Determine the position of the function in the list of functions
@@ -897,7 +893,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
         DEBUG(60, 0, "ParaList:");
         for (const auto& e : paraList) {
-            DEBUG(61, 1, "%d value: %.3f", e, this->fFit[0]->GetParameter(e));
+            DEBUG(61, 1, "%d value: %.3f", e, this->fFit[iFit]->GetParameter(e));
         }
 
         // Convert to Reverse Polish Notation
@@ -909,7 +905,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
         }
         
         // The following lambda evaluates the fit function
-        auto lambda = [this, rpn, nParsDraw](double* x, double* p) -> double {
+        auto lambda = [this, rpn, nParsDraw, iFit](double* x, double* p) -> double {
             std::stack<double> stack;
 
             if (0.12 < x[0] && x[0] < .16)
@@ -934,7 +930,7 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
                     // inly insert if not already present -> avoid duplicates
                     if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
-                        for (const auto& [name, _, npar] : functions[0]) {
+                        for (const auto& [name, _, npar] : functions[iFit]) {
                             if (name == token) {
                                 nParameters.push_back({token, npar});
                             }
@@ -952,15 +948,15 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
                     // Determine the position of the function in the list of functions
                     int counter = 0;
-                    for (const auto& [name, _, __] : functions[0]) {
+                    for (const auto& [name, _, __] : functions[iFit]) {
                         if (name == token) break;
                         counter++;
                     }
-                    auto func = std::get<1>(functions[0][counter]);
+                    auto func = std::get<1>(functions[iFit][counter]);
                     double value = func(x, p + offset);
 
                     if (0.12 < x[0] && x[0] < .16)
-                        DEBUG(62, 2, "Counter: %d/%d    Offset: %d", counter, functions[0].size(), offset);
+                        DEBUG(62, 2, "Counter: %d/%d    Offset: %d", counter, functions[iFit].size(), offset);
                     if (0.12 < x[0] && x[0] < .16)
                         DEBUG(62, 2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
@@ -1013,8 +1009,8 @@ void SuperFitter::Draw(std::vector<std::pair<std::string, std::string>> recipes)
 
         int counter = 0;
         for (const int& par : paraList) {
-            DEBUG(62, 2, "parameter val: %.3f", this->fFit[0]->GetParameter(par));
-            fTerm->FixParameter(counter++, this->fFit[0]->GetParameter(par));
+            DEBUG(62, 2, "parameter val: %.3f", this->fFit[iFit]->GetParameter(par));
+            fTerm->FixParameter(counter++, this->fFit[iFit]->GetParameter(par));
         }
         fTerm->Draw("same");
         fTerms.push_back(fTerm);

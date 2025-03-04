@@ -86,8 +86,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         print(iFit)
         cFit.cd(iFit + 1)
         cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
-        fitter.Draw(cfg['fits'][iFit]['draw_recipes'])
-        break
+        fitter.Draw(iFit, cfg['fits'][iFit]['draw_recipes'])
+        # break
     cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
     # Save fit parameters to file
@@ -129,14 +129,14 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='cfg_fit.yml', nargs='?')
-    parser.add_argument('--debug', default=False, action='store_true')
+    parser.add_argument('--debug', type=int, default=10)
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
 
     utils.style.SetStyle()
 
     from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
-    gInterpreter.ProcessLine(f'#define DEBUG_LEVEL 30')
+    gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
     from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
