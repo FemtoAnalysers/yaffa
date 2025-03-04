@@ -136,7 +136,7 @@ if __name__ == '__main__':
     utils.style.SetStyle()
 
     from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
-    gInterpreter.ProcessLine(f'#define DO_DEBUG {1 if args.debug else 0}')
+    gInterpreter.ProcessLine(f'#define DEBUG_LEVEL 30')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
     from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
