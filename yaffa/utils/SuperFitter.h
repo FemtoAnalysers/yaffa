@@ -445,16 +445,6 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
 
 // SetModel
 void SuperFitter::SetModel(int idx, std::string model) {
-    if (fFitRange.size() == 0) {
-        throw std::runtime_error("Fit range is not specified!");
-    }
-
-    printf("Starting fit in Fit Range: ");
-    for (const auto& [xMin, xMax] : this->fFitRange) {
-        printf("[%.3f %.3f] U ", xMin, xMax);
-    }
-    printf("\n");
-
     // Tokenization of the model
     auto tokens = Tokenize(model);
     DEBUG(50, 0, "Expression in infix: %s", join(" ", tokens).data());
@@ -682,6 +672,20 @@ std::vector<double> SuperFitter::GetInitialParameters() {
 }
 // Fit
 void SuperFitter::Fit(const char* option) {
+    if (fFitRange.size() == 0) {
+        throw std::runtime_error("Fit range is not specified!");
+    }
+
+    printf("Starting fit in Fit Range: ");
+    for (size_t iRange = 0; iRange < this->fFitRange.size(); iRange++) {
+        const auto& [xMin, xMax] = this->fFitRange[iRange];
+        if (iRange) {
+            printf(" U ");
+        }
+        printf("[%.3f %.3f]", xMin, xMax);
+    }
+    printf("\n");
+
     // Count the number of parameters:
     int nPars = GetN();
     int nShared = GetNShared();
