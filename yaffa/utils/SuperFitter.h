@@ -895,11 +895,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                     DEBUG(62, 2, "[DRAW] Token '%s' is a function", token.data());
 
                     // Determine the position of the function in the list of functions
-                    int counter = 0;
-                    for (const auto& [name, _, __] : functions[iFit]) {
-                        if (name == token) break;
-                        counter++;
-                    }
+                    int counter = GetIndex(functions[iFit], token);
                     auto func = std::get<1>(functions[iFit][counter]);
                     double value = func(x, p + offset);
 
