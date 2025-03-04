@@ -685,7 +685,7 @@ void SuperFitter::Fit(const char* option) {
     // Count the number of parameters:
     int nPars = GetN();
     int nShared = GetNShared();
-    printf("\nPerforming %d fits simultaneously with %d parameters of which %d are shared\n", fFit.size(), nPars,
+    printf("\nPerforming %zu fits simultaneously with %d parameters of which %d are shared\n", fFit.size(), nPars,
            nShared);
 
     ROOT::Fit::DataOptions opt;
@@ -916,7 +916,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                     auto func = std::get<1>(functions[iFit][counter]);
                     double value = func(x, p + offset);
 
-                    DEBUG(62, 2, "Counter: %d/%d    Offset: %d", counter, functions[iFit].size(), offset);
+                    DEBUG(62, 2, "Counter: %d/%zu    Offset: %d", counter, functions[iFit].size(), offset);
 
                     DEBUG(62, 2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
@@ -954,7 +954,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
             return stack.top();
         };
 
-        DEBUG(60, 0, "Term '%s' needs %d parameters", recipe.data(), paraList.size());
+        DEBUG(60, 0, "Term '%s' needs %lu parameters", recipe.data(), paraList.size());
 
         TF1* fTerm =
             new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
