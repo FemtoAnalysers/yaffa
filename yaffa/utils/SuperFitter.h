@@ -8,7 +8,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "gsl/gsl_sf_dawson.h"
 
 #include "Observable.h"
 #include "Riostream.h"
@@ -16,23 +15,25 @@
 #include "TFormula.h"
 #include "TH1.h"
 #include "TObject.h"
+#include "gsl/gsl_sf_dawson.h"
 
-#define DEBUG(level, indent, msg, ...)                   \
-do {                                                     \
-    if (level <= DEBUG_LEVEL) {                          \
-        printf("[DEBUG] %s: ", __FUNCTION__);            \
-        for (int i = 0; i < indent; i++) printf("    "); \
-        printf(msg, ##__VA_ARGS__);                      \
-        printf("\n");                                    \
-    }                                                    \
-} while (0)
+#define DEBUG(level, indent, msg, ...)                       \
+    do {                                                     \
+        if (level <= DEBUG_LEVEL) {                          \
+            printf("[DEBUG] %s: ", __FUNCTION__);            \
+            for (int i = 0; i < indent; i++) printf("    "); \
+            printf(msg, ##__VA_ARGS__);                      \
+            printf("\n");                                    \
+        }                                                    \
+    } while (0)
 
 // Definition of constants ---------------------------------------------------------------------------------------------
 #define TINY std::numeric_limits<double>::min()
 const double FmToNu(5.067731237e-3);
 const double Pi(3.141592653589793);
 const std::complex<double> i(0, 1);
-
+int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, kOrange + 7,
+                  kViolet + 3, kAzure + 4, kPink + 4,  kSpring - 7,  kTeal + 2, kGray + 2};
 // Definition of types -------------------------------------------------------------------------------------------------
 namespace sf {
 using parameter = std::tuple<std::string, double, double, double>;
@@ -251,7 +252,7 @@ double GeneralLednicky(double kstar, const double& GaussR, const complex<double>
         return 1;
     }
 
-    kstar *= 1000;                  // change units to GeV/c
+    kstar *= 1000;                   // change units to GeV/c
     kstar = std::max(kstar, 1.e-6);  // avoid problems with k* = 0
 
     const double Radius = GaussR * FmToNu;
@@ -292,12 +293,12 @@ double Lednicky(double* x, double* par) {
 // Class for advanced fitting ------------------------------------------------------------------------------------------
 class SuperFitter : public TObject {
    private:
-    std::vector<Observable*> fObs;                  // Observable to be fitted
-    std::vector<TF1*> fFit;                         // Total fit function
-    std::vector<std::vector<sf::parameter>> fPars;  // List of fit pars: (name, init, min, max)
-    std::vector<TF1*> fTerms;
+    std::vector<Observable*> fObs;                     // Observable to be fitted
+    std::vector<TF1*> fFit;                            // Total fit function
+    std::vector<std::vector<sf::parameter>> fPars;     // List of fit pars: (name, init, min, max)
+    std::vector<TF1*> fTerms;                          // Each function to be drawn
     std::vector<std::pair<double, double>> fFitRange;  // Fit range as the union of different intervals
-    std::map<std::string, int> fParIndeces;
+    std::map<std::string, int> fParIndeces;            // Indeces of parameters for combined fit
     double fDrawRangeMin;                              // Draw range minimum
     double fDrawRangeMax;                              // Draw range maximum
 
@@ -331,7 +332,7 @@ class SuperFitter : public TObject {
     void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes);
 
     // Set observable
-    void AddObservable(Observable *obs) { this->fObs.push_back(obs); }
+    void AddObservable(Observable* obs) { this->fObs.push_back(obs); }
 
     // Set Fit range
     void SetFitRange(std::vector<std::pair<double, double>> fitRange) { this->fFitRange = fitRange; }
@@ -372,7 +373,7 @@ bool SuperFitter::IsInFitRange(double x) {
     return false;
 }
 
-
+// Checks if a parameter is already known to the fitter (in case of combined fit)
 bool SuperFitter::IsParameterPresent(std::string name) {
     auto it = this->fParIndeces.find(name);
 
@@ -382,7 +383,6 @@ bool SuperFitter::IsParameterPresent(std::string name) {
 
     return false;
 }
-
 
 // Add fit component
 void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<sf::parameter> pars) {
@@ -435,8 +435,8 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     // Save fit settings
     printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
-        std::string name = std::get<0>(par);
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
+        auto [name, centr, min, max] = par;
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -467,20 +467,20 @@ void SuperFitter::SetModel(int idx, std::string model) {
     auto lambda = [this, rpn, idx](double* x, double* p) -> double {
         std::stack<double> stack;
 
-        if (false) DEBUG(51, 0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
+        DEBUG(51, 0, "Compute fit function from RPN: '%s'", join(" ", rpn).data());
         for (const std::string& token : rpn) {
-            if (false) DEBUG(52, 1, "Start processing the token '%s'", token.data());
+            DEBUG(52, 1, "Start processing the token '%s'", token.data());
             if (stack.size() == 0) {
-                if (false) DEBUG(53, 1, "Stack is empty");
+                DEBUG(53, 1, "Stack is empty");
             } else {
-                if (false) DEBUG(53, 1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
+                DEBUG(53, 1, "Stack is: '%s'", join(" ", stack_to_vector(stack)).data());
             }
             if (isdigit(token[0]) || token[0] == '.') {
-                if (false) DEBUG(53, 2, "Token '%s' is a number", token.data());
+                DEBUG(53, 2, "Token '%s' is a number", token.data());
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (IsFunction(token)) {
-                if (false) DEBUG(53, 2, "Token '%s' is a function", token.data());
+                DEBUG(53, 2, "Token '%s' is a function", token.data());
 
                 // Determine the position of the function in the list of functions
                 int counter = 0;
@@ -493,17 +493,17 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 for (int iFunc = 0; iFunc < counter; iFunc++) {
                     offset += std::get<2>(functions[idx][iFunc]);
                 }
-                
-                if (false) DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
-                        counter, offset);
+
+                DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
+                      counter, offset);
 
                 auto func = std::get<1>(functions[idx][counter]);
                 double value = func(x, p + offset);
-                if (false) DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
+                DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                 stack.push(value);
             } else if (IsOperator(token)) {
-                if (false) DEBUG(53, 2, "Token '%s' is an operator", token.data());
+                DEBUG(53, 2, "Token '%s' is an operator", token.data());
                 // Apply operator
                 if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
                 double b = stack.top();
@@ -522,13 +522,13 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 else
                     throw std::runtime_error("Unknown operator");
             } else {
-                if (false) DEBUG(53, 2, "Token '%s' is unknown", token.data());
+                DEBUG(53, 2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
             }
-            if (false) DEBUG(52, 1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+            DEBUG(52, 1, "Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
         }
 
-        if (false) DEBUG(51, 0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+        DEBUG(51, 0, "End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
 
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
 
@@ -569,28 +569,17 @@ void SuperFitter::SetModel(int idx, std::string model) {
             this->fFit[idx]->SetParLimits(iPar, min, max);
         }
     }
-
-    // printf("Fit n. %d has %d parameters\n", idx, nPars);
-    // for (int iPar = 0; iPar < nPars; iPar++) {
-    //     printf("\t%d\t%s\n", iPar, this->fFit[idx]->GetParName(iPar));
-    // }
-    // for (int iFit = 0; iFit < fFit.size(); iFit++) {
-    //     int np = this->fFit[iFit]->GetNpar();
-
-    //     printf("Fit lalala %d has %d parameters:\n", iFit, np);
-
-    //     nPars += np;
-    // }  
 };
 
 // Global Chi2
 struct GlobalChi2 {
-    GlobalChi2(std::vector<ROOT::Fit::Chi2Function *> chi2, std::vector<std::vector<int>> parIndeces) : fChi2(chi2), fParIndeces(parIndeces) {}
+    GlobalChi2(std::vector<ROOT::Fit::Chi2Function*> chi2, std::vector<std::vector<int>> parIndeces)
+        : fChi2(chi2), fParIndeces(parIndeces) {}
 
-    double operator()(const double *par) const { 
+    double operator()(const double* par) const {
         double chi2 = 0;
         for (size_t iChi2 = 0; iChi2 < fChi2.size(); iChi2++) {
-            double *pars = new double[fParIndeces[iChi2].size()];
+            double* pars = new double[fParIndeces[iChi2].size()];
 
             for (int iPar = 0; iPar < fParIndeces[iChi2].size(); iPar++) {
                 pars[iPar] = par[fParIndeces[iChi2][iPar]];
@@ -601,11 +590,11 @@ struct GlobalChi2 {
         return chi2;
     }
 
-    const std::vector<ROOT::Fit::Chi2Function *> fChi2;
+    const std::vector<ROOT::Fit::Chi2Function*> fChi2;
     std::vector<std::vector<int>> fParIndeces;
 };
 
-
+// return the indeces of the fit parameters, taking into account the shared ones
 std::vector<std::vector<int>> GetParameterIndeces(std::vector<std::vector<sf::parameter>> fPars) {
     std::map<std::string, int> parIndeces = {};
     std::vector<std::vector<int>> iPars = {};
@@ -631,30 +620,7 @@ std::vector<std::vector<int>> GetParameterIndeces(std::vector<std::vector<sf::pa
     return iPars;
 }
 
-// std::vector<std::vector<int>> GetIndependentParIndeces(std::vector<std::vector<sf::parameter>> fPars) {
-//     std::map<std::string> seen = {};
-//     std::vector<std::vector<int>> iPars = {};
-//     int idx = 0;
-//     for (size_t iFit = 0; iFit < fPars.size(); iFit++) {
-//         std::vector<int> pars = {};
-//         for (size_t iPar = 0; iPar < fPars[iFit].size(); iPar++) {
-//             auto [name, _, __, ___] = fPars[iFit][iPar];
-
-//             // Find if the parameter was already inserted in the list of parameters
-//             auto it = parIndeces.find(name);
-//             if (it != parIndeces.end()) {
-//                 pars.push_back(it->second);
-//             } else {
-//                 pars.push_back(idx);
-//                 parIndeces[name] = idx;
-//                 idx++;
-//             }
-//         }
-//         iPars.push_back(pars);
-//     }
-
-//     return iPars;
-// }
+// return the total number of fit parameters
 int SuperFitter::GetN() {
     int nPars = 0;
     for (size_t iParList = 0; iParList < fPars.size(); iParList++) {
@@ -663,10 +629,10 @@ int SuperFitter::GetN() {
     return nPars;
 }
 
-int SuperFitter::GetNShared() {
-    return GetN() - GetNIndependent();
-}
+// Returns the number of shared fit parameters
+int SuperFitter::GetNShared() { return GetN() - GetNIndependent(); }
 
+// Returns the number of independent fit parameters
 int SuperFitter::GetNIndependent() {
     std::vector<std::string> seen = {};
     int nIndependent = 0;
@@ -682,6 +648,7 @@ int SuperFitter::GetNIndependent() {
     return nIndependent;
 }
 
+// Returns the number of independent fit parameters for a specific fit
 int SuperFitter::GetNIndependent(int nFit) {
     std::vector<std::string> seen = {};
     int nIndependent = 0;
@@ -697,6 +664,7 @@ int SuperFitter::GetNIndependent(int nFit) {
     return nIndependent;
 }
 
+// Returns the values of the fit parameters at initialization
 std::vector<double> SuperFitter::GetInitialParameters() {
     std::vector<double> pars = {};
     std::vector<std::string> seen = {};
@@ -718,15 +686,16 @@ void SuperFitter::Fit(const char* option) {
     // Count the number of parameters:
     int nPars = GetN();
     int nShared = GetNShared();
-    printf("\nPerforming %d fits simultaneously with %d parameters of which %d are shared\n", fFit.size(), nPars, nShared);
+    printf("\nPerforming %d fits simultaneously with %d parameters of which %d are shared\n", fFit.size(), nPars,
+           nShared);
 
     ROOT::Fit::DataOptions opt;
     ROOT::Fit::DataRange range;
     range.SetRange(fFitRange[0].first, fFitRange[fFitRange.size() - 1].second);
-    
+
     std::vector<ROOT::Fit::BinData> data = {};
     std::vector<ROOT::Math::WrappedMultiTF1> wf = {};
-    std::vector<ROOT::Fit::Chi2Function *> chi2Func = {};
+    std::vector<ROOT::Fit::Chi2Function*> chi2Func = {};
 
     // Prepare machinery for custom global chi2
     for (size_t iFit = 0; iFit < fFit.size(); iFit++) {
@@ -749,20 +718,20 @@ void SuperFitter::Fit(const char* option) {
     std::vector<std::string> seen = {};
     for (int iFit = 0; iFit < fFit.size(); iFit++) {
         for (int iPar = 0; iPar < this->fFit[iFit]->GetNpar(); iPar++) {
-        //     // Set Par Limits
             auto par = this->fPars[iFit][iPar];
             std::string name = std::get<0>(par);
             if (std::find(seen.begin(), seen.end(), name) != seen.end()) {
                 continue;
             }
-            
+
             double centr = std::get<1>(par);
             double min = std::get<2>(par);
             double max = std::get<3>(par);
             seen.push_back(name);
 
             fitter.Config().ParSettings(idx).SetName(name.data());
-            
+
+            // Set Par Limits
             if (min > max) {
                 fitter.Config().ParSettings(idx).SetValue(centr);
                 fitter.Config().ParSettings(idx).Fix();
@@ -775,10 +744,8 @@ void SuperFitter::Fit(const char* option) {
                 fitter.Config().ParSettings(idx).SetValue(centr);
                 fitter.Config().ParSettings(idx).SetLimits(min, max);
             }
-        //     printf("\t%d\t%s value=%.3f\n", idx, this->fFit[iFit]->GetParName(iPar), this->fFit[iFit]->GetParameter(iPar));
             idx++;
         }
-        // offset += GetNIndependent(iFit);
     }
 
     fitter.Config().MinimizerOptions().SetPrintLevel(0);
@@ -797,9 +764,8 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
     // Save fit settings
     printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
-        std::string name = std::get<0>(par);
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par), std::get<2>(par), std::get<3>(par));
-
+        auto [name, centr, min, max] = par;
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -808,15 +774,14 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
 
 // Add template function
 void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
-    functions[idx].push_back({name, [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); }, 1});
+    auto lambda = [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); };
+    functions[idx].push_back({name, lambda, 1});
 
     // Save fit settings
     printf("Adding '%s' template with parameters:\n", name.data());
     for (const auto& par : pars) {
-        std::string name = std::get<0>(par);
-
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), std::get<1>(par),
-              std::get<2>(par), std::get<3>(par));
+        auto [name, centr, min, max] = par;
+        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -832,9 +797,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
     TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
 
     // Draw the fitted observable
-    // todo: change
     this->fObs[iFit]->Draw("hist same pe");
-    // todo: change
     leg->AddEntry(this->fObs[iFit], "data", "pe");
 
     // Draw the final fit function
@@ -903,7 +866,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
         for (const int& d : nParsDraw) {
             DEBUG(61, 1, "par draw: %d", d);
         }
-        
+
         // The following lambda evaluates the fit function
         auto lambda = [this, rpn, nParsDraw, iFit](double* x, double* p) -> double {
             std::stack<double> stack;
@@ -985,11 +948,13 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                     throw std::runtime_error("Unknown token: " + token);
                 }
                 if (0.12 < x[0] && x[0] < .16)
-                    DEBUG(61, 1, "[DRAW] Stack after processing the token: '%s'", join(" ", stack_to_vector(stack)).data());
+                    DEBUG(61, 1, "[DRAW] Stack after processing the token: '%s'",
+                          join(" ", stack_to_vector(stack)).data());
             }
 
             if (0.12 < x[0] && x[0] < .16)
-                DEBUG(60, 0, "[DRAW] End of evaluation, return value is: '%s'", join(" ", stack_to_vector(stack)).data());
+                DEBUG(60, 0, "[DRAW] End of evaluation, return value is: '%s'",
+                      join(" ", stack_to_vector(stack)).data());
 
             if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
             return stack.top();
@@ -999,9 +964,6 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 
         TF1* fTerm =
             new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
-
-        int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, kOrange + 7,
-                          kViolet + 3, kAzure + 4, kPink + 4,  kSpring - 7,  kTeal + 2, kGray + 2};
 
         fTerm->SetLineColor(colors[iRecipe]);
         fTerm->SetLineWidth(3);
