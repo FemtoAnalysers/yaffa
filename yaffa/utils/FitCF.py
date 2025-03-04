@@ -79,9 +79,15 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     fitter.Fit('MR+')
 
     oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
-    cFit = TCanvas('cFit', '', 600, 600)
-    cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
-    # fitter.Draw(fitCfg['draw_recipes'])
+    panels = utils.style.GetNPanels(len(cfg['fits']))
+    cFit = TCanvas('cFit', '', 600 * panels[0], 600 * panels[1])
+    cFit.Divide(*panels)
+    for iFit in range(len(cfg['fits'])):
+        print(iFit)
+        cFit.cd(iFit + 1)
+        cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
+        fitter.Draw(cfg['fits'][iFit]['draw_recipes'])
+        break
     cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
     # Save fit parameters to file
