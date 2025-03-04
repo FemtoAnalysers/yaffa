@@ -436,7 +436,7 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
         auto [name, centr, min, max] = par;
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -554,7 +554,6 @@ void SuperFitter::SetModel(int idx, std::string model) {
         double min = std::get<2>(par);
         double max = std::get<3>(par);
 
-        // printf("idx=%d\t par=%d\t name=%s\n", idx, iPar, name.data());
         this->fFit[idx]->SetParName(iPar, name.data());
 
         if (min > max) {
@@ -766,7 +765,7 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
     printf("Adding '%s' function with parameters:\n", name.data());
     for (const auto& par : pars) {
         auto [name, centr, min, max] = par;
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
@@ -782,7 +781,7 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
     printf("Adding '%s' template with parameters:\n", name.data());
     for (const auto& par : pars) {
         auto [name, centr, min, max] = par;
-        printf("\tname: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
         if (!IsParameterPresent(name)) {
             this->fPars[idx].push_back(par);
         }
