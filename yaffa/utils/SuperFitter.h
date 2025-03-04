@@ -909,24 +909,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 
                     stack.push(value);
                 } else if (IsOperator(token)) {
-                    DEBUG(62, 2, "[DRAW] Token '%s' is an operator", token.data());
-                    // Apply operator
-                    if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
-                    double b = stack.top();
-                    stack.pop();
-                    double a = stack.top();
-                    stack.pop();
-
-                    if (token == "+")
-                        stack.push(a + b);
-                    else if (token == "-")
-                        stack.push(a - b);
-                    else if (token == "*")
-                        stack.push(a * b);
-                    else if (token == "/")
-                        stack.push(a / b);
-                    else
-                        throw std::runtime_error("Unknown operator");
+                    ProcessOperatorToken(stack, token);
                 } else {
                     DEBUG(62, 2, "[DRAW] Token '%s' is unknown", token.data());
                     throw std::runtime_error("Unknown token: " + token);
