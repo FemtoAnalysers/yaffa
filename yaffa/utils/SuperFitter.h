@@ -874,7 +874,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                     // Push numbers
                     stack.push(std::stod(token));
                 } else if (IsFunction(token)) {
-                    DEBUG(62, 2, "Inserting token; %s   npar: %d\n", token.data(), 1);
+                    DEBUG(62, 2, "[DRAW] Token '%s' is a function with %d parameters", token.data(), 1);
 
                     // inly insert if not already present -> avoid duplicates
                     if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) == nParameters.end()) {
@@ -886,21 +886,19 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                     }
 
                     // Compute offset
-                    int offset = 0;
+                    int shift = 0;
                     for (const auto& [name, np] : nParameters) {
                         if (name == token) break;
-                        offset += np;
+                        shift += np;
                     }
-
-                    DEBUG(62, 2, "[DRAW] Token '%s' is a function", token.data());
+                    
+                    int counter = GetIndex(functions[iFit], token);
 
                     // Determine the position of the function in the list of functions
-                    int counter = GetIndex(functions[iFit], token);
                     auto func = std::get<1>(functions[iFit][counter]);
-                    double value = func(x, p + offset);
+                    double value = func(x, p + shift);
 
-                    DEBUG(62, 2, "Counter: %d/%zu    Offset: %d", counter, functions[iFit].size(), offset);
-
+                    DEBUG(62, 2, "[DRAW] Counter: %d/%zu    Offset: %d", counter, functions[iFit].size(), shift);
                     DEBUG(62, 2, "[DRAW] Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
                     stack.push(value);
