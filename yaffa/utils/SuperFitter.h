@@ -821,16 +821,8 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
                 continue;
             }
 
-            int counter = 0;
-            for (const auto& [name, _, __] : functions[iFit]) {
-                if (name == token) break;
-                counter++;
-            }
-
-            int offset = 0;
-            for (int iFunc = 0; iFunc < counter; iFunc++) {
-                offset += std::get<2>(functions[iFit][iFunc]);
-            }
+            int counter = GetIndex(functions[iFit], token);
+            int offset = ComputeOffset(functions[iFit], counter);
 
             // Determine the number of parameters
             for (int iFunc = 0; iFunc < functions[iFit].size(); iFunc++) {
