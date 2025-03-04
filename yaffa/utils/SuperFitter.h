@@ -443,6 +443,27 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     }
 };
 
+void ProcessOperatorToken(std::stack<double> &stack, std::string token) {
+    DEBUG(53, 2, "Token '%s' is an operator", token.data());
+    // Apply operator
+    if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
+    double b = stack.top();
+    stack.pop();
+    double a = stack.top();
+    stack.pop();
+
+    if (token == "+")
+        stack.push(a + b);
+    else if (token == "-")
+        stack.push(a - b);
+    else if (token == "*")
+        stack.push(a * b);
+    else if (token == "/")
+        stack.push(a / b);
+    else
+        throw std::runtime_error("Unknown operator");
+}
+
 // SetModel
 void SuperFitter::SetModel(int idx, std::string model) {
     // Tokenization of the model
@@ -493,24 +514,7 @@ void SuperFitter::SetModel(int idx, std::string model) {
 
                 stack.push(value);
             } else if (IsOperator(token)) {
-                DEBUG(53, 2, "Token '%s' is an operator", token.data());
-                // Apply operator
-                if (stack.size() < 2) throw std::runtime_error("Insufficient arguments for operator");
-                double b = stack.top();
-                stack.pop();
-                double a = stack.top();
-                stack.pop();
-
-                if (token == "+")
-                    stack.push(a + b);
-                else if (token == "-")
-                    stack.push(a - b);
-                else if (token == "*")
-                    stack.push(a * b);
-                else if (token == "/")
-                    stack.push(a / b);
-                else
-                    throw std::runtime_error("Unknown operator");
+                ProcessOperatorToken(stack, token);
             } else {
                 DEBUG(53, 2, "Token '%s' is unknown", token.data());
                 throw std::runtime_error("Unknown token: " + token);
