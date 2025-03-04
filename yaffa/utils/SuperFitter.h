@@ -37,12 +37,14 @@ int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, 
 // Definition of types -------------------------------------------------------------------------------------------------
 namespace sf {
 using parameter = std::tuple<std::string, double, double, double>;
+using func = std::function<double(double*, double*)>;
 }
 
 // Definition of variables ---------------------------------------------------------------------------------------------
 
 // List of TF1-compatible functions that can be used in the fit
-std::vector<std::vector<std::tuple<std::string, std::function<double(double*, double*)>, int>>> functions = {};
+std::vector<std::vector<std::tuple<std::string, sf::func, int>>> functions = {};
+
 
 // Utils ---------------------------------------------------------------------------------------------------------------
 
@@ -443,6 +445,7 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
     }
 };
 
+// Process operator token
 void ProcessOperatorToken(std::stack<double> &stack, std::string token) {
     DEBUG(53, 2, "Token '%s' is an operator", token.data());
     // Apply operator
@@ -462,6 +465,25 @@ void ProcessOperatorToken(std::stack<double> &stack, std::string token) {
         stack.push(a / b);
     else
         throw std::runtime_error("Unknown operator");
+}
+
+// Get index of function with a given name
+int GetIndex(std::vector<std::tuple<std::string, sf::func, int>> funcs, std::string name) {
+    int counter = 0;
+    for (const auto& [fn, _, __] : funcs) {
+        if (fn == name) break;
+        counter++;
+    }
+    return counter;
+}
+
+// Compute how many parameters should be skipped
+int ComputeOffset(std::vector<std::tuple<std::string, sf::func, int>> funcs, int counter) {
+    int offset = 0;
+    for (int iFunc = 0; iFunc < counter; iFunc++) {
+        offset += std::get<2>(funcs[iFunc]);
+    }
+    return offset;
 }
 
 // SetModel
@@ -491,28 +513,12 @@ void SuperFitter::SetModel(int idx, std::string model) {
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (IsFunction(token)) {
-                DEBUG(53, 2, "Token '%s' is a function", token.data());
-
-                // Determine the position of the function in the list of functions
-                int counter = 0;
-                for (const auto& [name, _, __] : functions[idx]) {
-                    if (name == token) break;
-                    counter++;
-                }
-
-                int offset = 0;
-                for (int iFunc = 0; iFunc < counter; iFunc++) {
-                    offset += std::get<2>(functions[idx][iFunc]);
-                }
-
-                DEBUG(53, 2, "Function '%s' was inserted in position: %d ==> Skipping %d parameters", token.data(),
-                      counter, offset);
-
+                int counter = GetIndex(functions[idx], token);
+                int offset = ComputeOffset(functions[idx], counter);
                 auto func = std::get<1>(functions[idx][counter]);
-                double value = func(x, p + offset);
-                DEBUG(53, 2, "Pushing %s(x=%.3f, p) = %.3f", token.data(), x[0], value);
 
-                stack.push(value);
+                DEBUG(53, 2, "Function '%s' at pos: %d ==> Skipping %d parameters", token.data(), counter, offset);
+                stack.push(func(x, p + offset));
             } else if (IsOperator(token)) {
                 ProcessOperatorToken(stack, token);
             } else {
