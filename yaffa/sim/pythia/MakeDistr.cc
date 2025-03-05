@@ -390,11 +390,11 @@ bool IsDetectable(const int &pdg) {
            absPdg == 2212;   // protons
 }
 
-bool TriggerHM(Pythia8::Pythia &pythia) {
+bool TriggerHM(const std::vector<Pythia8::Particle> *particles) {
     // evaluate multiplicity at forward rapidity
     int nChForward = 0;
-    for (auto iPart = 3; iPart < pythia.event.size(); iPart++) {
-        auto &part = pythia.event[iPart];
+    for (auto iPart = 3; iPart < particles->size(); iPart++) {
+        auto &part = (*particles)[iPart];
 
         int pdg = std::abs(part.id());
         float eta = part.eta();
@@ -406,23 +406,23 @@ bool TriggerHM(Pythia8::Pythia &pythia) {
     return nChForward > 130;
 }
 
-bool Trigger(Pythia8::Pythia &pythia, triggers trigger) {
+bool Trigger(const std::vector<Pythia8::Particle> *particles, triggers trigger) {
     if (trigger == triggers::kMB) {
         return true;
     }
 
     if (trigger == triggers::kHM) {
-        return TriggerHM(pythia);
+        return TriggerHM(particles);
     }
 
     throw std::runtime_error("Invalid trigger");
 }
 
 // Compute the multiplicity of charged particles in the TPC acceptance
-int ComputeMultTPC(const Pythia8::Pythia &pythia) {
+int ComputeMultTPC(const std::vector<Pythia8::Particle> *particles) {
     int mult = 0;
-    for (int iPart = 3; iPart < pythia.event.size(); iPart++) {
-        Pythia8::Particle part = pythia.event[iPart];
+    for (int iPart = 3; iPart < particles->size(); iPart++) {
+        Pythia8::Particle part = (*particles)[iPart];
 
         if (part.isFinal() && std::abs(part.eta()) < 0.8 && IsDetectable(part.id())) mult++;
     }
@@ -460,8 +460,8 @@ bool IsSelected(T value, const YAML::Node node, bool includeExtremes = false) {
     return range[0] < value && value < range[1];
 }
 
-bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgSelections) {
-    auto& part = pythia.event[iPart];
+bool IsSelected(const std::vector<Pythia8::Particle> *particles, int iPart, const YAML::Node &cfgSelections) {
+    auto& part = (*particles)[iPart];
 
     if (std::abs(part.id()) != cfgSelections["pdg"].as<int>()) return false;
     if (!IsSelected(part.status(), cfgSelections["status"], true)) return false;
@@ -474,7 +474,7 @@ bool IsSelected(const Pythia8::Pythia &pythia, int iPart, const YAML::Node &cfgS
     if (cfgSelections["daus"].IsDefined() && cfgSelections["daus"].IsSequence() && cfgSelections["daus"].size() > 0) {
         auto dauIdx = part.daughterList();
         for (long unsigned int iDau = 0; iDau < dauIdx.size(); iDau++) {
-            if (!IsSelected(pythia, dauIdx[iDau], cfgSelections["daus"][iDau])) return false;
+            if (!IsSelected(particles, dauIdx[iDau], cfgSelections["daus"][iDau])) return false;
         }
     }
 
@@ -497,12 +497,12 @@ std::string GetDaughters(YAML::Node cfg) {
     return daus;
 }
 
-int GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
-    const auto& mom = pythia.event[iPart];
+int GetParticlesInDecayChain(const std::vector<Pythia8::Particle> *particles, int iPart, YAML::Node cfgMom, std::vector<int> &part0, std::vector<int> &part1) {
+    const auto& mom = (*particles)[iPart];
 
     std::multiset<int> daughters;
     for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
-        auto dau = pythia.event[iDau];
+        auto dau = (*particles)[iDau];
         daughters.insert(std::abs(dau.id()));
     }
     std::multiset<int> daughtersTarget;
@@ -515,7 +515,7 @@ int GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Nod
     DEBUG("Start analyzing the decay tree of pdg=%d idx=%d\n", mom.id(), iPart);
     DEBUG("Start analyzing daus:\n");
     for (int iDau = mom.daughter1(); iDau <= mom.daughter2(); iDau++) {
-        auto dau = pythia.event[iDau];
+        auto dau = (*particles)[iDau];
 
         DEBUG("    Checking now daughter with pdg=%d, idx=%d\n", dau.id(), iDau);
         // find the corresponding particle in the cfg file
@@ -549,7 +549,7 @@ int GetParticlesInDecayChain(const Pythia8::Pythia &pythia, int iPart, YAML::Nod
             }
         } else if (dauCfg["daus"].IsSequence()) {
             DEBUG("Recursively looking into the daughters\n");
-            if (!GetParticlesInDecayChain(pythia, iDau, dauCfg["daus"], part0, part1)) return 0;
+            if (!GetParticlesInDecayChain(particles, iDau, dauCfg["daus"], part0, part1)) return 0;
         }
     }
 
@@ -614,7 +614,7 @@ void MakeDistr(
     size_t nEvents = cfg["nevts"].as<unsigned int>();
     unsigned int md = cfg["mixdepth"].as<int>();
     bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
-    std::vector<double> mTBins = cfg["mTBins"].as<std::vector<double>>();
+    std::vector<double> mTBins = load<std::vector<double>>(cfg, "mTBins");
     std::vector<double> mTMins(mTBins);
     mTMins.pop_back();
     std::vector<double> mTMaxs(mTBins);
@@ -1108,27 +1108,32 @@ void MakeDistr(
             exit(1);
         }
 
-        if (!Trigger(pythia, trigger)) {
+        const std::vector<Pythia8::Particle> *particles;
+        if (pythia.event.size() > 0) {
+            particles = pythia.event.particles();
+        }
+
+        if (!Trigger(particles, trigger)) {
             continue;
         }
 
         hEvt->Fill(1);
 
         // Part 0 is the event, 1 and 2 the beams. In case the hadrons are injected there are no beam particles
-        for (int iPart = 1; iPart < pythia.event.size(); iPart++) {
-            auto &part = pythia.event[iPart];
+        for (int iPart = 1; iPart < particles->size(); iPart++) {
+            auto &part = (*particles)[iPart];
 
             int pdg = part.id();
             int absPdg = std::abs(pdg);
 
             if (cfg["decaychain"]["enable"].as<bool>()) {
                 int pdgMother = cfg["decaychain"]["pdg"].as<int>();
-                if (!IsSelected(pythia, iPart, cfgMother)) continue;
+                if (!IsSelected(particles, iPart, cfgMother)) continue;
 
                 DEBUG("\n\n==========================================================================================================\n");
-                if (GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1)) {
-                part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
-                part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
+                if (GetParticlesInDecayChain(particles, iPart, cfg["decaychain"]["daus"], part0, part1)) {
+                part0.erase(std::remove_if(part0.begin(), part0.end(), [&particles](int iPart){return !IsSelected(particles, iPart, cfgPart0);}), part0.end());
+                part1.erase(std::remove_if(part1.begin(), part1.end(), [&particles](int iPart){return !IsSelected(particles, iPart, cfgPart1);}), part1.end());
 
                 // Fill QA
                 hQAMother["mass"]->Fill(part.m());
@@ -1143,9 +1148,9 @@ void MakeDistr(
                     part1.clear();
                 }
             } else {
-                if (IsSelected(pythia, iPart, cfgPart0)) {
+                if (IsSelected(particles, iPart, cfgPart0)) {
                     part0.push_back(iPart);
-                } else if (IsSelected(pythia, iPart, cfgPart1)) {
+                } else if (IsSelected(particles, iPart, cfgPart1)) {
                     part1.push_back(iPart);
                 }
             }
@@ -1153,28 +1158,28 @@ void MakeDistr(
 
         // Fill QA for Part0
         for (const int& i0 : part0) {
-            hQA0["mass"]->Fill(pythia.event[i0].m());
-            hQA0["pt"]->Fill(pythia.event[i0].pT());
-            hQA0["y"]->Fill(pythia.event[i0].y());
-            hQA0["eta"]->Fill(pythia.event[i0].eta());
+            hQA0["mass"]->Fill((*particles)[i0].m());
+            hQA0["pt"]->Fill((*particles)[i0].pT());
+            hQA0["y"]->Fill((*particles)[i0].y());
+            hQA0["eta"]->Fill((*particles)[i0].eta());
         }
 
         // Fill QA for Part1
         for (const int& i1 : part1) {
-            hQA1["mass"]->Fill(pythia.event[i1].m());
-            hQA1["pt"]->Fill(pythia.event[i1].pT());
-            hQA1["y"]->Fill(pythia.event[i1].y());
-            hQA1["eta"]->Fill(pythia.event[i1].eta());
+            hQA1["mass"]->Fill((*particles)[i1].m());
+            hQA1["pt"]->Fill((*particles)[i1].pT());
+            hQA1["y"]->Fill((*particles)[i1].y());
+            hQA1["eta"]->Fill((*particles)[i1].eta());
         }
 
         // Skip events without pairs
         if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
 
-        int mult = ComputeMultTPC(pythia);
+        int mult = ComputeMultTPC(particles);
         hEvtMult->Fill(mult);
 
-        int mult0plus = std::count_if(part0.begin(), part0.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
-        int mult1plus = std::count_if(part1.begin(), part1.end(), [&pythia](int iPart) { return pythia.event[iPart].id() > 0; });
+        int mult0plus = std::count_if(part0.begin(), part0.end(), [&particles](int iPart) { return (*particles)[iPart].id() > 0; });
+        int mult1plus = std::count_if(part1.begin(), part1.end(), [&particles](int iPart) { return (*particles)[iPart].id() > 0; });
         hPairMultSE[std::tuple<int, int, int>({0, 0, -1})]->Fill(mult0plus, mult1plus);
         if (nPart0>1) hPairMultSE[std::tuple<int, int, int>({1, 0, -1})]->Fill(part0.size() - mult0plus, mult1plus);
         if (nPart1>1) hPairMultSE[std::tuple<int, int, int>({0, 1, -1})]->Fill(mult0plus, part1.size() - mult1plus);
@@ -1183,12 +1188,12 @@ void MakeDistr(
         DEBUG("Particle multiplicities in this event: n(%d)=%zu, n(%d)=%zu\n", pdg0, part0.size(), pdg1, part1.size());
 
         //! WARNING: this value makes sense ONLY for events with a SINGLE injected resonance! Don't use for realistic events
-        double ptMother = pythia.event[1].pT(); // The injected particle is always at index=1.
+        double ptMother = (*particles)[1].pT(); // The injected particle is always at index=1.
 
         // Same event
         DEBUG("Start same-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
-            const auto p0 = pythia.event[part0[i0]];
+            const auto p0 = (*particles)[part0[i0]];
 
             double eff0 = 1;
             if (fEff0) {
@@ -1201,7 +1206,7 @@ void MakeDistr(
             int start = pdg0 == pdg1 ? i0 + 1 : 0;
             auto buffer = pdg0 == pdg1 ? part0 : part1;
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
-                const auto p1 = pythia.event[buffer[i1]];
+                const auto p1 = (*particles)[buffer[i1]];
                 double kStar = ComputeKstar(p0, p1);
                 double mT = ComputeMt(p0, p1);
                 int iMt = FindBin(mT, mTBins);
@@ -1228,6 +1233,13 @@ void MakeDistr(
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
             const auto p0 = pythia.event[part0[i0]];
 
+            double eff0 = 1;
+            if (fEff0) {
+                eff0 = fEff0->Eval(p0.pT());
+            } else if (hEff0) {
+                eff0 = hEff0->GetBinContent(hEff0->FindBin(p0.pT()));
+            }
+
             for (size_t iME = 0; iME < partBuffer.size(); iME++) {
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
                     const auto p1 = partBuffer[iME][i1];
@@ -1246,7 +1258,7 @@ void MakeDistr(
         // todo: check if the buffer type(0 or 1) changes anything
         auto partX = pdg0 == pdg1 ? part0 : part1;
         partBuffer.push_back({});
-        for (const auto &iPart : partX) partBuffer[partBuffer.size() - 1].push_back(pythia.event[iPart]);
+        for (const auto &iPart : partX) partBuffer[partBuffer.size() - 1].push_back((*particles)[iPart]);
         if (partBuffer.size() > md) partBuffer.pop_front();
     }
 
