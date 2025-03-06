@@ -587,6 +587,112 @@ T load(YAML::Node node, std::string name) {
     }
 }
 
+
+TH2D *hYvsPt = nullptr;
+TH1D *hEff0 = nullptr;
+TH1D *hEff1 = nullptr;
+TH1D *hPt = nullptr;
+TH1D *hY = nullptr;
+TH1D *hEta = nullptr;
+TF1 *fEff0 = nullptr;
+TF1 *fEff1 = nullptr;
+TF1 *fPt = nullptr;
+TF1 *fY = nullptr;
+TF1 *fEta = nullptr;
+
+static double minBWMass=1.e12;
+static Pythia8::Pythia pythia;
+
+const std::vector<Pythia8::Particle>* Next(bool isGenerated, bool isInjected, YAML::Node cfgInjection) {
+    DEBUG("\n\nGenerating a new event\n");
+    if (isGenerated && !isInjected) {
+        pythia.next();
+        return pythia.event.particles();
+    } else if (isGenerated && isInjected) {
+        pythia.event.reset();
+
+        for (const auto& inj : cfgInjection) {
+            DEBUG("\n\nInjecting a new particle\n");
+
+            int myPdg = inj["pdg"].as<int>();
+            double mass;
+            do {
+                mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
+            } while (mass < minBWMass);
+
+            double pt;
+            double y = std::nan("");
+            double eta = std::nan("");
+
+            if (hYvsPt) {
+                hYvsPt->GetRandom2(pt, y);
+            } else if ((hPt || fPt) && (hY || fY || hEta || fEta)) {
+                if (hPt) {
+                    pt = hPt->GetRandom();
+                } else if (fPt) {
+                    pt = fPt->GetRandom();
+                } else {
+                    printf("Error: undefined pt distribution for injected particle. Exit!\n");
+                    exit(1);
+                }
+
+                if (hY) {
+                    y = hY->GetRandom();
+                } else if (fY) {
+                    y = fY->GetRandom();
+                } else if (hEta) {
+                    eta = hEta->GetRandom();
+                } else if (fEta) {
+                    eta = fEta->GetRandom();
+                } else {
+                    printf("Error: both rapidity and pseudo-rapidity distribution for injected particle are undefined. Exit!\n");
+                    exit(1);
+                }
+            } else {
+                printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
+                exit(1);
+            }
+            double phi = gRandom->Uniform(2 * TMath::Pi());
+            double tau = gRandom->Exp(1);
+            double mt = TMath::Sqrt(mass * mass + pt * pt);
+            double pz;
+            if (y == y) {
+                pz = mt * TMath::SinH(y);
+            } else if (eta == eta) {
+                pz = pt * TMath::SinH(eta);
+            } else {
+                printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
+                exit(1);
+            }
+
+            Pythia8::Particle myPart;
+            myPart.id(myPdg);
+            myPart.status(81);
+            myPart.m(mass);
+            myPart.xProd(0.);
+            myPart.yProd(0.);
+            myPart.zProd(0.);
+            myPart.tProd(0.);
+            myPart.e(TMath::Sqrt(mt * mt + pz * pz));
+            myPart.px(pt * TMath::Cos(phi));
+            myPart.py(pt * TMath::Sin(phi));
+            myPart.pz(pz);
+            myPart.tau(tau);
+
+            // remove all particles generated in the event and append the Lambda(1520)
+            pythia.event.append(myPart);
+            pythia.particleData.mayDecay(myPdg, true);
+        }
+        
+        // force the decay of the Lambda
+        pythia.moreDecays();
+        return pythia.event.particles();
+    } else {
+        std::cerr << "Error in injection configuration. Exit!" << std::endl;
+        exit(1);
+    }
+}
+
 void MakeDistr(
     std::string inFileName = "",
     std::string oFileName = "Distr.root",
@@ -645,7 +751,6 @@ void MakeDistr(
     auto pdg0 = cfgPart0["pdg"].as<int>();
     auto pdg1 = cfgPart1["pdg"].as<int>();
 
-    Pythia8::Pythia pythia;
     pythia.readString("Next:numberShowEvent = 0");
     SetProcess(pythia, cfg["process"].as<std::string>());
     SetTune(pythia, cfg["tune"].as<std::string>());
@@ -751,18 +856,6 @@ void MakeDistr(
     }
 
     // Load 2D histogram for kinematics
-    TH2D *hYvsPt = nullptr;
-    TH1D *hEff0 = nullptr;
-    TH1D *hEff1 = nullptr;
-    TH1D *hPt = nullptr;
-    TH1D *hY = nullptr;
-    TH1D *hEta = nullptr;
-    TF1 *fEff0 = nullptr;
-    TF1 *fEff1 = nullptr;
-    TF1 *fPt = nullptr;
-    TF1 *fY = nullptr;
-    TF1 *fEta = nullptr;
-
     if (kinemFile != "") {
         TFile *fKinem = TFile::Open(kinemFile.data());
         if (!fKinem) exit(1); // TFile::Open already prints an error message
@@ -1009,92 +1102,7 @@ void MakeDistr(
         part0.clear();
         part1.clear();
 
-        DEBUG("\n\nGenerating a new event\n");
-        if (cfg["injection"].IsDefined() && cfg["injection"].IsSequence() && cfg["injection"].size() == 0) {
-            pythia.next();
-        } else if (cfg["injection"].IsDefined() && cfg["injection"].IsSequence() && cfg["injection"].size() > 0) {
-            pythia.event.reset();
-
-            for (const auto& inj : cfg["injection"]) {
-                DEBUG("\n\nInjecting a new particle\n");
-
-                int myPdg = inj["pdg"].as<int>();
-                double mass = fLineShape->GetRandom();;
-                double pt;
-                double y = std::nan("");
-                double eta = std::nan("");
-
-                if (hYvsPt) {
-                    hYvsPt->GetRandom2(pt, y);
-                } else if ((hPt || fPt) && (hY || fY || hEta || fEta)) {
-                    if (hPt) {
-                        pt = hPt->GetRandom();
-                    } else if (fPt) {
-                        pt = fPt->GetRandom();
-                    } else {
-                        printf("Error: undefined pt distribution for injected particle. Exit!\n");
-                        exit(1);
-                    }
-
-                    if (hY) {
-                        y = hY->GetRandom();
-                    } else if (fY) {
-                        y = fY->GetRandom();
-                    } else if (hEta) {
-                        eta = hEta->GetRandom();
-                    } else if (fEta) {
-                        eta = fEta->GetRandom();
-                    } else {
-                        printf("Error: both rapidity and pseudo-rapidity distribution for injected particle are undefined. Exit!\n");
-                        exit(1);
-                    }
-                } else {
-                    printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
-                    exit(1);
-                }
-                double phi = gRandom->Uniform(2 * TMath::Pi());
-                double tau = gRandom->Exp(1);
-                double mt = TMath::Sqrt(mass * mass + pt * pt);
-                double pz;
-                if (y == y) {
-                    pz = mt * TMath::SinH(y);
-                } else if (eta == eta) {
-                    pz = pt * TMath::SinH(eta);
-                } else {
-                    printf("Error: pt and/or y distributions are not properly defined. Exit!\n");
-                    exit(1);
-                }
-
-                Pythia8::Particle myPart;
-                myPart.id(myPdg);
-                myPart.status(81);
-                myPart.m(mass);
-                myPart.xProd(0.);
-                myPart.yProd(0.);
-                myPart.zProd(0.);
-                myPart.tProd(0.);
-                myPart.e(TMath::Sqrt(mt * mt + pz * pz));
-                myPart.px(pt * TMath::Cos(phi));
-                myPart.py(pt * TMath::Sin(phi));
-                myPart.pz(pz);
-                myPart.tau(tau);
-
-                // remove all particles generated in the event and append the Lambda(1520)
-                pythia.event.append(myPart);
-                pythia.particleData.mayDecay(myPdg, true);
-            }
-            
-            // force the decay of the Lambda
-            pythia.moreDecays();
-        } else {
-            std::cerr << "Error in injection configuration. Exit!" << std::endl;
-            exit(1);
-        }
-
-        const std::vector<Pythia8::Particle> *particles;
-        if (pythia.event.size() > 0) {
-            particles = pythia.event.particles();
-        }
+        const std::vector<Pythia8::Particle> *particles = Next(true, false, YAML::Node());
 
         if (!Trigger(particles, trigger)) {
             continue;
