@@ -26,7 +26,6 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include "TMath.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
-#include <Math/GenVector/Boost.h>
 #include "TRandom3.h"
 
 // ALICE libraries
