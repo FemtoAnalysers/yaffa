@@ -600,6 +600,9 @@ TF1 *fPt = nullptr;
 TF1 *fY = nullptr;
 TF1 *fEta = nullptr;
 
+static int pdg0;
+static int pdg1;
+static int pdgMother;
 static double minBWMass=1.e12;
 static Pythia8::Pythia pythia;
 
@@ -696,89 +699,8 @@ const std::vector<Pythia8::Particle>* Next(bool isGenerated, bool isInjected, YA
     }
 }
 
-void MakeDistr(
-    std::string inFileName = "",
-    std::string oFileName = "Distr.root",
-    std::string cfgFile = "cfg_makedistr_example.yml",
-    int seed = 31
-    ) {
-
-    // Load PDG
-    TDatabasePDG *PDG = TDatabasePDG::Instance();
-
-    // Load simulation settings
-    YAML::Node cfg = YAML::LoadFile(cfgFile.data());
-    size_t nEvents = cfg["nevts"].as<unsigned int>();
-    unsigned int md = cfg["mixdepth"].as<int>();
-    bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
-    std::vector<double> mTBins = load<std::vector<double>>(cfg, "mTBins");
-    std::vector<double> mTMins(mTBins);
-    mTMins.pop_back();
-    std::vector<double> mTMaxs(mTBins);
-    mTMaxs.erase(mTMaxs.begin());
-
-    bool doGenerate = inFileName == "";
-    bool isInjected = cfg["injection"].size() > 0;
-
-    // Load selections for mother particle
-    cfgMother = YAML::Clone(cfg["decaychain"]);
-    cfgMother["daus"] = YAML::Null; // Don't check the daughters. // todo: understand why if this line is removed all hists are empty
-
-    // Load selections for part 0
-    cfgPart0 = cfg["part0"];
-
-    // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
-    cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : cfg["part1"];
-
-    std::cout << "\033[34mParticle selections before defaults (Mother)\033[0m" << std::endl;
-    std::cout << cfgMother<< std::endl;
-
-    std::cout << "\033[34mParticle selections before defaults (part0)\033[0m" << std::endl;
-    std::cout << cfgPart0<< std::endl;
-
-    std::cout << "\033[34mParticle selections before defaults (part1)\033[0m" << std::endl;
-    std::cout << cfgPart1<< std::endl;
-
-    SetDefaults(cfgMother);
-    SetDefaults(cfgPart0);
-    SetDefaults(cfgPart1);
-
-    std::cout << "\033[34mParticle selections after defaults (Mother)\033[0m" << std::endl;
-    std::cout << cfgMother<< std::endl;
-
-    std::cout << "\033[34mParticle selections after defaults (part0)\033[0m" << std::endl;
-    std::cout << cfgPart0<< std::endl;
-
-    std::cout << "\033[34mParticle selections after defaults (part1)\033[0m" << std::endl;
-    std::cout << cfgPart1<< std::endl;
-
-    auto pdg0 = cfgPart0["pdg"].as<int>();
-    auto pdg1 = cfgPart1["pdg"].as<int>();
-
-    pythia.readString("Next:numberShowEvent = 0");
-    SetProcess(pythia, cfg["process"].as<std::string>());
-    SetTune(pythia, cfg["tune"].as<std::string>());
-
-    std::string trigger = cfg["trigger"].as<std::string>();
-
-    // Set decay channel for part0
-    if (std::string daus = GetDaughters(cfgPart0); daus != ""){
-        pythia.readString(std::to_string(pdg0) + ":onMode = off");
-        pythia.readString(std::to_string(pdg0) + ":onIfMatch =" + daus);
-    }
-
-    // Set decay channel for part1
-    if (std::string daus = GetDaughters(cfgPart1); daus != ""){
-        pythia.readString(std::to_string(pdg1) + ":onMode = off");
-        pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
-    }
-
-    if (cfg["injection"].size() > 1) {
-        printf("Error. The BW mass limit is not implemented for more than 1 injection. Exit!");
-        exit(1);
-    }
-
-    for (const auto &part : cfg["injection"]) {
+void InjectParticles(YAML::Node cfgInjection) {
+    for (const auto &part : cfgInjection) {
         int myPdg = part["pdg"].as<int>();
         std::string name = part["name"].as<std::string>();
         std::string antiname = part["antiname"].as<std::string>();
@@ -795,14 +717,12 @@ void MakeDistr(
         int meMode = part["meMode"].as<int>();
         pythia.particleData.readString(Form("%d:addChannel = 1 1 %d %s", myPdg, meMode, part["daus"].as<std::string>().data()));
     }
+}
 
-    std::cout << "Applying the following customization to pythia:" << std::endl;
-    for (const auto &line : cfg["customization"]) {
-        std::string lineStr = line.as<std::string>();
-        std::cout << "   * " << lineStr << std::endl;
-        pythia.readString(lineStr.data());
-    }
-    std::cout << "End of customization." << std::endl;
+void SetThreshold(YAML::Node cfgInjection) {
+    auto particleEntry = pythia.particleData.particleDataEntryPtr(cfgInjection[0]["pdg"].as<int>());
+    for (int iDecChn = 0; iDecChn < particleEntry->sizeChannels(); iDecChn++) {
+        auto channel = particleEntry->channel(iDecChn);
 
     // Compute the minimum mass that a resonance modelled with a Breit-Wigner can have
     double threshold=1.e12;
@@ -822,13 +742,40 @@ void MakeDistr(
         }
         printf("Mass threshold: %.6f GeV\n", threshold);
     }
+    printf("Mass limit: %.6f GeV\n", minBWMass);
+}
 
-    // Load Pt and y distributions
-    int pdgMother = cfg["decaychain"]["pdg"].as<int>();
-
-    std::string kinemFile = load<std::string>(cfg["decaychain"], "kinemfile");
+void LoadEfficiencies(YAML::Node cfg) {
     std::string efficiency0 = load<std::string>(cfg["part0"], "efficiency");
     std::string efficiency1 = load<std::string>(cfg["part1"], "efficiency");
+
+    // Load Efficiency
+    if (size_t pos = efficiency0.find(':'); pos != std::string::npos) {
+        TFile *effFile = TFile::Open(efficiency0.substr(0, pos).data());
+        if (!effFile) exit(1);
+        hEff0 = (TH1D *) effFile->Get(efficiency0.substr(pos + 1).data());
+        hEff0->SetDirectory(0);
+        effFile->Close();
+    } else {
+        fEff0 = new TF1("fEff0", efficiency0.data(), 0, 10);
+    }
+
+    // Load Efficiency
+    if (size_t pos = efficiency1.find(':'); pos != std::string::npos) {
+        TFile *effFile = TFile::Open(efficiency1.substr(0, pos).data());
+        if (!effFile) exit(1);
+        hEff1 = (TH1D *) effFile->Get(efficiency1.substr(pos + 1).data());
+        hEff1->SetDirectory(0);
+        effFile->Close();
+    } else {
+        fEff1 = new TF1("fEff1", efficiency1.data(), 0, 10);
+    }
+}
+
+void LoadKinematics(YAML::Node cfg) {
+    pdgMother = cfg["decaychain"]["pdg"].as<int>();
+
+    std::string kinemFile = load<std::string>(cfg["decaychain"], "kinemfile");
     std::string ptshape = load<std::string>(cfg["decaychain"], "ptshape");
     std::string yshape = load<std::string>(cfg["decaychain"], "yshape");
     std::string etashape = load<std::string>(cfg["decaychain"], "etashape");
@@ -886,27 +833,7 @@ void MakeDistr(
         }
     }
 
-    // Load Efficiency
-    if (size_t pos = efficiency0.find(':'); pos != std::string::npos) {
-        TFile *effFile = TFile::Open(efficiency0.substr(0, pos).data());
-        if (!effFile) exit(1);
-        hEff0 = (TH1D *) effFile->Get(efficiency0.substr(pos + 1).data());
-        hEff0->SetDirectory(0);
-        effFile->Close();
-    } else {
-        fEff0 = new TF1("fEff0", efficiency0.data(), 0, 10);
-    }
-
-    // Load Efficiency
-    if (size_t pos = efficiency1.find(':'); pos != std::string::npos) {
-        TFile *effFile = TFile::Open(efficiency1.substr(0, pos).data());
-        if (!effFile) exit(1);
-        hEff1 = (TH1D *) effFile->Get(efficiency1.substr(pos + 1).data());
-        hEff1->SetDirectory(0);
-        effFile->Close();
-    } else {
-        fEff1 = new TF1("fEff1", efficiency1.data(), 0, 10);
-    }
+    
 
     // Set pT shape
     size_t pos = ptshape.find(':');
@@ -1013,6 +940,33 @@ void MakeDistr(
     fLineShape->SetTitle(";#it{M} (GeV/#it{c}^2);Probability");
     fLineShape->SetNpx(100000);
 
+}
+
+void ValidateConfig(YAML::Node cfg) {
+    if (cfg["injection"].size() > 1) {
+        printf("Error. The BW mass limit is not implemented for more than 1 injection. Exit!");
+        exit(1);
+    }
+}
+
+void ConfigurePythia(YAML::Node cfg, int seed) {
+    pythia.readString("Next:numberShowEvent = 0");
+    SetProcess(pythia, cfg["process"].as<std::string>());
+    SetTune(pythia, cfg["tune"].as<std::string>());
+
+
+    // Set decay channel for part0
+    if (std::string daus = GetDaughters(cfgPart0); daus != ""){
+        pythia.readString(std::to_string(pdg0) + ":onMode = off");
+        pythia.readString(std::to_string(pdg0) + ":onIfMatch =" + daus);
+    }
+
+    // Set decay channel for part1
+    if (std::string daus = GetDaughters(cfgPart1); daus != ""){
+        pythia.readString(std::to_string(pdg1) + ":onMode = off");
+        pythia.readString(std::to_string(pdg1) + ":onIfMatch =" + daus);
+    }
+    
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
     pythia.readString(Form("Random:seed = %d", seed));
@@ -1021,6 +975,90 @@ void MakeDistr(
     pythia.settings.parm("Beams:eCM", cfg["sqrts"].as<double>() * 1000); // from TeV to GeV
     pythia.init();
 
+}
+
+void MakeDistr(
+    std::string inFileName = "",
+    std::string oFileName = "Distr.root",
+    std::string cfgFile = "cfg_makedistr_example.yml",
+    int seed = 31
+    ) {
+
+    // Load PDG
+    TDatabasePDG *PDG = TDatabasePDG::Instance();
+
+    // Load simulation settings
+    YAML::Node cfg = YAML::LoadFile(cfgFile.data());
+    size_t nEvents = cfg["nevts"].as<unsigned int>();
+    std::string trigger = cfg["trigger"].as<std::string>();
+    unsigned int md = cfg["mixdepth"].as<int>();
+    bool rejevtwopairs = cfg["rejevtwopairs"].as<bool>();
+    std::vector<double> mTBins = load<std::vector<double>>(cfg, "mTBins");
+
+    bool doGenerate = inFileName == "";
+    bool isInjected = cfg["injection"].size() > 0;
+
+    // Load selections for mother particle
+    cfgMother = YAML::Clone(cfg["decaychain"]);
+    cfgMother["daus"] = YAML::Null; // Don't check the daughters. // todo: understand why if this line is removed all hists are empty
+
+    // Load selections for part 0
+    cfgPart0 = cfg["part0"];
+
+    // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
+    cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : cfg["part1"];
+
+    std::cout << "\033[34mParticle selections before defaults (Mother)\033[0m" << std::endl;
+    std::cout << cfgMother<< std::endl;
+
+    std::cout << "\033[34mParticle selections before defaults (part0)\033[0m" << std::endl;
+    std::cout << cfgPart0<< std::endl;
+
+    std::cout << "\033[34mParticle selections before defaults (part1)\033[0m" << std::endl;
+    std::cout << cfgPart1<< std::endl;
+
+    SetDefaults(cfgMother);
+    SetDefaults(cfgPart0);
+    SetDefaults(cfgPart1);
+
+    std::cout << "\033[34mParticle selections after defaults (Mother)\033[0m" << std::endl;
+    std::cout << cfgMother<< std::endl;
+
+    std::cout << "\033[34mParticle selections after defaults (part0)\033[0m" << std::endl;
+    std::cout << cfgPart0<< std::endl;
+
+    std::cout << "\033[34mParticle selections after defaults (part1)\033[0m" << std::endl;
+    std::cout << cfgPart1<< std::endl;
+
+
+    std::vector<double> mTMins(mTBins);
+    std::vector<double> mTMaxs(mTBins);
+    mTMins.pop_back();
+    mTMaxs.erase(mTMaxs.begin());
+    
+    pdg0 = cfgPart0["pdg"].as<int>();
+    pdg1 = cfgPart1["pdg"].as<int>();
+
+    
+    ValidateConfig(cfg);
+    
+    LoadEfficiencies(cfg);
+    if (isInjected) {
+        InjectParticles(cfg["injection"]);
+        SetThreshold(cfg["injection"]);
+        LoadKinematics(cfg);
+    }
+    
+    std::cout << "Applying the following customization to pythia:" << std::endl;
+    for (const auto &line : cfg["customization"]) {
+        std::string lineStr = line.as<std::string>();
+        std::cout << "   * " << lineStr << std::endl;
+        pythia.readString(lineStr.data());
+    }
+    std::cout << "End of customization." << std::endl;
+    if (doGenerate) {
+        ConfigurePythia(cfg, seed);
+    }
     gRandom->SetSeed(seed); // Set the seed to ensure reproducibility of the evevents generated by pythia
 
     // QA histograms
@@ -1085,7 +1123,9 @@ void MakeDistr(
     };
 
     // Single-particle QA for Mother particle
-    if (cfg["injection"].size() > 0) {
+    if (!doGenerate) {
+        mass = 1; // Dummy value
+    } else if (cfg["injection"].size() > 0) {
         mass = cfg["injection"][0]["mass"].as<double>();
     } else {
         mass = pythia.particleData.particleDataEntryPtr(pdgMother).get()->m0();
