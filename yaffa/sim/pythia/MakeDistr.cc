@@ -53,20 +53,6 @@ static YAML::Node cfgMother;
 static YAML::Node cfgPart0;
 static YAML::Node cfgPart1;
 
-enum processes { kSoftQCD = 0, kNonDiffractive, kHardQCD };
-std::map<processes, const char*> processNames = {
-    {kSoftQCD, "SoftQCD"},
-    {kNonDiffractive, "NonDiffractive"},
-    {kHardQCD, "HardQCD"},
-};
-
-// todo: not implemented
-enum triggers { kMB = 0, kHM };
-std::map<triggers, const char*> triggerNames = {
-    {kMB, "MB"},
-    {kHM, "HM"},
-};
-
 // Find Bin
 template<typename T>
 int FindBin(T value, std::vector<T> list) {
@@ -406,16 +392,16 @@ bool TriggerHM(const std::vector<Pythia8::Particle> *particles) {
     return nChForward > 130;
 }
 
-bool Trigger(const std::vector<Pythia8::Particle> *particles, triggers trigger) {
-    if (trigger == triggers::kMB) {
+bool Trigger(const std::vector<Pythia8::Particle> *particles, std::string trigger) {
+    if (trigger == "MB") {
         return true;
     }
 
-    if (trigger == triggers::kHM) {
+    if (trigger == "HM") {
         return TriggerHM(particles);
     }
 
-    throw std::runtime_error("Invalid trigger");
+    throw std::invalid_argument("Invalid trigger");
 }
 
 // Compute the multiplicity of charged particles in the TPC acceptance
@@ -664,14 +650,7 @@ void MakeDistr(
     SetProcess(pythia, cfg["process"].as<std::string>());
     SetTune(pythia, cfg["tune"].as<std::string>());
 
-    triggers trigger;
-    if (cfg["trigger"].as<std::string>() == "MB") {
-        trigger = triggers::kMB;
-    } else if (cfg["trigger"].as<std::string>() == "HM") {
-        trigger = triggers::kHM;
-    } else {
-        throw std::runtime_error("\033[31mError: Trigger not implemented. Exit!\033[0m");
-    }
+    std::string trigger = cfg["trigger"].as<std::string>();
 
     // Set decay channel for part0
     if (std::string daus = GetDaughters(cfgPart0); daus != ""){
