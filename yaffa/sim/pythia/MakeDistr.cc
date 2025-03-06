@@ -605,7 +605,10 @@ static Pythia8::Pythia pythia;
 
 const std::vector<Pythia8::Particle>* Next(bool isGenerated, bool isInjected, YAML::Node cfgInjection) {
     DEBUG("\n\nGenerating a new event\n");
-    if (isGenerated && !isInjected) {
+    if (!isGenerated) {
+        // todo: dummy for now, to be fixed
+        return new std::vector<Pythia8::Particle>();
+    } else if (isGenerated && !isInjected) {
         pythia.next();
         return pythia.event.particles();
     } else if (isGenerated && isInjected) {
@@ -700,8 +703,6 @@ void MakeDistr(
     int seed = 31
     ) {
 
-    bool doGenerate = inFileName == "";
-
     // Load PDG
     TDatabasePDG *PDG = TDatabasePDG::Instance();
 
@@ -715,6 +716,9 @@ void MakeDistr(
     mTMins.pop_back();
     std::vector<double> mTMaxs(mTBins);
     mTMaxs.erase(mTMaxs.begin());
+
+    bool doGenerate = inFileName == "";
+    bool isInjected = cfg["injection"].size() > 0;
 
     // Load selections for mother particle
     cfgMother = YAML::Clone(cfg["decaychain"]);
@@ -1102,7 +1106,7 @@ void MakeDistr(
         part0.clear();
         part1.clear();
 
-        const std::vector<Pythia8::Particle> *particles = Next(true, false, YAML::Node());
+        const std::vector<Pythia8::Particle> *particles = Next(doGenerate, isInjected, cfg["injection"]);
 
         if (!Trigger(particles, trigger)) {
             continue;
