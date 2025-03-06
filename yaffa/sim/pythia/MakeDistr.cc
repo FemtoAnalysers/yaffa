@@ -26,6 +26,7 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include "TMath.h"
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
+#include <Math/GenVector/Boost.h>
 #include "TRandom3.h"
 
 // ALICE libraries
@@ -393,7 +394,7 @@ bool IsDetectable(const int &pdg) {
 bool TriggerHM(const std::vector<Pythia8::Particle> *particles) {
     // evaluate multiplicity at forward rapidity
     int nChForward = 0;
-    for (auto iPart = 3; iPart < particles->size(); iPart++) {
+    for (size_t iPart = 3; iPart < particles->size(); iPart++) {
         auto &part = (*particles)[iPart];
 
         int pdg = std::abs(part.id());
@@ -421,7 +422,7 @@ bool Trigger(const std::vector<Pythia8::Particle> *particles, triggers trigger) 
 // Compute the multiplicity of charged particles in the TPC acceptance
 int ComputeMultTPC(const std::vector<Pythia8::Particle> *particles) {
     int mult = 0;
-    for (int iPart = 3; iPart < particles->size(); iPart++) {
+    for (size_t iPart = 3; iPart < particles->size(); iPart++) {
         Pythia8::Particle part = (*particles)[iPart];
 
         if (part.isFinal() && std::abs(part.eta()) < 0.8 && IsDetectable(part.id())) mult++;
@@ -602,10 +603,14 @@ T load(YAML::Node node, std::string name) {
 }
 
 void MakeDistr(
+    std::string inFileName = "",
     std::string oFileName = "Distr.root",
     std::string cfgFile = "cfg_makedistr_example.yml",
     int seed = 31
     ) {
+
+    bool doGenerate = inFileName == "";
+
     // Load PDG
     TDatabasePDG *PDG = TDatabasePDG::Instance();
 
@@ -666,7 +671,7 @@ void MakeDistr(
     } else if (cfg["trigger"].as<std::string>() == "HM") {
         trigger = triggers::kHM;
     } else {
-        throw runtime_error("\033[31mError: Trigger not implemented. Exit!\033[0m");
+        throw std::runtime_error("\033[31mError: Trigger not implemented. Exit!\033[0m");
     }
 
     // Set decay channel for part0
@@ -1104,7 +1109,7 @@ void MakeDistr(
             // force the decay of the Lambda
             pythia.moreDecays();
         } else {
-            cerr << "Error in injection configuration. Exit!" << std::endl;
+            std::cerr << "Error in injection configuration. Exit!" << std::endl;
             exit(1);
         }
 
@@ -1120,14 +1125,10 @@ void MakeDistr(
         hEvt->Fill(1);
 
         // Part 0 is the event, 1 and 2 the beams. In case the hadrons are injected there are no beam particles
-        for (int iPart = 1; iPart < particles->size(); iPart++) {
+        for (size_t iPart = 1; iPart < particles->size(); iPart++) {
             auto &part = (*particles)[iPart];
 
-            int pdg = part.id();
-            int absPdg = std::abs(pdg);
-
             if (cfg["decaychain"]["enable"].as<bool>()) {
-                int pdgMother = cfg["decaychain"]["pdg"].as<int>();
                 if (!IsSelected(particles, iPart, cfgMother)) continue;
 
                 DEBUG("\n\n==========================================================================================================\n");
@@ -1173,7 +1174,7 @@ void MakeDistr(
         }
 
         // Skip events without pairs
-        if (cfg["rejevtwopairs"] && (part0.size() == 0 || part1.size() == 0)) continue;
+        if (rejevtwopairs && (part0.size() == 0 || part1.size() == 0)) continue;
 
         int mult = ComputeMultTPC(particles);
         hEvtMult->Fill(mult);
@@ -1250,7 +1251,14 @@ void MakeDistr(
                     std::tuple<int, int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0, iMt};
                     DEBUG("    ME(idx0=%zu, iMix=%zu, idx1=%zu): pdg0=%d pdg1=%d   (%d, %d)\n", i0, iME, i1, p0.id(), p1.id(), pair.first, pair.second);
 
-                    hME[pair]->Fill(kStar);
+                    double eff1 = 1;
+                    if (fEff1) {
+                        eff1 = fEff1->Eval(p1.pT());
+                    } else if (hEff1) {
+                        eff1 = hEff1->GetBinContent(hEff1->FindBin(p1.pT()));
+                    }
+
+                    hME[pair]->Fill(kStar, eff0 * eff1);
                 }
             }
         }
@@ -1322,4 +1330,18 @@ void MakeDistr(
 
     oFile->Close();
     std::cout << "Output saved in " << oFileName << std::endl;
+}
+
+
+int main(int argc, char* argv[]) {
+    if (argc != 4) {
+        std::cerr << "Expected 3 parameters" << std::endl;
+        return 1;
+    }
+    std::string inFileName(argv[1]);
+    std::string oFileName(argv[2]);
+    std::string cfg(argv[3]);
+
+    MakeDistr(inFileName, oFileName, cfg, -1);
+    return 0;
 }
