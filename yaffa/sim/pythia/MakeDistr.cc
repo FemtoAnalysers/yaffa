@@ -27,6 +27,7 @@ IMPORTANT: this script must be run with Pthia 8.310 as other versions were found
 #include "Math/Vector4D.h"
 #include "Math/Boost.h"
 #include "TRandom3.h"
+#include "TTree.h"
 
 // ALICE libraries
 #define PYTHIA_V 8312
@@ -604,14 +605,11 @@ static int pdg0;
 static int pdg1;
 static int pdgMother;
 static double minBWMass=1.e12;
-static Pythia8::Pythia pythia;
+static Pythia8::Pythia pythia; // todo use pointer instead
 
 const std::vector<Pythia8::Particle>* Next(bool isGenerated, bool isInjected, YAML::Node cfgInjection) {
     DEBUG("\n\nGenerating a new event\n");
-    if (!isGenerated) {
-        // todo: dummy for now, to be fixed
-        return new std::vector<Pythia8::Particle>();
-    } else if (isGenerated && !isInjected) {
+    if (isGenerated && !isInjected) {
         pythia.next();
         return pythia.event.particles();
     } else if (isGenerated && isInjected) {
@@ -751,7 +749,7 @@ void LoadEfficiencies(YAML::Node cfg) {
 
     // Load Efficiency
     if (size_t pos = efficiency0.find(':'); pos != std::string::npos) {
-        TFile *effFile = TFile::Open(efficiency0.substr(0, pos).data());
+        TFile *effFile = new TFile(efficiency0.substr(0, pos).data());
         if (!effFile) exit(1);
         hEff0 = (TH1D *) effFile->Get(efficiency0.substr(pos + 1).data());
         hEff0->SetDirectory(0);
@@ -762,7 +760,7 @@ void LoadEfficiencies(YAML::Node cfg) {
 
     // Load Efficiency
     if (size_t pos = efficiency1.find(':'); pos != std::string::npos) {
-        TFile *effFile = TFile::Open(efficiency1.substr(0, pos).data());
+        TFile *effFile = new TFile(efficiency1.substr(0, pos).data());
         if (!effFile) exit(1);
         hEff1 = (TH1D *) effFile->Get(efficiency1.substr(pos + 1).data());
         hEff1->SetDirectory(0);
@@ -808,8 +806,8 @@ void LoadKinematics(YAML::Node cfg) {
 
     // Load 2D histogram for kinematics
     if (kinemFile != "") {
-        TFile *fKinem = TFile::Open(kinemFile.data());
-        if (!fKinem) exit(1); // TFile::Open already prints an error message
+        TFile *fKinem = new TFile(kinemFile.data());
+        if (!fKinem) exit(1);
 
         hYvsPt = (TH2D *) fKinem->Get("hYvsPt");
         if (!hYvsPt) {
@@ -888,7 +886,7 @@ void LoadKinematics(YAML::Node cfg) {
 
     // Set rapidity shape
     if (size_t pos = yshape.find(':'); pos != std::string::npos) {
-        TFile *yFile = TFile::Open(yshape.substr(0, pos).data());
+        TFile *yFile = new TFile(yshape.substr(0, pos).data());
         if (!yFile) exit(1);
         hY = (TH1D *) yFile->Get(yshape.substr(pos + 1).data());
         hY->SetDirectory(0);
@@ -902,7 +900,7 @@ void LoadKinematics(YAML::Node cfg) {
         std::string fileName = etashape.substr(0, pos);
         std::string objName = etashape.substr(pos + 1);
 
-        TFile *etaFile = TFile::Open(fileName.data());
+        TFile *etaFile = new TFile(fileName.data());
         if (!etaFile) exit(1);
         if (!etaFile) {
             printf("\033[31mError: file '%s' could not be loaded. Exit!\033[0m\n", fileName.data());
@@ -950,6 +948,14 @@ void ValidateConfig(YAML::Node cfg) {
 }
 
 void ConfigurePythia(YAML::Node cfg, int seed) {
+    std::cout << "Applying the following customization to pythia:" << std::endl;
+    for (const auto &line : cfg["customization"]) {
+        std::string lineStr = line.as<std::string>();
+        std::cout << "   * " << lineStr << std::endl;
+        pythia.readString(lineStr.data());
+    }
+    std::cout << "End of customization." << std::endl;
+    
     pythia.readString("Next:numberShowEvent = 0");
     SetProcess(pythia, cfg["process"].as<std::string>());
     SetTune(pythia, cfg["tune"].as<std::string>());
@@ -977,6 +983,9 @@ void ConfigurePythia(YAML::Node cfg, int seed) {
 
 }
 
+
+TFile *inFile = nullptr;
+TTree *tEvents = nullptr;
 void MakeDistr(
     std::string inFileName = "",
     std::string oFileName = "Distr.root",
@@ -984,6 +993,27 @@ void MakeDistr(
     int seed = 31
     ) {
 
+    TFile *file = new TFile(inFileName.data(),"read");
+    if (!file) {
+        printf("no file\n");
+        exit(1);
+    }
+    std::vector<Pythia8::Particle> *particles = nullptr;
+    TTree *T = (TTree *) file->Get("tEvents");
+    if (!T) {
+        printf("no tree \n");
+        exit(1);
+    }
+    T->SetBranchAddress("events", &particles);
+
+    for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
+        T->GetEntry(iEvent);
+        printf("%d", iEvent);
+        printf("size: %.3f\n", (*particles)[5].px());
+    }
+    delete file;  // Clean up after use
+
+    return;
     // Load PDG
     TDatabasePDG *PDG = TDatabasePDG::Instance();
 
@@ -997,6 +1027,10 @@ void MakeDistr(
 
     bool doGenerate = inFileName == "";
     bool isInjected = cfg["injection"].size() > 0;
+
+    if (!doGenerate && isInjected) {
+        throw std::runtime_error("If you want to inject particles you need to generate events with pythia");
+    }
 
     // Load selections for mother particle
     cfgMother = YAML::Clone(cfg["decaychain"]);
@@ -1035,30 +1069,45 @@ void MakeDistr(
     std::vector<double> mTMaxs(mTBins);
     mTMins.pop_back();
     mTMaxs.erase(mTMaxs.begin());
-    
+
     pdg0 = cfgPart0["pdg"].as<int>();
     pdg1 = cfgPart1["pdg"].as<int>();
 
+    // std::vector<Pythia8::Particle> *particles;
     
     ValidateConfig(cfg);
-    
+
+    if (!doGenerate) {
+        inFile = new TFile(inFileName.data(), "read");
+        if (!inFile) {
+            std::cerr << "File not opened" << std::endl;
+            exit(1);
+        }
+        tEvents = (TTree *) inFile->Get("tEvents");
+        tEvents->SetDirectory(0);
+        if (!tEvents) {
+            std::cerr << "Tree not opened" << std::endl;
+            exit(1);
+        }
+        tEvents->SetBranchAddress("events",&particles);
+        nEvents = tEvents->GetEntries();
+        printf("Analizing tree with %d events\n", nEvents);        
+        tEvents->GetEntry(0);
+        printf("ps %lu\n", particles->size());
+    }
+
     LoadEfficiencies(cfg);
     if (isInjected) {
         InjectParticles(cfg["injection"]);
         SetThreshold(cfg["injection"]);
         LoadKinematics(cfg);
     }
-    
-    std::cout << "Applying the following customization to pythia:" << std::endl;
-    for (const auto &line : cfg["customization"]) {
-        std::string lineStr = line.as<std::string>();
-        std::cout << "   * " << lineStr << std::endl;
-        pythia.readString(lineStr.data());
-    }
-    std::cout << "End of customization." << std::endl;
+
+
     if (doGenerate) {
         ConfigurePythia(cfg, seed);
     }
+
     gRandom->SetSeed(seed); // Set the seed to ensure reproducibility of the evevents generated by pythia
 
     // QA histograms
@@ -1146,7 +1195,14 @@ void MakeDistr(
         part0.clear();
         part1.clear();
 
-        const std::vector<Pythia8::Particle> *particles = Next(doGenerate, isInjected, cfg["injection"]);
+        if (doGenerate) {
+            // particles = Next(doGenerate, isInjected, cfg["injection"]);
+        } else {
+            tEvents->GetEntry(iEvent);
+            // auto part = (*particles)[0];
+            // printf("part %.3f\n", part.pT());
+            printf("Event n. %d with %ld particles\n", iEvent, particles->size());
+        }
 
         if (!Trigger(particles, trigger)) {
             continue;
@@ -1300,7 +1356,7 @@ void MakeDistr(
         if (partBuffer.size() > md) partBuffer.pop_front();
     }
 
-    TFile *oFile = TFile::Open(oFileName.data(), "recreate");
+    TFile *oFile = new TFile(oFileName.data(), "recreate");
     if (!oFile) exit(1);
 
     hEvtMult->Write();
@@ -1375,3 +1431,84 @@ int main(int argc, char* argv[]) {
     MakeDistr(inFileName, oFileName, cfg, -1);
     return 0;
 }
+
+
+
+// void MakeDistr2() {  // Pass the file as a parameter to keep it alive
+//     TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
+//     if (!file) {
+//         printf("no file\n");
+//         exit(1);
+//     }
+//     std::vector<Pythia8::Particle> *particles;
+//     TTree *T = (TTree *) file->Get("tEvents");
+//     if (!T) {
+//         printf("no tree \n");
+//         exit(1);
+//     }
+//     T->SetDirectory(0);
+//     T->SetBranchAddress("events", &particles);
+
+//     for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
+//         T->GetEntry(iEvent);
+//         printf("%d", iEvent);
+//         printf("size: %.3f\n", (*particles)[5].px());
+//     }
+// }
+
+// int main2(int argc, char* argv[]) {
+
+
+
+
+//     TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
+//     if (!file) {
+//         printf("no file\n");
+//         exit(1);
+//     }
+//     static const std::vector<Pythia8::Particle> *particles;
+//     TTree *T = (TTree *) file->Get("tEvents");
+//     if (!T) {
+//         printf("no tree \n");
+//         exit(1);
+//     }
+//     T->SetDirectory(0);
+//     T->SetBranchAddress("events", &particles);
+
+//     for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
+//         T->GetEntry(iEvent);
+//         printf("%d", iEvent);
+//         printf("size: %.3f\n", (*particles)[5].px());
+//     }
+
+//     // std::string inFileName(argv[1]);
+//     // std::string oFileName(argv[2]);
+//     // std::string cfg(argv[3]);
+
+//     // std::cerr << inFileName << "  "  << oFileName << "  "  << cfg;
+//     // MakeDistr(inFileName, oFileName, cfg, -1);
+
+//     // MakeDistr2();
+//     return 0;
+// }
+
+// void MakeDistr3() {
+//   TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
+
+//   std::vector<Pythia8::Particle>* particles = nullptr;
+//   TTree *T = (TTree *) file->Get("tEvents");
+//   T->SetBranchAddress("events",&particles);
+
+//   for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
+//     T->GetEntry(iEvent);
+//     printf("%d", iEvent);
+
+//     printf("size: %d   %.3f\n", particles->size(),  (*particles)[5].px());
+//   }
+// }
+
+// int main4(int argc, char* argv[]) {
+//     MakeDistr3();
+
+//     return 0;
+// }
