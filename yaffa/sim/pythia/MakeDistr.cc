@@ -993,27 +993,6 @@ void MakeDistr(
     int seed = 31
     ) {
 
-    TFile *file = new TFile(inFileName.data(),"read");
-    if (!file) {
-        printf("no file\n");
-        exit(1);
-    }
-    std::vector<Pythia8::Particle> *particles = nullptr;
-    TTree *T = (TTree *) file->Get("tEvents");
-    if (!T) {
-        printf("no tree \n");
-        exit(1);
-    }
-    T->SetBranchAddress("events", &particles);
-
-    for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
-        T->GetEntry(iEvent);
-        printf("%d", iEvent);
-        printf("size: %.3f\n", (*particles)[5].px());
-    }
-    delete file;  // Clean up after use
-
-    return;
     // Load PDG
     TDatabasePDG *PDG = TDatabasePDG::Instance();
 
@@ -1073,27 +1052,54 @@ void MakeDistr(
     pdg0 = cfgPart0["pdg"].as<int>();
     pdg1 = cfgPart1["pdg"].as<int>();
 
-    // std::vector<Pythia8::Particle> *particles;
+    std::vector<Pythia8::Particle> *particles = nullptr;
     
     ValidateConfig(cfg);
 
     if (!doGenerate) {
-        inFile = new TFile(inFileName.data(), "read");
-        if (!inFile) {
-            std::cerr << "File not opened" << std::endl;
+
+
+
+        TFile *file = new TFile(inFileName.data(),"read");
+        if (!file) {
+            printf("no file\n");
             exit(1);
         }
-        tEvents = (TTree *) inFile->Get("tEvents");
-        tEvents->SetDirectory(0);
-        if (!tEvents) {
-            std::cerr << "Tree not opened" << std::endl;
+        std::vector<Pythia8::Particle> *particles = nullptr;
+        TTree *T = (TTree *) file->Get("tEvents");
+        if (!T) {
+            printf("no tree \n");
             exit(1);
         }
-        tEvents->SetBranchAddress("events",&particles);
-        nEvents = tEvents->GetEntries();
-        printf("Analizing tree with %d events\n", nEvents);        
-        tEvents->GetEntry(0);
-        printf("ps %lu\n", particles->size());
+        T->SetBranchAddress("events", &particles);
+
+        for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
+            T->GetEntry(iEvent);
+            printf("%d", iEvent);
+            printf("size: %.3f\n", (*particles)[5].px());
+        }
+        delete file;  // Clean up after use
+
+
+
+
+        return;
+            // inFile = new TFile(inFileName.data(), "read");
+            // if (!inFile) {
+            //     std::cerr << "File not opened" << std::endl;
+            //     exit(1);
+            // }
+            // tEvents = (TTree *) inFile->Get("tEvents");
+            // tEvents->SetDirectory(0);
+            // if (!tEvents) {
+            //     std::cerr << "Tree not opened" << std::endl;
+            //     exit(1);
+            // }
+            // tEvents->SetBranchAddress("events",&particles);
+            // nEvents = tEvents->GetEntries();
+            // printf("Analizing tree with %d events\n", nEvents);        
+            // tEvents->GetEntry(0);
+            // printf("ps %lu\n", particles->size());
     }
 
     LoadEfficiencies(cfg);
