@@ -1052,7 +1052,7 @@ void MakeDistr(
     pdg0 = cfgPart0["pdg"].as<int>();
     pdg1 = cfgPart1["pdg"].as<int>();
 
-    std::vector<Pythia8::Particle> *particles = nullptr;
+    const std::vector<Pythia8::Particle> *particles = nullptr;
     
     ValidateConfig(cfg);
 
@@ -1068,20 +1068,9 @@ void MakeDistr(
             exit(1);
         }
         tEvents->SetBranchAddress("events", &particles);
+        nEvents = tEvents->GetEntries();
     }
 
-    if (!doGenerate) {
-        for (int iEvent = 0; iEvent < tEvents->GetEntries(); ++iEvent) {
-            tEvents->GetEntry(iEvent);
-            printf("%d", iEvent);
-            printf("size: %.3f\n", (*particles)[5].px());
-        }
-
-    }
-
-
-
-    return;
 
     LoadEfficiencies(cfg);
     if (isInjected) {
@@ -1183,12 +1172,13 @@ void MakeDistr(
         part1.clear();
 
         if (doGenerate) {
-            // particles = Next(doGenerate, isInjected, cfg["injection"]);
+            particles = Next(doGenerate, isInjected, cfg["injection"]);
         } else {
             tEvents->GetEntry(iEvent);
-            // auto part = (*particles)[0];
-            // printf("part %.3f\n", part.pT());
-            printf("Event n. %d with %ld particles\n", iEvent, particles->size());
+
+            if (iEvent % 100 == 0) {
+                printf("Analyzed %d events\n", iEvent);
+            }
         }
 
         if (!Trigger(particles, trigger)) {
@@ -1305,7 +1295,7 @@ void MakeDistr(
         // Mixed event
         DEBUG("Start mixed-event pairing\n");
         for (size_t i0 = 0; i0 < part0.size(); i0++) {
-            const auto p0 = pythia.event[part0[i0]];
+            const auto p0 = (*particles)[part0[i0]];
 
             double eff0 = 1;
             if (fEff0) {
@@ -1418,84 +1408,3 @@ int main(int argc, char* argv[]) {
     MakeDistr(inFileName, oFileName, cfg, -1);
     return 0;
 }
-
-
-
-// void MakeDistr2() {  // Pass the file as a parameter to keep it alive
-//     TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
-//     if (!file) {
-//         printf("no file\n");
-//         exit(1);
-//     }
-//     std::vector<Pythia8::Particle> *particles;
-//     TTree *T = (TTree *) file->Get("tEvents");
-//     if (!T) {
-//         printf("no tree \n");
-//         exit(1);
-//     }
-//     T->SetDirectory(0);
-//     T->SetBranchAddress("events", &particles);
-
-//     for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
-//         T->GetEntry(iEvent);
-//         printf("%d", iEvent);
-//         printf("size: %.3f\n", (*particles)[5].px());
-//     }
-// }
-
-// int main2(int argc, char* argv[]) {
-
-
-
-
-//     TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
-//     if (!file) {
-//         printf("no file\n");
-//         exit(1);
-//     }
-//     static const std::vector<Pythia8::Particle> *particles;
-//     TTree *T = (TTree *) file->Get("tEvents");
-//     if (!T) {
-//         printf("no tree \n");
-//         exit(1);
-//     }
-//     T->SetDirectory(0);
-//     T->SetBranchAddress("events", &particles);
-
-//     for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
-//         T->GetEntry(iEvent);
-//         printf("%d", iEvent);
-//         printf("size: %.3f\n", (*particles)[5].px());
-//     }
-
-//     // std::string inFileName(argv[1]);
-//     // std::string oFileName(argv[2]);
-//     // std::string cfg(argv[3]);
-
-//     // std::cerr << inFileName << "  "  << oFileName << "  "  << cfg;
-//     // MakeDistr(inFileName, oFileName, cfg, -1);
-
-//     // MakeDistr2();
-//     return 0;
-// }
-
-// void MakeDistr3() {
-//   TFile *file = new TFile("/tank2/scratch/share/sim/pythia8311/HMpp13TeV_CRMode2_NonDiffractive/out/PythiaProd_9187.root","read");
-
-//   std::vector<Pythia8::Particle>* particles = nullptr;
-//   TTree *T = (TTree *) file->Get("tEvents");
-//   T->SetBranchAddress("events",&particles);
-
-//   for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
-//     T->GetEntry(iEvent);
-//     printf("%d", iEvent);
-
-//     printf("size: %d   %.3f\n", particles->size(),  (*particles)[5].px());
-//   }
-// }
-
-// int main4(int argc, char* argv[]) {
-//     MakeDistr3();
-
-//     return 0;
-// }
