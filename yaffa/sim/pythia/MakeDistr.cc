@@ -1060,25 +1060,24 @@ void MakeDistr(
 
 
 
-        TFile *file = new TFile(inFileName.data(),"read");
-        if (!file) {
+        inFile = new TFile(inFileName.data(),"read");
+        if (!inFile) {
             printf("no file\n");
             exit(1);
         }
         std::vector<Pythia8::Particle> *particles = nullptr;
-        TTree *T = (TTree *) file->Get("tEvents");
-        if (!T) {
+        tEvents = (TTree *) inFile->Get("tEvents");
+        if (!tEvents) {
             printf("no tree \n");
             exit(1);
         }
-        T->SetBranchAddress("events", &particles);
-
-        for (int iEvent = 0; iEvent < T->GetEntries(); ++iEvent) {
-            T->GetEntry(iEvent);
+        tEvents->SetBranchAddress("events", &particles);
+        for (int iEvent = 0; iEvent < tEvents->GetEntries(); ++iEvent) {
+            tEvents->GetEntry(iEvent);
             printf("%d", iEvent);
             printf("size: %.3f\n", (*particles)[5].px());
         }
-        delete file;  // Clean up after use
+        delete inFile;  // Clean up after use
 
 
 
