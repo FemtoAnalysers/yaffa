@@ -346,8 +346,9 @@ def main(cfg): # pylint: disable=too-many-statements
             hSE[comb][region].Rebin(rebin)
             # remove '/Common' and '/NonCommon' since the ME is the same as the inclusive ancestor
             regionME = region.replace('/Common', '').replace('/NonCommon', '')
-            hME[comb][regionME].Rebin(rebin)
-            hMErew[comb][regionME].Rebin(rebin)
+            if regionME == region:
+                hME[comb][regionME].Rebin(rebin)
+                hMErew[comb][regionME].Rebin(rebin)
 
             # Count number of pairs in the femto region
             regionBin = hFemtoPairs.GetXaxis().FindBin(region)
