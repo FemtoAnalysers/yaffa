@@ -144,6 +144,23 @@ def LoadMultVsKstarPythia(inFile, **kwargs):
             hSE[comb][region].SetDirectory(0)
             hME[comb][region].SetDirectory(0)
 
+            iMt = 0
+            while True:
+                hSEmT = Load(inFile, f'{comb}/mT{iMt}/hSE')
+                hMEmT = Load(inFile, f'{comb}/mT{iMt}/hME')
+
+                if hSEmT == None or hMEmT == None: # pylint: disable=singleton-comparison
+                    break
+
+                log.info('Loading mT %d bins', iMt)
+
+                hSE[comb][f'{region}/mT{iMt}'] = hSEmT
+                hSE[comb][f'{region}/mT{iMt}'].SetDirectory(0)
+                hME[comb][f'{region}/mT{iMt}'] = hMEmT
+                hME[comb][f'{region}/mT{iMt}'].SetDirectory(0)
+
+                iMt += 1
+
     return hSE, hME
 
 
@@ -308,7 +325,9 @@ def main(cfg): # pylint: disable=too-many-statements
             hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
 
             for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
-                log.info("Slice: %d", iSlice)
+                if log.getEffectiveLevel() >= 20:
+                    break
+                log.debug("Slice: %d", iSlice)
                 
                 oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
                 oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
@@ -327,7 +346,10 @@ def main(cfg): # pylint: disable=too-many-statements
     hSE = ProjectDistr(hSEmultk)
     hME = ProjectDistr(hMEmultk)
 
+    log.info("Projected SE distributions")
     print(hSE)
+
+    log.info("Projected SE distributions")
     print(hME)
 
     hSE = Combine(hSE, sumRecipe)
@@ -335,7 +357,10 @@ def main(cfg): # pylint: disable=too-many-statements
     hMErew = Combine(hMErew, sumRecipe)
     hWeightsRew = Combine(hWeightsRew, sumRecipe)
 
+    log.info("SE distributions after combination")
     print(hSE)
+
+    log.info("SE distributions after combination")
     print(hME)
 
     # Compute the CF and write to file
