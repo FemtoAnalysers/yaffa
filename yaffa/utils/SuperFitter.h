@@ -789,7 +789,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 
     printf("Start drawing\n");
 
-    TLegend* leg = new TLegend(0.6, 0.6, 0.9, 0.9);
+    TLegend* leg = new TLegend(0.55, 0.9 - 0.05 * recipes.size(), 0.9, 0.9);
 
     // Draw the fitted observable
     this->fObs[iFit]->Draw("hist same pe");
@@ -934,7 +934,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
         }
         fTerm->Draw("same");
         fTerms.push_back(fTerm);
-        leg->AddEntry(fTerm, legend.data());
+        leg->AddEntry(fTerm, legend.data(), "l");
     }
     leg->DrawClone("same");
 };
