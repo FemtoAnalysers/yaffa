@@ -727,31 +727,45 @@ void MakeDistr(
     }
 
     // Set pT shape
-    if (ptshape == "blastwave") {
-        printf("Using Blast-Wave function for pt distribution\n");
-        double mass;
-        if (cfg["injection"].size() > 0) {
-            mass = cfg["injection"][0]["mass"].as<double>();
-        } else {
-            mass = pythia.particleData.particleDataEntryPtr(pdgMother).get()->m0();
-        }
+    size_t pos = ptshape.find(':');
+    if (pos != std::string::npos) {
+        std::string first = ptshape.substr(0, pos);
+        std::string second = ptshape.substr(pos + 1);
 
-        // The following values are take from peripheral pPb collisions. See Tab 5 of PLB 728 (2014) 25-38
-        double beta = 0.26;
-        double Tkin = 0.166;
-        double n = 3.9;
-        fPt = new TF1("fPt", BlastWave, 0, 10, 5);
-        fPt->SetParameter(0, mass);
-        fPt->SetParameter(1, beta);
-        fPt->SetParameter(2, Tkin);
-        fPt->SetParameter(3, n);
-        fPt->SetParameter(4, 1);
-    } else if (size_t pos = ptshape.find(':'); pos != std::string::npos) {
-        TFile *ptFile = TFile::Open(ptshape.substr(0, pos).data());
-        if (!ptFile) exit(1);
-        hPt = (TH1D *) ptFile->Get(ptshape.substr(pos + 1).data());
-        hPt->SetDirectory(0);
-        ptFile->Close();
+        if (first == "blastwave") {
+            // first = "blastwave"
+            // second = version of blastwave parameters
+
+            // format: Journal, volume number, year, page range
+            std::map<std::string, std::array<double, 3>> blastwavePars = {
+                {"PLB_728_2014_2538", {0.26, 0.166, 3.9}}, // peripheral pPb collisions. See Tab 5
+                {"EPJC_80_2020_693_extrap", {0.529863, 0.1420758, 1.126957}}, // From fit and extrapolation of the hep data
+            };
+            
+            printf("Using Blast-Wave function for pt distribution\n");
+            double mass;
+            if (cfg["injection"].size() > 0) {
+                mass = cfg["injection"][0]["mass"].as<double>();
+            } else {
+                mass = pythia.particleData.particleDataEntryPtr(pdgMother).get()->m0();
+            }
+
+            auto [beta, Tkin, n] = blastwavePars[second];
+            fPt = new TF1("fPt", BlastWave, 0, 10, 5);
+            fPt->SetParameter(0, mass);
+            fPt->SetParameter(1, beta);
+            fPt->SetParameter(2, Tkin);
+            fPt->SetParameter(3, n);
+            fPt->SetParameter(4, 1);
+        } else {
+            // first = file name
+            // second = path of histogram inside root file
+            TFile *ptFile = TFile::Open(first.data());
+            if (!ptFile) exit(1);
+            hPt = (TH1D *) ptFile->Get(second.data());
+            hPt->SetDirectory(0);
+            ptFile->Close();
+        }
     } else {
         fPt = new TF1("fPt", ptshape.data(), 0, 10);
     }
