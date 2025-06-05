@@ -203,12 +203,12 @@ double BlasWaveIntegrand(const double *x, const double *par) {
 
     double mass = par[0];
     double pT = par[1];
-    double beta_max = par[2];
+    double beta_s = par[2];
     double temp = par[3];
     double n = par[4];
 
     // Keep beta within reasonable limits
-    double beta = beta_max * TMath::Power(r, n);
+    double beta = beta_s * TMath::Power(r, n);
     if (beta > 0.9999999999999999) beta = 0.9999999999999999;
 
     double mT = TMath::Sqrt(mass * mass + pT * pT);
@@ -247,6 +247,34 @@ double BlastWave(const double *x, const double *par) {
     double result = fIntBG->Integral(0, 1);
 
     return x[0] * result * norm;
+}
+
+/*
+Non-relativistic Breit-Wigner distribution with threhsold. Not normalized to 1.
+---
+
+parameters:
+---
+    0) mass of the resonance
+    1) width of the resonance
+    2) threshold
+*/
+double BreitWigner(double *x, double *par) {
+    double energy = x[0];
+
+    double mass = par[0];
+    double width = par[1];
+    double threshold = par[2];
+
+    if (mass < threshold) {
+        throw std::runtime_error("BreitWigner: invalid parameters. Mass must be larger than the threshold.");
+    }   
+
+    if (energy < threshold) {
+        return 0;
+    }
+
+    return width / 2 / std::numbers::pi / (pow(energy - mass, 2) + 0.25 * width * width);
 }
 
 float ComputeKstar(ROOT::Math::PxPyPzMVector part1, ROOT::Math::PxPyPzMVector part2) {
@@ -611,7 +639,7 @@ void MakeDistr(
     std::cout << "End of customization." << std::endl;
 
     // Compute the minimum mass that a resonance modelled with a Breit-Wigner can have
-    double minBWMass=1.e12;
+    double threshold=1.e12;
     if (cfg["injection"].size() > 0) {
         auto particleEntry = pythia.particleData.particleDataEntryPtr(cfg["injection"][0]["pdg"].as<int>());
         for (int iDecChn = 0; iDecChn < particleEntry->sizeChannels(); iDecChn++) {
@@ -624,9 +652,9 @@ void MakeDistr(
 
                 sum += pythia.particleData.particleDataEntryPtr(dauPdg).get()->m0();
             }
-            if (sum < minBWMass) minBWMass = sum;
+            if (sum < threshold) threshold = sum;
         }
-        printf("Mass limit: %.6f GeV\n", minBWMass);
+        printf("Mass threshold: %.6f GeV\n", threshold);
     }
 
     // Load Pt and y distributions
@@ -806,6 +834,19 @@ void MakeDistr(
         fEta = new TF1("fEta", cfg["decaychain"]["etashape"].as<std::string>().data(), -10, 10);
     }
 
+    std::string lineShape = load<std::string>(cfg["injection"][0], "lineshape");
+    TF1 *fLineShape;
+    if (lineShape == "breitwigner") {
+        fLineShape = new TF1("fLineShape", BreitWigner, 0, 20, 3);
+        fLineShape->SetParameter(0, cfg["injection"][0]["mass"].as<double>()); // Value in GeV
+        fLineShape->SetParameter(1, cfg["injection"][0]["width"].as<double>() / 1000); // Value in MeV
+        fLineShape->SetParameter(2, threshold);
+    } else {
+        throw std::invalid_argument("Lineshape not implemented!");
+    }
+    fLineShape->SetTitle(";#it{M} (GeV/#it{c}^2);Probability");
+    fLineShape->SetNpx(100000);
+
     // Setting the seed here is not sufficient to ensure reproducibility, setting the seed of gRandom is necessary
     pythia.readString("Random:setSeed = on");
     pythia.readString(Form("Random:seed = %d", seed));
@@ -909,11 +950,7 @@ void MakeDistr(
                 DEBUG("\n\nInjecting a new particle\n");
 
                 int myPdg = inj["pdg"].as<int>();
-                double mass;
-                do {
-                    mass = gRandom->BreitWigner(inj["mass"].as<double>(), inj["width"].as<double>()/1000);
-                } while (mass < minBWMass);
-
+                double mass = fLineShape->GetRandom();;
                 double pt;
                 double y = std::nan("");
                 double eta = std::nan("");
@@ -1145,6 +1182,7 @@ void MakeDistr(
     }
     oFile->mkdir("qaMother");
     oFile->cd("qaMother");
+    fLineShape->Write();
     for (const auto &[key, hist] : hQAMother) {
         hist->Write();
     }
