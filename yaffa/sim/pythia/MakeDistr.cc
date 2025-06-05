@@ -766,8 +766,9 @@ void MakeDistr(
 
             // format: Journal, volume number, year, page range
             std::map<std::string, std::array<double, 3>> blastwavePars = {
-                {"PLB_728_2014_2538", {0.26, 0.166, 3.9}}, // peripheral pPb collisions. See Tab 5
-                {"EPJC_80_2020_693_extrap", {0.529863, 0.1420758, 1.126957}}, // From fit and extrapolation of the hep data
+                {"PLB_728_2014_2538", {0.26, 0.166, 3.9}}, // peripheral pPb collisions. See Tab 5. //! This is in <beta_T> not beta_s!!!
+                {"EPJC_80_2020_693_extrap", {0.529863, 0.1420758, 1.126957}}, // From fit and extrapolation of the hep data //! This is in <beta_T> not beta_s!!!
+                {"EPJC_80_2020_693_extrap_betas", {0.828429408, 0.1420758, 1.126957}}, // From fit and extrapolation of the hep data. beta_s computed as <beta_T> * (n+2)/2
             };
             
             printf("Using Blast-Wave function for pt distribution\n");
