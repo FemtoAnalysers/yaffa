@@ -277,6 +277,39 @@ double BreitWigner(double *x, double *par) {
     return width / 2 / std::numbers::pi / (pow(energy - mass, 2) + 0.25 * width * width);
 }
 
+/*
+Non-relativistic Breit-Wigner distribution with threhsold normalized to 1.
+---
+Reference:
+    F. Giacosa and V. Shastry
+    Sill distribution: Genesis and salient features
+    https://doi.org/10.1393/ncc/i2024-24186-8
+
+parameters:
+---
+    0) mass of the resonance
+    1) width of the resonance
+    2) threshold
+*/
+// double BreitWigner(double *x, double *par) {
+//     double energy = x[0];
+
+//     double mass = par[0];
+//     double width = par[1];
+//     double threshold = par[2];
+
+//     if (mass < threshold) {
+//         throw std::runtime_error("BreitWigner: invalid parameters. Mass must be larger than the threshold.");
+//     }   
+
+//     if (energy < threshold) {
+//         return 0;
+//     }
+
+//     return width / 2 / std::numbers::pi / (pow(energy - mass, 2) + 0.25 * gamma * gamma);
+// }
+
+
 float ComputeKstar(ROOT::Math::PxPyPzMVector part1, ROOT::Math::PxPyPzMVector part2) {
     ROOT::Math::PxPyPzMVector trackSum = part1 + part2;
     ROOT::Math::Boost boostv12{trackSum.BoostToCM()};
@@ -286,6 +319,47 @@ float ComputeKstar(ROOT::Math::PxPyPzMVector part1, ROOT::Math::PxPyPzMVector pa
     ROOT::Math::PxPyPzMVector trackRelK = part1CM - part2CM;
     float kStar = 0.5 * trackRelK.P();
     return kStar;
+}
+
+/*
+Non-relativistic Sill distribution normalized to one.
+---
+Reference:
+    F. Giacosa and V. Shastry
+    Sill distribution: Genesis and salient features
+    https://doi.org/10.1393/ncc/i2024-24186-8
+
+Functional form (LaTeX):
+d^{\text{nrSill}}(E) = \frac{\gamma \sqrt{E - E_{\text{th}}}}{2\pi} \left[ (E - M)^2 + \frac{1}{4} \left( \gamma \sqrt{E - E_{\text{th}}} \right)^2 \right]^{-1} \theta(E - E_{\text{th}})
+
+with:
+\gamma = \Gamma / \sqrt{M - E_{\text{th}}
+
+parameters:
+---
+    0) mass of the resonance
+    1) width of the resonance
+    2) threshold
+*/
+double Sill(double *x, double *par) {
+    double energy = x[0];
+
+    double mass = par[0];
+    double width = par[1];
+    double threshold = par[2];
+
+    if (mass < threshold) {
+        throw std::runtime_error("Sill: invalid parameters. Mass must be larger than the threshold.");
+    }   
+
+    if (energy < threshold) {
+        return 0;
+    }
+
+    double gamma = width / std::sqrt(mass - threshold);
+    double norm = gamma * std::sqrt(energy - threshold) / 2 / std::numbers::pi;
+
+    return norm / (pow(energy - mass, 2) + 0.25 * gamma * gamma * (energy - threshold));
 }
 
 float ComputeKstar(Pythia8::Particle part1, Pythia8::Particle part2) {
@@ -839,6 +913,11 @@ void MakeDistr(
     TF1 *fLineShape;
     if (lineShape == "breitwigner") {
         fLineShape = new TF1("fLineShape", BreitWigner, 0, 20, 3);
+        fLineShape->SetParameter(0, cfg["injection"][0]["mass"].as<double>()); // Value in GeV
+        fLineShape->SetParameter(1, cfg["injection"][0]["width"].as<double>() / 1000); // Value in MeV
+        fLineShape->SetParameter(2, threshold);
+    } else if (lineShape == "sill") {
+        fLineShape = new TF1("fLineShape", Sill, 0, 20, 3);
         fLineShape->SetParameter(0, cfg["injection"][0]["mass"].as<double>()); // Value in GeV
         fLineShape->SetParameter(1, cfg["injection"][0]["width"].as<double>() / 1000); // Value in MeV
         fLineShape->SetParameter(2, threshold);
