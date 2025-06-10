@@ -327,7 +327,7 @@ class SuperFitter : public TObject {
     void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Draw
-    void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes);
+    void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel="Data");
 
     // Set observable
     void AddObservable(Observable* obs) { this->fObs.push_back(obs); }
@@ -784,7 +784,7 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
 };
 
 // Draw
-void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes) {
+void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel) {
     this->fTerms = {};
 
     printf("Start drawing\n");
@@ -793,7 +793,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 
     // Draw the fitted observable
     this->fObs[iFit]->Draw("hist same pe");
-    leg->AddEntry(this->fObs[iFit], "data", "pe");
+    leg->AddEntry(this->fObs[iFit], dataLabel.data(), "pe");
 
     // Draw the final fit function
     this->fFit[iFit]->Draw("same");
