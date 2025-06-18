@@ -551,7 +551,7 @@ void SuperFitter::SetModel(int idx, std::string model) {
     }
 
     this->fFit.push_back(new TF1(Form("fFit_%d", idx), lambda, this->fDrawRangeMin, this->fDrawRangeMax, nPars));
-    this->fFit[idx]->SetNpx(1000);
+    this->fFit[idx]->SetNpx(10000);
 
     for (int iPar = 0; iPar < this->fPars[idx].size(); iPar++) {
         auto [name, _, __, ___] = this->fPars[idx][iPar];
@@ -843,7 +843,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
     // Draw the final fit function
     this->fFit[iFit]->Draw("same");
 
-    leg->AddEntry(this->fFit[iFit], "Total");
+    leg->AddEntry(this->fFit[iFit], "Total", "l");
     // Draw components based on the draw recipes
     for (int iRecipe = 0; iRecipe < recipes.size(); iRecipe++) {
         std::string legend = recipes[iRecipe].first;
@@ -969,8 +969,8 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
             new TF1(Form("fTerm%d", iRecipe), lambda, this->fDrawRangeMin, this->fDrawRangeMax, paraList.size());
 
         fTerm->SetLineColor(colors[iRecipe]);
-        fTerm->SetLineWidth(3);
-        fTerm->SetNpx(1000);
+        fTerm->SetLineWidth(2);
+        fTerm->SetNpx(10000);
 
         int counter = 0;
         for (const int& par : paraList) {
