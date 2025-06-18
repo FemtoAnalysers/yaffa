@@ -291,7 +291,8 @@ double Lednicky(double* x, double* par) {
 // Class for advanced fitting ------------------------------------------------------------------------------------------
 class SuperFitter : public TObject {
    private:
-    std::vector<Observable*> fObs;                     // Observable to be fitted
+    std::vector<Observable*> fObsOrig;                 // Original observable to be drawn
+    std::vector<Observable*> fObs;                     // Observable to be fitted. Includes the uncertainties of the model
     std::vector<TF1*> fFit;                            // Total fit function
     std::vector<std::vector<sf::parameter>> fPars;     // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;                          // Each function to be drawn
@@ -302,7 +303,7 @@ class SuperFitter : public TObject {
 
    public:
     // Empty Contructor
-    SuperFitter() : TObject(), fObs({}), fFit({}), fPars({}), fFitRange({}) {};
+    SuperFitter() : TObject(), fObsOrig({}), fFit({}), fPars({}), fFitRange({}) {};
 
     // Destructor
     ~SuperFitter();
@@ -330,7 +331,10 @@ class SuperFitter : public TObject {
     void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel="Data");
 
     // Set observable
-    void AddObservable(Observable* obs) { this->fObs.push_back(obs); }
+    void AddObservable(Observable* obs) {
+        this->fObs.push_back(obs);
+        this->fObsOrig.push_back(obs);
+    }
 
     // Set Fit range
     void SetFitRange(std::vector<std::pair<double, double>> fitRange) { this->fFitRange = fitRange; }
@@ -767,8 +771,45 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
     }
 };
 
+bool HasConstantBinWidth(TH1* hist, double tol = 1e-9) {
+    int nbins = hist->GetNbinsX();
+    double ref_width = hist->GetBinWidth(1);
+
+    for (int i = 2; i <= nbins; ++i) {
+        double width = hist->GetBinWidth(i);
+        if (std::abs(width - ref_width) > tol) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // Add template function
 void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
+    auto hObs = this->fObs[idx]->GetHistogram();
+    int nBins = hObs->GetNbinsX();
+    
+    // Sanity checks
+    if (!HasConstantBinWidth(hObs)) {
+        throw std::runtime_error("Adding templates with non-constant bin width is not implemented!");
+    }
+    
+    if (hObs->GetNbinsX() < hTemplate->GetNbinsX()) {
+        double limit = hObs->GetBinLowEdge(nBins + 1);
+        printf("\033[33mWARNING: data histogram has %d bins but template '%s' has %d. Stopping at k*= %.3f GeV", name.data(), hObs->GetNbinsX(), hTemplate->GetNbinsX(), limit);
+    }
+
+    if (fabs(hObs->GetBinWidth(1) - hTemplate->GetBinWidth(1)) > TINY) {
+        printf("\033[33mWARNING: template '%s' has different binning from the data! Uncertainties might be nonsensical!\033[0m\n", name.data());
+    }
+
+    // Add in quadrature the uncertainties of the template to the ones of the data
+    for (int iBin = 0; iBin <= nBins; iBin++) {
+        double uncData = hObs->GetBinError(iBin + 1);
+        double uncTempl = hTemplate->GetBinError(iBin + 1);
+        hObs->SetBinError(iBin + 1, std::sqrt(uncData * uncData + uncTempl * uncTempl));
+    }
+    
     auto lambda = [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); };
     functions[idx].push_back({name, lambda, 1});
 
@@ -792,8 +833,8 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
     TLegend* leg = new TLegend(0.55, 0.9 - 0.05 * recipes.size(), 0.9, 0.9);
 
     // Draw the fitted observable
-    this->fObs[iFit]->Draw("hist same pe");
-    leg->AddEntry(this->fObs[iFit], dataLabel.data(), "pe");
+    this->fObsOrig[iFit]->Draw("hist same pe");
+    leg->AddEntry(this->fObsOrig[iFit], dataLabel.data(), "pe");
 
     // Draw the final fit function
     this->fFit[iFit]->Draw("same");
