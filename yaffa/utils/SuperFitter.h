@@ -333,7 +333,11 @@ class SuperFitter : public TObject {
     // Set observable
     void AddObservable(Observable* obs) {
         this->fObs.push_back(obs);
-        this->fObsOrig.push_back(obs);
+
+        auto hObs = obs->GetHistogram();
+        auto name = hObs->GetName(); 
+        Observable * oOrig = new Observable((TH1 *) hObs->Clone(Form("%s_orig", name)));
+        this->fObsOrig.push_back(oOrig);
     }
 
     // Set Fit range
