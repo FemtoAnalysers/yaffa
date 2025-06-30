@@ -25,7 +25,7 @@ colors = {
 }
 
 
-def GetColor(color:str):
+def GetColor(color: str):
     '''
     Converts a color from string to ROOT.
 
@@ -197,6 +197,15 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
 
     gROOT.ForceStyle()
 
+def SetObjectStyle(obj, **kwargs):
+    '''
+    Set the style of an object. For now sets only the color.
+    '''
+
+    obj.SetLineColor(GetColor(kwargs.get('color', 'kBlack')))
+    obj.SetMarkerColor(GetColor(kwargs.get('color', 'kBlack')))
+    obj.SetLineWidth(kwargs.get('width', 2))
+
 def Format(text):
     '''
     Format a string according to ROOT standards.
@@ -293,7 +302,7 @@ def GetNPanels(n):  # pylint: disable=inconsistent-return-statements
     '''
     Computes the optimal canvas subdivision.
     '''
-    if n<=3:
+    if n <= 3:
         return (n, 1)
     if n == 4:
         return (2, 2)
