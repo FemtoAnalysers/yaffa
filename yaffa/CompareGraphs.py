@@ -113,7 +113,10 @@ for plot in cfg:
         if isinstance(inObj, TH1):
             inObj.SetDirectory(0)
             inObj.Rebin(inputCfg['rebin'])
-            inObj = CopyHistInSubrange(inObj, fx1, fx2)
+
+            # Check for type since TH2 inherits from TH1 so isinstance would return true
+            if type(inObj) is TH1:  # pylint: disable=unidiomatic-typecheck
+                inObj = CopyHistInSubrange(inObj, fx1, fx2)
 
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
