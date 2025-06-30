@@ -119,7 +119,8 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetLegendTextSize(0.04)
     gStyle.SetLegoInnerR(0.5)
     gStyle.SetLineScalePS(3)
-    gStyle.SetNdivisions(510, 'xy')
+    gStyle.SetNdivisions(kwargs.get('ndivx', 510), 'x')
+    gStyle.SetNdivisions(kwargs.get('ndivy', 510), 'y')
     gStyle.SetNumberContours(20)
     gStyle.SetOptDate(0)
     gStyle.SetOptFile(0)
@@ -193,7 +194,7 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetTextSize(1)
 
     # TAxis
-    TGaxis.SetMaxDigits(3)
+    TGaxis.SetMaxDigits(kwargs.get('maxdigits', 4))
 
     gROOT.ForceStyle()
 
