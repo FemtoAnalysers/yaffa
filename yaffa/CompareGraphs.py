@@ -106,8 +106,13 @@ for plot in cfg:
     legends = []
     drawOpts = []
     for inputCfg in plot["input"]:
-        inFile = TFile(inputCfg['file'])
+        if not inputCfg['file']:
+            drawOpts.append('')
+            inObjs.append(0)
+            legends.append(inputCfg['legend'])
+            continue
 
+        inFile = TFile(inputCfg['file'])
         inObj = utils.io.Load(inFile, inputCfg['name'])
 
         if isinstance(inObj, TH1):
@@ -165,7 +170,8 @@ for plot in cfg:
         if 'root' in plot["opt"]["ext"]:
             inObj.Write()
 
-        inObj.Draw('same' + drawOpt)
+        if inObj:
+            inObj.Draw('same' + drawOpt)
 
         # Compute statistics for hist in the displayed range
         if isinstance(inObj, TH1):
@@ -182,7 +188,7 @@ for plot in cfg:
             if plot['opt']['leg']['sigma']:
                 legend += f';  #sigma={inObj.GetStdDev():.3f}'
         if legend:
-            leg.AddEntry(inObj, legend, 'lp')
+            leg.AddEntry(inObj, legend, 'lp' if inObj else '')
 
     for line in plot['opt']['lines']:
         x1 = plot['opt']['rangex'][0] if(line['coordinates'][0] == 'min') else line['coordinates'][0]
