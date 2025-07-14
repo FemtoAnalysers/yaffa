@@ -328,7 +328,7 @@ class SuperFitter : public TObject {
     void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Draw
-    void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel="Data");
+    void Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel="Data", std::string legHeader="");
 
     // Set observable
     void AddObservable(Observable* obs) {
@@ -829,13 +829,21 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
 };
 
 // Draw
-void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel) {
+void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel, std::string legHeader) {
     this->fTerms = {};
 
     printf("Start drawing\n");
 
-    TLegend* leg = new TLegend(0.55, 0.9 - 0.05 * recipes.size(), 0.9, 0.9);
+    double legHeight = 0.06 * (1 + recipes.size());
+    if (!legHeader.empty()) {
+        legHeight += 0.06;
+    }
 
+    TLegend* leg = new TLegend(0.55, 0.9 - legHeight, 0.9, 0.9);
+    if (!legHeader.empty()) {
+        leg->SetHeader(legHeader.data());
+    }
+    
     // Draw the fitted observable
     this->fObsOrig[iFit]->Draw("hist same pe");
     leg->AddEntry(this->fObsOrig[iFit], dataLabel.data(), "pe");
