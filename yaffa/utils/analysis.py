@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from ROOT import TH1F, TH2D, TGraph, TGraphErrors, TH1, TH2, TF1 # pylint: disable=import-error
+from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -20,18 +20,35 @@ def GetSpread(objects):
     Returns:
         TH1: histogram containing the average and spread of the input histograms
     '''
-    hSpread = objects[0].Clone('hSpread')
-    hSpread.Reset()
 
-    for iBin in range(hSpread.GetNbinsX()):
-        yValues = np.array([obj.GetBinContent(iBin + 1) for obj in objects[1:]])
-        spread = np.std(yValues)
-        avg = np.average(yValues)
-        hSpread.SetBinContent(iBin + 1, avg)
-        hSpread.SetBinError(iBin + 1, spread)
+    if all(type(obj) is TF1 for obj in objects):  # pylint: disable=unidiomatic-typecheck
+        xMin = objects[0].GetXmin()
+        xMax = objects[0].GetXmax()
+        gSpread = TGraphErrors(1)
 
-    return hSpread
+        for iPoint, x in enumerate(np.linspace(xMin, xMax, num=1000)):
+            yValues = np.array([obj.Eval(x) for obj in objects])
+            spread = np.std(yValues)
+            avg = np.average(yValues)
+            gSpread.SetPoint(iPoint, x, avg)
+            gSpread.SetPointError(iPoint, 0, spread)
 
+        return gSpread
+
+    if all(type(obj) in (TH1, TH1D, TH1F, TH1I) for obj in objects):
+        hSpread = objects[0].Clone('hSpread')
+        hSpread.Reset()
+
+        for iBin in range(hSpread.GetNbinsX()):
+            yValues = np.array([obj.GetBinContent(iBin + 1) for obj in objects[1:]])
+            spread = np.std(yValues)
+            avg = np.average(yValues)
+            hSpread.SetBinContent(iBin + 1, avg)
+            hSpread.SetBinError(iBin + 1, spread)
+
+        return hSpread
+
+    raise NotImplementedError('Spread only implemented for histograms and TF1')
 
 def ChangeUnits(hist, multiplier, name=None, title=''):
     '''
@@ -317,3 +334,33 @@ def Divide(num, den): #pylint: disable=inconsistent-return-statements
 
             return hRatio
     log.critical("Division of %s by %s is not implemented.", type(num), type(den))
+    return gSmeared
+
+def Bootstrap(obj):
+    '''
+    Returns a bootstrapped version of the input objects.
+    Supperted types: TH1.
+
+    Parameters
+    ----------
+    graph : TH1
+        histogram to be bootstrapped
+
+    returns:
+        The bootstrapped histogram
+    '''
+
+    if type(obj) in (TH1, TH1D, TH1F, TH1I):
+        hBS = obj.Clone(obj.GetName() + '_bs')
+        for iBin in range(hBS.GetNbinsX()):
+            bc = obj.GetBinContent(iBin + 1)
+            bu = obj.GetBinError(iBin + 1)
+
+            buNew = np.random.normal(loc=bc, scale=bu)
+
+            hBS.SetBinContent(iBin, buNew)
+
+        return hBS
+
+    print(type(obj))
+    raise NotImplementedError('Bootstrap implemented only for TH1')
