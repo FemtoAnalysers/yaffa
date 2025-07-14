@@ -88,7 +88,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     for iFit in range(len(cfg['fits'])):
         cFit.cd(iFit + 1)
         cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
-        fitter.Draw(iFit, cfg['fits'][iFit]['draw_recipes'], cfg['fits'][iFit]['datalabel'])
+        fitter.Draw(iFit, cfg['fits'][iFit]['draw_recipes'], cfg['fits'][iFit]['datalabel'], cfg['fits'][iFit]['header'])
         # break
     cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
