@@ -43,6 +43,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     hTemplate = utils.analysis.ChangeUnits(template, term.get('unit_mult', 1))
                     hTemplate.SetDirectory(0)
                     fitter.Add(iFit, term['name'], hTemplate, term['params'])
+                elif isinstance(template, TGraphErrors):
+                    fitter.Add(iFit, term['name'], template, term['params'])
                 elif isinstance(template, TF1):
                     fitter.Add(iFit, term['name'], template, term['params'], 1)
 
@@ -94,7 +96,6 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     # Save fit parameters to file
     fFit = fitter.GetFitFunction()
-    # hGenCF = fitter.GetGenuineCF(0, fitCfg['gencf'])
     colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
     pars = []
     for iPar in range(fFit.GetNpar()):
@@ -121,7 +122,10 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         file.write(table)
 
     hObs.Write()
-    # hGenCF.Write()
+    for idx, _ in enumerate(cfg['fits']):
+        hGenCF = fitter.GetGenuineCF(idx, cfg['fits'][idx]['gencf']) # explicit cast to int for some reason
+        hGenCF.SetName(f'hGenCF{idx}')
+        hGenCF.Write()
     cFit.Write()
     fFit.Write()
     for term in fitter.GetTerms():

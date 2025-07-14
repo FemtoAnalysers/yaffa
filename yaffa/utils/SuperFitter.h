@@ -12,6 +12,7 @@
 #include "Observable.h"
 #include "Riostream.h"
 #include "TF1.h"
+#include "TGraphErrors.h"
 #include "TFormula.h"
 #include "TH1.h"
 #include "TObject.h"
@@ -323,6 +324,9 @@ class SuperFitter : public TObject {
 
     // Add template function
     void Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
+
+    // Add graph
+    void Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars);
 
     // Add TF1 function
     void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
@@ -828,6 +832,52 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
     }
 };
 
+// Find the index of the point that is closest to the provided value
+int FindPoint(TGraph *g, double x) {
+    int N = g->GetN();
+    if (N <= 0) {
+        throw std::runtime_error("Graph has no points");
+    }
+
+    int idx = 0;
+    double min = std::abs(g->GetPointX(0) - x);
+    for (int iPoint = 1; iPoint < N; iPoint++) {
+        if (double test = std::abs(g->GetPointX(iPoint) - x); test < min) {
+            min = test;
+            idx = iPoint;
+        }
+    }
+
+    return idx;
+}
+
+// Add template function
+void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars) {
+    auto hObs = this->fObs[idx]->GetHistogram();
+    int nBins = hObs->GetNbinsX();
+
+    // Add in quadrature the uncertainties of the template to the ones of the data
+    for (int iBin = 0; iBin <= nBins; iBin++) {
+        double uncData = hObs->GetBinError(iBin + 1);
+        double uncTempl = gTemplate->GetErrorY(FindPoint(gTemplate, hObs->GetBinCenter(iBin + 1)));
+        hObs->SetBinError(iBin + 1, std::sqrt(uncData * uncData + uncTempl * uncTempl));
+    }
+
+    auto lambda = [gTemplate](double* x, double* p) { return p[0] * gTemplate->Eval(x[0]); };
+    functions[idx].push_back({name, lambda, 1});
+
+    // Save fit settings
+    printf("Adding '%s' template with parameters:\n", name.data());
+    for (const auto& par : pars) {
+        auto [name, centr, min, max] = par;
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        if (!IsParameterPresent(name)) {
+            this->fPars[idx].push_back(par);
+        }
+    }
+};
+
+
 // Draw
 void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>> recipes, std::string dataLabel, std::string legHeader) {
     this->fTerms = {};
@@ -995,7 +1045,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 // Get genuine correlation function
 TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
     // todo: change
-    TH1D* hRawCF = (TH1D*)this->fObs[0]->GetHistogram();
+    TH1D* hRawCF = (TH1D*)this->fObs[idx]->GetHistogram();
     TH1D* hGenCF = (TH1D*)hRawCF->Clone("hGenCF");
     hGenCF->Reset();
 
@@ -1050,7 +1100,6 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
         std::stack<double> stack;
 
         std::vector<std::pair<std::string, int>> nParameters = {};  // token, npars
-        int idx = 0;
         for (const std::string& token : rpn) {
             if (isdigit(token[0]) || token[0] == '.') {
                 // Push numbers
@@ -1058,39 +1107,14 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
             } else if (token == "raw") {
                 stack.push(hRawCF->GetBinContent(iBin + 1));
             } else if (IsFunction(token)) {
-                // inly insert if not already present -> avoid duplicates
-                // if (std::find(nParameters.begin(), nParameters.end(), std::pair(token, 1)) ==
-                //     nParameters.end()) {
-                //     for (const auto& [name, _, npar] : functions) {
-                //         if (name == token) {
-                //             nParameters.push_back({token, npar});
-                //         }
-                //     }
-                // }
-
-                // // Compute offset
-                // int offset = 0;
-                // for (const auto& [name, np] : nParameters) {
-                //     printf("offset name token %d %s %s\n", offset, name.data(), token.data());
-                //     if (name == token) break;
-                //     offset += np;
-                // }
-
-                // Determine the position of the function in the list of functions
-                int counter = 0;
-                for (const auto& [name, _, __] : functions[idx]) {
-                    if (name == token) break;
-                    counter++;
-                }
-
-                int offset = 0;
-                for (const auto& [name, _, npar] : functions[idx]) {
-                    if (name == token) break;
-                    offset += npar;
-                }
-
+                int counter = GetIndex(functions[idx], token);
+                int offset = ComputeOffset(functions[idx], counter);
                 auto func = std::get<1>(functions[idx][counter]);
-                double* pars = fFit[0]->GetParameters();
+                if (!func)  {
+                    throw std::runtime_error("function is null");
+                }
+
+                double* pars = fFit[idx]->GetParameters();
                 double value = func(&x, pars + offset);
                 stack.push(value);
             } else if (IsOperator(token)) {
