@@ -20,6 +20,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         cfg (dict): configuration of the fit
     '''
 
+    terms = {}
     # oFile = TFile('ancestors_LPiplus.root', 'create')
     fitter = SuperFitter()
     fitter.SetFitRange(cfg['fits'][0]['fitrange'])
@@ -91,6 +92,9 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         cFit.cd(iFit + 1)
         cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
         fitter.Draw(iFit, cfg['fits'][iFit]['draw_recipes'], cfg['fits'][iFit]['datalabel'], cfg['fits'][iFit]['header'])
+        terms[iFit] = fitter.GetTerms()
+        fitter.GetFitFunction(iFit).Write()
+
         # break
     cFit.SaveAs(f'{cfg["ofile"]}.pdf')
 
@@ -127,9 +131,12 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         hGenCF.SetName(f'hGenCF{idx}')
         hGenCF.Write()
     cFit.Write()
-    fFit.Write()
-    for term in fitter.GetTerms():
-        term.Write()
+
+    for iTerm, termlist in terms.items():
+        oFile.mkdir(f'term{iTerm}')
+        oFile.cd(f'term{iTerm}')
+        for t in termlist:
+            t.Write()
     oFile.Close()
 
 if __name__ == '__main__':

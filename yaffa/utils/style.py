@@ -203,8 +203,11 @@ def SetObjectStyle(obj, **kwargs):
     Set the style of an object. For now sets only the color.
     '''
 
+    if not obj:
+        raise ValueError('input object is None')
     obj.SetLineColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetMarkerColor(GetColor(kwargs.get('color', 'kBlack')))
+    obj.SetFillColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetLineWidth(kwargs.get('width', 2))
 
 def Format(text):
