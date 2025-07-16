@@ -326,7 +326,7 @@ class SuperFitter : public TObject {
     void Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
 
     // Add graph
-    void Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars);
+    void Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Add TF1 function
     void Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult);
@@ -852,18 +852,19 @@ int FindPoint(TGraph *g, double x) {
 }
 
 // Add template function
-void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars) {
+void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars, double unitMult) {
+    printf("Adding graph '%s'\n", gTemplate->GetName());
     auto hObs = this->fObs[idx]->GetHistogram();
     int nBins = hObs->GetNbinsX();
 
     // Add in quadrature the uncertainties of the template to the ones of the data
     for (int iBin = 0; iBin <= nBins; iBin++) {
         double uncData = hObs->GetBinError(iBin + 1);
-        double uncTempl = gTemplate->GetErrorY(FindPoint(gTemplate, hObs->GetBinCenter(iBin + 1)));
+        double uncTempl = gTemplate->GetErrorY(FindPoint(gTemplate, hObs->GetBinCenter(iBin + 1) * unitMult));
         hObs->SetBinError(iBin + 1, std::sqrt(uncData * uncData + uncTempl * uncTempl));
     }
 
-    auto lambda = [gTemplate](double* x, double* p) { return p[0] * gTemplate->Eval(x[0]); };
+    auto lambda = [gTemplate, unitMult](double* x, double* p) { return p[0] * gTemplate->Eval(x[0] * unitMult); };
     functions[idx].push_back({name, lambda, 1});
 
     // Save fit settings
