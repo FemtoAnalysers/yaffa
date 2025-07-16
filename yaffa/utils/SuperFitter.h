@@ -763,7 +763,23 @@ void SuperFitter::Fit(const char* option) {
 
 // Add TF1 function // todo: remove units mult here and put in .py
 void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf::parameter> pars, double unitMult) {
-    auto lambda = [&, fTemplate, unitMult, this](double* x, double* p) {
+        if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
+    }
+    
+    auto lambda = [fTemplate, unitMult](double* x, double* p) {
         return p[0] * fTemplate->Eval(x[0] * unitMult);
     };
     functions[idx].push_back({name, lambda, 1});
@@ -777,7 +793,7 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
             this->fPars[idx].push_back(par);
         }
     }
-};
+}
 
 bool HasConstantBinWidth(TH1* hist, double tol = 1e-9) {
     int nbins = hist->GetNbinsX();
@@ -794,6 +810,22 @@ bool HasConstantBinWidth(TH1* hist, double tol = 1e-9) {
 
 // Add template function
 void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
+    if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
+    }
+
     auto hObs = this->fObs[idx]->GetHistogram();
     int nBins = hObs->GetNbinsX();
     
@@ -851,8 +883,23 @@ int FindPoint(TGraph *g, double x) {
     return idx;
 }
 
-// Add template function
 void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars, double unitMult) {
+    if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
+    }
+
     printf("Adding graph '%s'\n", gTemplate->GetName());
     auto hObs = this->fObs[idx]->GetHistogram();
     int nBins = hObs->GetNbinsX();
@@ -876,7 +923,7 @@ void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::v
             this->fPars[idx].push_back(par);
         }
     }
-};
+}
 
 
 // Draw
