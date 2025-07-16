@@ -45,7 +45,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     hTemplate.SetDirectory(0)
                     fitter.Add(iFit, term['name'], hTemplate, term['params'])
                 elif isinstance(template, TGraphErrors):
-                    fitter.Add(iFit, term['name'], template, term['params'])
+                    fitter.Add(iFit, term['name'], template, term['params'], term.get('unit_mult', 1))
                 elif isinstance(template, TF1):
                     fitter.Add(iFit, term['name'], template, term['params'], 1)
 
