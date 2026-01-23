@@ -76,8 +76,8 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetCanvasBorderMode(0)
     gStyle.SetCanvasBorderSize(0)
     gStyle.SetCanvasColor(0)
-    gStyle.SetCanvasDefH(600)
-    gStyle.SetCanvasDefW(600)
+    gStyle.SetCanvasDefH(500)
+    gStyle.SetCanvasDefW(500)
     gStyle.SetCanvasDefX(topx=10)
     gStyle.SetCanvasDefY(topy=10)
     gStyle.SetCapLinePS(0)
@@ -88,12 +88,12 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetEndErrorSize(0)
     gStyle.SetErrorX(0.5)
     gStyle.SetFrameBorderMode(0)
-    gStyle.SetFrameBorderSize(0)
+    gStyle.SetFrameBorderSize(1)
     gStyle.SetFrameFillColor(1)
     gStyle.SetFrameFillStyle(0)
     gStyle.SetFrameLineColor(1)
     gStyle.SetFrameLineStyle(0)
-    gStyle.SetFrameLineWidth(1)
+    gStyle.SetFrameLineWidth(2)
     gStyle.SetFuncColor(1)
     gStyle.SetFuncStyle(1)
     gStyle.SetFuncWidth(4)
@@ -119,8 +119,12 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     gStyle.SetLegendTextSize(0.04)
     gStyle.SetLegoInnerR(0.5)
     gStyle.SetLineScalePS(3)
-    gStyle.SetNdivisions(kwargs.get('ndivx', 510), 'x')
-    gStyle.SetNdivisions(kwargs.get('ndivy', 510), 'y')
+    if ndiv := kwargs.get('ndiv'):
+        gStyle.SetNdivisions(ndiv, 'x')
+        gStyle.SetNdivisions(ndiv, 'y')
+    else:
+        gStyle.SetNdivisions(kwargs.get('ndivx', 510), 'x')
+        gStyle.SetNdivisions(kwargs.get('ndivy', 510), 'y')
     gStyle.SetNumberContours(20)
     gStyle.SetOptDate(0)
     gStyle.SetOptFile(0)
@@ -179,7 +183,7 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     # TAttLine
     gStyle.SetLineColor(1)
     gStyle.SetLineColorAlpha(1, 1)
-    gStyle.SetLineWidth(1)
+    gStyle.SetLineWidth(2)
 
     # TAttMarker
     gStyle.SetMarkerColor(1)
@@ -206,6 +210,7 @@ def SetObjectStyle(obj, **kwargs):
     obj.SetLineColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetMarkerColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetLineWidth(kwargs.get('width', 2))
+    obj.SetMarkerStyle(kwargs.get('marker', 1))
 
 def Format(text):
     '''

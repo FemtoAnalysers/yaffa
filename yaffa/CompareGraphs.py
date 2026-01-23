@@ -77,8 +77,8 @@ for plot in cfg:
     plot = plot["plot"]
 
     utils.style.SetStyle(
-        ndivx=plot['opt'].get('ndivx', 510),
-        ndivy=plot['opt'].get('ndivy', 510),
+        ndivx=plot['opt'].get('ndivx', 505),
+        ndivy=plot['opt'].get('ndivy', 505),
         maxdigits=plot['opt'].get('maxdigits', 4),
     )
 
@@ -162,6 +162,7 @@ for plot in cfg:
     legx2 = plot['opt']['leg']['posx'][1]
     legy2 = plot['opt']['leg']['posy'][1]
     leg = TLegend(legx1, legy1, legx2, legy2)
+    leg.SetTextSize(plot['opt']['leg'].get('textsize', 0.04))
 
     if 'root' in plot["opt"]["ext"]:
         oFile.cd()
