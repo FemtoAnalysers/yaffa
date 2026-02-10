@@ -161,6 +161,7 @@ def WeightedAverage(inObj, weights):
     counts = weights.Integral(1, weights.GetNbinsX())
     for iBin in range(weights.GetNbinsX()):
         freq = weights.GetBinContent(iBin + 1) / counts
+        y=0
         if isinstance(inObj, (TGraph, TF1)):
             y = inObj.Eval(weights.GetBinCenter(iBin+1))
         elif isinstance(inObj, TH1):
@@ -171,7 +172,7 @@ def WeightedAverage(inObj, weights):
             y = inObj.GetBinContent(iBin)
         else:
             log.critical('Not implemented')
-        avg += freq * y # pylint: disable=E0606
+        avg += freq * y
     return avg
 
 
