@@ -9,6 +9,7 @@
         rebin: 1
         scale: 1
         fillalpha: 1
+        thickness: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
@@ -19,6 +20,7 @@
         rebin: 1
         scale: 1
         fillalpha: 1
+        thickness: 1
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling

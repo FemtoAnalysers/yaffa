@@ -73,10 +73,15 @@ with open(args.cfg, "r") as stream:
     except yaml.YAMLError:
         log.critical('Yaml file not loaded')
 
-utils.style.SetStyle()
 
 for plot in cfg:
     plot = plot["plot"]
+
+    utils.style.SetStyle(
+        ndivx=plot['opt'].get('ndivx', 505),
+        ndivy=plot['opt'].get('ndivy', 505),
+        maxdigits=plot['opt'].get('maxdigits', 4),
+    )
 
     if 'root' in plot["opt"]["ext"]:
         oFile = TFile(f'{os.path.splitext(plot["output"])[0]}.root', 'recreate')
@@ -102,14 +107,22 @@ for plot in cfg:
     legends = []
     drawOpts = []
     for inputCfg in plot["input"]:
-        inFile = TFile(inputCfg['file'])
+        if not inputCfg['file']:
+            drawOpts.append('')
+            inObjs.append(0)
+            legends.append(inputCfg['legend'])
+            continue
 
+        inFile = TFile(inputCfg['file'])
         inObj = utils.io.Load(inFile, inputCfg['name'])
 
         if isinstance(inObj, TH1):
             inObj.SetDirectory(0)
             inObj.Rebin(inputCfg['rebin'])
-            inObj = CopyHistInSubrange(inObj, fx1, fx2)
+
+            # Check for type since TH2 inherits from TH1 so isinstance would return true
+            if type(inObj) is TH1:  # pylint: disable=unidiomatic-typecheck
+                inObj = CopyHistInSubrange(inObj, fx1, fx2)
 
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
@@ -151,6 +164,7 @@ for plot in cfg:
     legx2 = plot['opt']['leg']['posx'][1]
     legy2 = plot['opt']['leg']['posy'][1]
     leg = TLegend(legx1, legy1, legx2, legy2)
+    leg.SetTextSize(plot['opt']['leg'].get('textsize', 0.04))
 
     if 'root' in plot["opt"]["ext"]:
         oFile.cd()
@@ -159,7 +173,8 @@ for plot in cfg:
         if 'root' in plot["opt"]["ext"]:
             inObj.Write()
 
-        inObj.Draw('same' + drawOpt)
+        if inObj:
+            inObj.Draw('same' + drawOpt)
 
         # Compute statistics for hist in the displayed range
         if isinstance(inObj, TH1):
@@ -176,7 +191,7 @@ for plot in cfg:
             if plot['opt']['leg']['sigma']:
                 legend += f';  #sigma={inObj.GetStdDev():.3f}'
         if legend:
-            leg.AddEntry(inObj, legend, 'lp')
+            leg.AddEntry(inObj, legend, 'lp' if inObj else '')
 
     for line in plot['opt']['lines']:
         x1 = plot['opt']['rangex'][0] if(line['coordinates'][0] == 'min') else line['coordinates'][0]
@@ -187,7 +202,7 @@ for plot in cfg:
         inputline.SetLineColor(utils.style.GetColor(line['color']))
         inputline.SetLineWidth(line['thickness'])
         inputline.Draw("same")
-        leg.AddEntry(inputline, utils.style.SmartLabel(line['legendtag']),"l")
+        leg.AddEntry(inputline, utils.style.SmartLabel(line['legendtag']), 'l')
 
     leg.SetHeader(utils.style.SmartLabel(plot['opt']['leg']['header']), 'C')
     leg.Draw()
@@ -300,7 +315,7 @@ for plot in cfg:
                     xUnc = inObj.GetErrorX(iPoint)
                     yUnc = inObj.GetErrorY(iPoint)
 
-                    hRelUnc.SetPoint(iPoint, x,  100 * yUnc/y)
+                    hRelUnc.SetPoint(iPoint, x, 100 * yUnc/y)
                     hRelUnc.SetPointError(iPoint, xUnc, 0)
             elif isinstance(inObj, TGraphAsymmErrors):
                 hRelUnc = TGraphAsymmErrors(1)
@@ -311,7 +326,7 @@ for plot in cfg:
                     xUncUpper = inObj.GetErrorXhigh(iPoint)
                     xUncLower = inObj.GetErrorXlow(iPoint)
 
-                    hRelUnc.SetPoint(iPoint, x,  100 * yUnc/y)
+                    hRelUnc.SetPoint(iPoint, x, 100 * yUnc/y)
                     hRelUnc.SetPointError(iPoint, xUncLower, xUncUpper, 0, 0)
             else:
                 log.error('Relative uncertainties for type %s are not implemented. Skipping this object', type(inObj))
@@ -352,16 +367,16 @@ for plot in cfg:
                             pull = delta / inObj.GetBinError(iBin + 1)
                             hPulls.SetBinContent(iBin + 1, pull)
                             hPulls.SetBinError(iBin + 1, 0)
-                elif isinstance(inObj, (TGraphAsymmErrors, TGraphErrors)) :
+                elif isinstance(inObj, (TGraphAsymmErrors, TGraphErrors)):
                     hPulls = TGraphErrors(1)
                     for iPoint in range(inObj.GetN()):
                         x = inObj.GetPointX(iPoint)
                         y = inObj.GetPointY(iPoint)
                         yUnc = inObj.GetErrorY(iPoint)
 
-                        pull =  (y - refObj.Eval(x)) / yUnc
+                        pull = (y - refObj.Eval(x)) / yUnc
 
-                        hPulls.SetPoint(iPoint, x,  pull)
+                        hPulls.SetPoint(iPoint, x, pull)
                         hPulls.SetPointError(iPoint, 0, 0)
                 else:
                     log.error('Pulls for type %s are not implemented. Skipping this object', type(inObj))

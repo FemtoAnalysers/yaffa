@@ -171,7 +171,7 @@ def WeightedAverage(inObj, weights):
             y = inObj.GetBinContent(iBin)
         else:
             log.critical('Not implemented')
-        avg += freq * y # pylint: disable=possibly-used-before-assignment
+        avg += freq * y # pylint: disable=E0606
     return avg
 
 
