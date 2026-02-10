@@ -11,6 +11,8 @@ python3 ComputeRawCF.py cfg.yml
 import os
 import re
 import argparse
+import os
+import re
 import yaml
 from rich import print # pylint: disable=redefined-builtin
 
@@ -68,8 +70,6 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
                 iMt += 1
 
     return hDistr
-
-
 
 
 def LoadMultVsKstarFemtoDream(inFile, **kwargs):
@@ -158,6 +158,25 @@ def LoadMultVsKstar(inFile, **kwargs):
     if f'HMResults{suffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
         hSE, hME = LoadMultVsKstarFemtoDream(inFile, **kwargs)
         hAnc = LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs)
+        for comb in hSE.keys():
+            hSE[comb].update(hAnc[comb])
+
+    # Comment this old section of the code in order to simplify the script
+    # elif comb in GetKeyNames(inFile): # Make correlation functions from ALICE3 simulations
+    #     # The histograms are casted to TH1D with TH1::Copy to avoid NotImplementedError when computing hSE/hME
+    #     hSE[comb][region] = TH1D()
+    #     Load(inFile, f'{comb}/hSE').Copy(hSE[comb][region])
+
+    #     # The histograms are casted to TH1D with TH1::Copy to avoid NotImplementedError when computing hSE/hME
+    #     hME[comb][region] = TH1D()
+    #     Load(inFile, f'{comb}/hME').Copy(hME[comb][region])
+
+    #     # Mult reweighting not implemented. Keep dummy histogram for now
+    #     nbins = hSE[comb][region].GetNbinsX()
+    #     xMin = hSE[comb][region].GetXaxis().GetXmin()
+    #     xMax = hSE[comb][region].GetXaxis().GetXmax()
+    #     hSE[comb][region] = TH2D('hSEMult', '', nbins, xMin, xMax, 200, 0, 200)
+    #     hME[comb][region] = TH2D('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
 
         if hAnc:
             for comb in hSE:
@@ -171,6 +190,7 @@ def LoadMultVsKstar(inFile, **kwargs):
     if not hME:
         raise ValueError('Mixed Event could not be loaded properly')
     return hSE, hME
+
 
 def Reweight(hSE, hME, normRange = None, multRange = None, name=None):
     '''reweight'''
@@ -406,6 +426,7 @@ def main(cfg): # pylint: disable=too-many-statements
     hFemtoPairs.Write()
     oFile.Close()
     print(f'output saved in {oFileName}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -7,6 +7,7 @@ import os
 import yaml
 from rich import print  # pylint: disable=redefined-builtin
 import numpy as np
+import numexpr
 
 # pylint: disable=no-name-in-module
 from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1, gROOT
@@ -126,11 +127,12 @@ for plot in cfg:
             if inputCfg['normalize']:
                 inObj.Scale(1./inObj.Integral())
             if inputCfg['scale']:
-                inObj.Scale(inputCfg['scale'])
+                inObj.Scale(numexpr.evaluate(str(inputCfg['scale'])))
             if inputCfg['normalizecf']:
                 inObj.Scale(inputCfg['normalizecf'])
 
         inObj.SetLineColor(utils.style.GetColor(inputCfg['color']))
+        inObj.SetFillColorAlpha(utils.style.GetColor(inputCfg['color']), inputCfg['fillalpha'])
         inObj.SetMarkerColor(utils.style.GetColor(inputCfg['color']))
         inObj.SetLineWidth(inputCfg.get('thickness', 1))
         if isinstance(inObj, TH1):
@@ -206,7 +208,11 @@ for plot in cfg:
     leg.Draw()
 
     # Compute ratio wrt the first obj
-    if plot['ratio']['enable']:
+    while plot['ratio']['enable']: # use if-equivallent while scope to be able to control when to exit
+        if len(inObjs) < 2:
+            log.error("Not enough objects for making a ratio. Skipping ratio plot")
+            break
+
         pad = cPlot.cd(panels['ratio'])
         pad.SetLogx(plot['ratio']['logx'])
         pad.SetLogy(plot['ratio']['logy'])
@@ -224,6 +230,11 @@ for plot in cfg:
                 hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
                 hRatio.Rebin(plot['ratio']['rebin'])
                 hRatio.Divide(hDen)
+                hRatio.DrawCopy('same pe')
+        elif isinstance(inObj, TGraphErrors):
+            for inObj in inObjs[1:]:
+                hRatio = utils.analysis.Divide(inObj, hDen)
+                hRatio.SetName(f'{inObj.GetName()}_ratio')
                 hRatio.Draw('same pe')
         else:
             log.error('Ratio for type %s is not implemented. Skipping this object', type(inObj))
@@ -236,6 +247,8 @@ for plot in cfg:
         line.SetLineColor(13)
         line.SetLineStyle(7)
         line.Draw('same pe')
+
+        break
 
     if plot['spread']['enable']:
         # Calcualate the spread around the first oject

@@ -1,10 +1,13 @@
 '''
 Module that contains various functions useful for the post-processing of the data.
 '''
+import math
 
 import numpy as np
 
-from ROOT import TH1F, TH2D, TGraph  # pylint: disable=import-error
+from ROOT import TH1F, TH2D, TGraph, TGraphErrors, TH1, TH2, TF1 # pylint: disable=import-error
+
+from yaffa import logger as log
 
 def GetSpread(objects):
     '''
@@ -93,33 +96,87 @@ def ChangeUnits2D(hist, multiplier, name=None, title=''):
     return hNew
 
 
-def WeightedAverage(graph, weights):
+def IsBinningCompatible(*args): # pylint: disable=inconsistent-return-statements
+    '''
+    Checks that the bin width is compatible between:
+     * x- and y-axes for a TH2
+     * x-axes for two TH1
+
+    Parameters
+    ----------
+    args : tuple
+        If only one histogram is given it is assumed that it is a TH2, and this function checks if the bin width of the
+        x- and y-axes are the same. If two histograms are given, one is expected to be a TH1 and the other can be a TH1
+        or TH2. In this case it will be checked that the bin width of the TH1 matches the one of the other histogram.
+
+    Returns
+    -------
+    bool
+        True if the bin width is the same
+    '''
+
+    if len(args) == 1:
+        hMatrix = args[0]
+        if isinstance(hMatrix, TH2):
+            bwx = hMatrix.GetXaxis().GetBinWidth(1)
+            bwy = hMatrix.GetYaxis().GetBinWidth(1)
+            return abs(bwx - bwy) < 1.e-6 * bwx
+        log.critical('Binning check not implemented for class %s', type(hMatrix))
+    elif len(args) == 2:
+        h1 = args[0]
+        h2 = args[0]
+
+        if isinstance(h1, TH1) and isinstance(h2, TH1):
+            bw1 = h1.GetBinWidth(1)
+            bw2 = h2.GetBinWidth(1)
+            return abs(bw1 - bw2) < 1.e-6 * bw1
+        if isinstance(h1, TH2) and isinstance(h2, TH1):
+            bw1 = hMatrix.GetXaxis().GetBinWidth(1)
+            bw2 = h2.GetBinWidth(1)
+            return IsBinningCompatible(h1) and abs(bw1 - bw2) > 1.e-6 * bw1
+        if isinstance(h1, TH2) and isinstance(h2, TH1):
+            return IsBinningCompatible(h2, h1)
+        log.critical('Not implemented for types %s and %s', type(h1), type(h2))
+    log.critical('Not implemented for more than two histograms')
+
+
+def WeightedAverage(inObj, weights):
     '''
     Compute the weighted average of a graph with an histogram (TH1)
 
     Parameters
     ----------
-    graph : TGraph
+    inObj : TGraph, TH1, TF1
         The graph to be reweighted
     weights : TH1
         The weights to be applied
 
     Returns
     -------
-    TGraph
-        The reweighted graph
+    float
+        The weighted average
     '''
 
-    smeared = 0
+    avg = 0
     counts = weights.Integral(1, weights.GetNbinsX())
     for iBin in range(weights.GetNbinsX()):
         freq = weights.GetBinContent(iBin + 1) / counts
-        y = graph.Eval(weights.GetBinCenter(iBin+1))
-        smeared += freq * y
-    return smeared
+        y=0
+        if isinstance(inObj, (TGraph, TF1)):
+            y = inObj.Eval(weights.GetBinCenter(iBin+1))
+        elif isinstance(inObj, TH1):
+            if inObj.GetNbinsX() != weights.GetNbinsX():
+                log.critical('Incompatible binning: %s and %s have %s and %s bins respectively', \
+                          inObj, weights, inObj.GetNbinsX(), weights.GetNbinsX())
+            iBin = inObj.FindBin(weights.GetBinCenter(iBin+1))
+            y = inObj.GetBinContent(iBin)
+        else:
+            log.critical('Not implemented')
+        avg += freq * y
+    return avg
 
 
-def SmearGraph(graph, matrix, name=None, title=''):
+def SmearGraph(graph, matrix, name=None, title=''): # pylint: disable=inconsistent-return-statements
     '''
     Smear a graph with a smearing matrix that has:
      x axis: true variable
@@ -143,26 +200,120 @@ def SmearGraph(graph, matrix, name=None, title=''):
         The smeared graph
     '''
 
+    if isinstance(graph, TGraph):
+        gSmeared = TGraph(1)
+        if name:
+            gSmeared.SetName(name)
+        gSmeared.SetTitle(title)
 
-    gSmeared = TGraph(1)
-    if name:
-        gSmeared.SetName(name)
-    gSmeared.SetTitle(title)
+        iPoint = 0
+        for iBin in range(matrix.GetNbinsX()):
+            hProj = matrix.ProjectionY(f'hProj_{iBin+1}', iBin+1, iBin+1)
+            counts = hProj.Integral(1, hProj.GetNbinsX())
 
-    iPoint = 0
-    for iBin in range(matrix.GetNbinsX()):
-        hProj = matrix.ProjectionY(f'hProj_{iBin+1}', iBin+1, iBin+1)
-        counts = hProj.Integral(1, hProj.GetNbinsX())
+            if counts < 1:
+                continue
 
-        if counts < 1:
-            continue
+            x = matrix.GetXaxis().GetBinCenter(iBin+1)
+            if x > graph.GetPointX(graph.GetN() - 1):
+                break
 
-        x = matrix.GetXaxis().GetBinCenter(iBin+1)
-        if x > graph.GetPointX(graph.GetN() - 1):
-            break
+            ySmear = WeightedAverage(graph, hProj)
+            gSmeared.SetPoint(iPoint, x, ySmear)
+            iPoint += 1
 
-        ySmear = WeightedAverage(graph, hProj)
-        gSmeared.SetPoint(iPoint, x, ySmear)
-        iPoint += 1
+        return gSmeared
 
-    return gSmeared
+    if isinstance(graph, TH1):
+        if not IsBinningCompatible(graph, matrix):
+            bx = graph.GetNbinsX()
+            xmin = graph.GetXaxis().GetXmin()
+            xmax = graph.GetXaxis().GetXmax()
+            bw = graph.GetBinWidth(1)
+            log.error(f'Binning of {graph}: nbins=%s xmin=%s xmax=%s bw=%s', bx, xmin, xmax, bw)
+            bx = matrix.GetNbinsX()
+            by = matrix.GetNbinsY()
+            xmin = matrix.GetXaxis().GetXmin()
+            xmax = matrix.GetXaxis().GetXmax()
+            ymin = matrix.GetYaxis().GetXmin()
+            ymax = matrix.GetYaxis().GetXmax()
+            bwx = matrix.GetXaxis().GetBinWidth(1)
+            bwy = matrix.GetYaxis().GetBinWidth(1)
+            log.error('Binning of %s: nbins=(%s, %s) xrange=(%s, %s) yrange=(%s, %s), bw=(%s, %s)', \
+                      matrix, bx, by, xmin, xmax, ymin, ymax, bwx, bwy)
+            log.critical('Binning is not compatible')
+
+        hSmeared = graph.Clone(f'{graph}')
+        hSmeared.Reset()
+        if name:
+            hSmeared.SetName(name)
+        for iBin in range(matrix.GetNbinsX()):
+            hProj = matrix.ProjectionY(f'hProj_{iBin+1}', iBin+1, iBin+1)
+            hProj.Scale(1. / hProj.GetEntries())
+            hSmeared += hProj * graph.GetBinContent(iBin + 1)
+        for iBin in range(hSmeared.GetNbinsX()):
+            bc = graph.GetBinContent(iBin+1)
+            be = graph.GetBinError(iBin+1)
+            hSmeared.SetBinError(iBin + 1, hSmeared.GetBinContent(iBin + 1) * be / bc)
+
+        return hSmeared
+    log.critical("Smearing for type %s is not implemented", type(graph))
+
+def Divide(num, den): #pylint: disable=inconsistent-return-statements
+    '''
+    Divide two quantities.
+    Implemented types:
+
+    +---------------+-----+-------------+
+    | den \\ num    | TH1 | TGraphErrors |
+    +=========+=======+=================+
+    | TH1          |  ✘  | ✔            |
+    +---------+-------+-----------------+
+    | TGraphErrors |  ✘  | ✘            |
+    +---------+-------+-----------------+
+
+    Parameters
+    ----------
+    num : ROOT object
+        numerator.
+    den : ROOT object
+        denominator.
+
+    Returns
+    -------
+    TH1
+        the division between num and den.
+    '''
+
+    if isinstance(num, TGraphErrors):
+        if isinstance(den, TH1):
+            nBins = den.GetNbinsX()
+            if nBins != num.GetN():
+                log.critical("You you are trying to divide two objects with different number of bins/points.")
+            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
+                log.critical("The binnings are not aligned.")
+
+            hRatio = den.Clone(f'{den.GetName()}_ratio')
+            hRatio.Reset()
+
+            for iBin in range(nBins):
+                x = num.GetPointX(iBin)
+                y = num.GetPointY(iBin)
+                ey = num.GetErrorY(iBin)
+
+                bin_idx = den.FindBin(x)
+                binContent = den.GetBinContent(bin_idx)
+                binError = den.GetBinError(bin_idx)
+
+                if binContent > 0 and y > 0:
+                    ratio = y / binContent
+                    ratioUnc = ratio * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+
+                    hRatio.SetBinContent(iBin + 1, ratio)
+                    hRatio.SetBinError(iBin + 1, ratioUnc)
+                else:
+                    hRatio.SetBinContent(iBin + 1, 0)
+                    hRatio.SetBinError(iBin + 1, 0)
+
+            return hRatio
+    log.critical("Division of %s by %s is not implemented.", type(num), type(den))
