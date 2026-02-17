@@ -32,7 +32,7 @@ def Load(container, path):
     # Check that the input file is OK
     path = os.path.normpath(path)
     if container == None:  # pylint: disable=singleton-comparison
-        yaffa.logger.critical('The container %s is NULL', container.GetName())
+        yaffa.logger.critical('The container %s is NULL', path.split('/')[0])
 
     # Start to extract
     for name in path.split(os.sep):
