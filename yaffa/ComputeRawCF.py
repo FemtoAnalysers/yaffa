@@ -158,8 +158,6 @@ def LoadMultVsKstar(inFile, **kwargs):
     if f'HMResults{suffix}' in GetKeyNames(inFile): # Make correlation functions from FemtoDream
         hSE, hME = LoadMultVsKstarFemtoDream(inFile, **kwargs)
         hAnc = LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs)
-        for comb in hSE.keys():
-            hSE[comb].update(hAnc[comb])
 
     # Comment this old section of the code in order to simplify the script
     # elif comb in GetKeyNames(inFile): # Make correlation functions from ALICE3 simulations
@@ -179,7 +177,7 @@ def LoadMultVsKstar(inFile, **kwargs):
     #     hME[comb][region] = TH2D('hMEMult', '', nbins, xMin, xMax, 200, 0, 200)
 
         if hAnc:
-            for comb in hSE:
+            for comb in hSE.keys():
                 hSE[comb].update(hAnc[comb])
     else:
         hSE, hME = LoadMultVsKstarPythia(inFile, **kwargs)
@@ -395,7 +393,9 @@ def main(cfg): # pylint: disable=too-many-statements
             hCF = norm * hSE[comb][region] / hME[comb][regionME]
             hCFrew = normRew * hSE[comb][region] / hMErew[comb][regionME]
 
-            oFile.mkdir(f'{comb}/{region}')
+            if not oFile.Get(f'{comb}/{region}'):
+                oFile.mkdir(f'{comb}/{region}')
+
             oFile.cd(f'{comb}/{region}')
 
             hSE[comb][region].SetName('hSE')
