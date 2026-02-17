@@ -14,17 +14,18 @@ import argparse
 import os
 import re
 import yaml
+import numpy as np
 from rich import print # pylint: disable=redefined-builtin
 
-from ROOT import TFile, TH1D, TH2D
+from ROOT import TFile, TCanvas, TH1D, TH2D, TDatabasePDG
 
 from yaffa import logger as log
 from yaffa.utils.io import Load, GetKeyNames
-
+from yaffa.utils import MassFitter
 
 def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
     '''Load Mult vs k* ancestors from FD'''
-    suffix = kwargs['suffix']
+    suffix = kwargs['runsuffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
 
@@ -75,7 +76,7 @@ def LoadMultVsKstarAncestorFemtoDream(inFile, **kwargs):
 def LoadMultVsKstarFemtoDream(inFile, **kwargs):
     '''Load Mult vs k* from FD'''
 
-    suffix = kwargs['suffix']
+    suffix = kwargs['runsuffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
 
@@ -124,7 +125,7 @@ def LoadMultVsKstarFemtoDream(inFile, **kwargs):
 def LoadMultVsKstarPythia(inFile, **kwargs):
     '''Load Mult vs k* from Pythia simulations'''
     
-    suffix = kwargs['suffix']
+    suffix = kwargs['runsuffix']
     regions = kwargs['regions']
     combs = kwargs['combs']
 
@@ -149,7 +150,7 @@ def LoadMultVsKstarPythia(inFile, **kwargs):
 
 def LoadMultVsKstar(inFile, **kwargs):
     ''' Load Mult vs k*'''
-    suffix = kwargs['suffix']
+    suffix = kwargs['runsuffix']
     hSE = {}
     hME = {}
 
@@ -259,8 +260,8 @@ def Combine(hDistr, recipes):
         recipes dict(list(str)): instructions on how to combine the histograms
     '''
 
-    print(recipes)
-    print(hDistr)
+    # print(recipes)
+    # print(hDistr)
     
     for target, (comb1, comb2) in recipes.items():
         hDistr[target] = {}
@@ -270,13 +271,175 @@ def Combine(hDistr, recipes):
 
     return hDistr
 
-def LoadDistributions(inFile, oFile, combs, regions, method, cfg):
-    if method == "standard":
-        # Load 2D Mult-vs-kstar same- and mixed-event distributions
-        log.info("Loading Mult vs k* histograms")
-        hSEmultk, hMEmultk = LoadMultVsKstar(inFile, suffix=cfg['runsuffix'], regions=regions, combs=combs)
+def LoadFemtoDreamResults(directory, combs, pattern):
+    hResults = {}
+    for comb in combs:
+        p1, p2 = comb[1:]
+        hResults[comb] = Load(directory, f'Particle{p1}_Particle{p2}/{pattern}_Particle{p1}_Particle{p2}')
+
+    return hResults
+
+# Save canvases
+def SaveCanvasList(canvases, name):
+    canvases[0].SaveAs(name + '[')
+    for canvas in canvases:
+        canvas.cd()
+        canvas.SaveAs(name)
+    canvases[0].SaveAs(name + ']')
+
+
+def ExtractYieldsVsKstar(hInvMassVsKstar, suffix, fitrange):
+    pdg = TDatabasePDG.Instance()
+    massLambda = pdg.GetParticle(3122).Mass()
+    massMin = massLambda - 0.004
+    massMax = massLambda + 0.004
+    
+    nPadsX = 6
+    nPadsY = 5
+    nPads = nPadsX * nPadsY
+
+    qa = {}
+    hSignal = {}
+
+    for comb, hist in hInvMassVsKstar.items():
+        nKstarBins = hist.GetNbinsX()        
+
+        # Init QA objects
+        h = hist.ProjectionX(f'h')
+        h.Reset()
+        hSignal[comb] = {}
+        qa[comb] = {}
+        qa[comb]['sgn'] = {
+            'sgn': h.Clone('hSignal'),
+            'bkg': h.Clone('hBackground'),
+            'purity': h.Clone('hPurity'),
+            'SoverB': h.Clone('hSoverB'),
+            'significance': h.Clone('hSignificance'),
+            'Chi2NDF': h.Clone('hChi2NDF'),
+            'mean': h.Clone('hMean'),
+            'sigma': h.Clone('hSigma'),
+            'gamma': h.Clone('hGamma'),
+            'bkgpar0': h.Clone('hBkgPar0'),
+            'bkgpar1': h.Clone('hBkgPar1'),
+            'canvases': {
+                'fits': [],
+                'residuals': [],
+                'signals': [],
+            }
+        }
         
-        log.info("Computing mult-reweighted ME")
+        # Make projections
+        hInvMasses = []
+        for iInvMassBin in range(nKstarBins):
+            hInvMasses.append(hist.ProjectionY(f'cFit_{comb}_{suffix}_{iInvMassBin}', iInvMassBin + 1, iInvMassBin + 1))
+
+        # Fitting
+        fitters = []
+        for iKstar, hInvMass in enumerate(hInvMasses):
+            kStarMin = hist.GetXaxis().GetBinLowEdge(iKstar + 1)
+            kStarMax = hist.GetXaxis().GetBinLowEdge(iKstar + 2)
+            log.info("Fitting invariant mass for %s %s %.3f < k* < %.3f", comb, suffix, kStarMin, kStarMax)
+
+            fitters.append(MassFitter(hInvMass, config['sgn_func'], config['bkg_func'], *fitrange))
+            fitters[-1].SetSignalWindow(massMin, massMax)
+            fitters[-1].SetTitle(f'{kStarMin*1000:.0f} < #it{{k}}* < {kStarMax*1000:.0f} MeV/#it{{c}};#it{{M}}(p#pi^{{#minus}}) (GeV/#it{{c}});Counts')
+
+            fitters[-1].Prefit([1.115683 - 0.008, 1.115683 + 0.008])
+            fitters[-1].Fit()
+
+        # Drawing
+        cFits = []
+        for iFitter, fitter in enumerate(fitters):
+            if (iFitter % nPads == 0):
+                cFits.append(TCanvas(f'cFit{iFitter // nPads}', '', 1000, 800))
+                cFits[-1].SetBottomMargin(0.15)
+                cFits[-1].SetLeftMargin(0.15)
+                cFits[-1].Divide(nPadsX, nPadsY, 0.01, 0.01)
+
+            pad = cFits[-1].cd(iFitter % nPads + 1)
+            fitter.Draw(pad)
+        SaveCanvasList(cFits, f'cFits_{comb}_{suffix}.pdf')
+
+        cResiduals = []
+        for iFitter, fitter in enumerate(fitters):
+            if (iFitter % nPads == 0):
+                cResiduals.append(TCanvas(f'cResiduals{iFitter // nPads}', '', 1000, 800))
+                cResiduals[-1].SetBottomMargin(0.15)
+                cResiduals[-1].SetLeftMargin(0.15)
+                cResiduals[-1].Divide(nPadsX, nPadsY, 0.01, 0.01)
+
+            pad = cResiduals[-1].cd(iFitter % nPads + 1)
+            fitter.DrawResiduals(pad)
+        SaveCanvasList(cResiduals, f'cResiduals_{comb}_{suffix}.pdf')
+
+
+        # Draw Signal
+        cSignal = []
+        for iFitter, fitter in enumerate(fitters):
+            if (iFitter % nPads == 0):
+                cSignal.append(TCanvas(f'cSignal{iFitter // nPads}', '', 1000, 800))
+                cSignal[-1].SetBottomMargin(0.15)
+                cSignal[-1].SetLeftMargin(0.15)
+                cSignal[-1].Divide(nPadsX, nPadsY, 0.01, 0.01)
+
+            pad = cSignal[-1].cd(iFitter % nPads + 1)
+            fitter.DrawSignal(pad)
+        SaveCanvasList(cSignal, f'cSignal_{comb}_{suffix}.pdf')
+
+
+        hSignal[comb]['sgn'] = h.Clone('hSignal')
+        
+        for iFitter, fitter in enumerate(fitters):
+            signal, signalUnc = fitter.GetSignal()
+            bkg, bkgUnc = fitter.GetBackground()
+            fitFunc = fitter.GetFitFunc()
+            sgnFunc = fitter.GetSgnFunc()
+            bkgFunc = fitter.GetBkgFunc()
+
+            # Set values
+            hSignal[comb]['sgn'].SetBinContent(iFitter + 1, signal)
+            hSignal[comb]['sgn'].SetBinError(iFitter + 1, signalUnc)
+            qa[comb]['sgn']['sgn'].SetBinContent(iFitter + 1, signal)
+            qa[comb]['sgn']['bkg'].SetBinContent(iFitter + 1, bkg)
+            qa[comb]['sgn']['purity'].SetBinContent(iFitter + 1, signal / (signal + bkg))
+            qa[comb]['sgn']['SoverB'].SetBinContent(iFitter + 1, signal / bkg)
+            qa[comb]['sgn']['significance'].SetBinContent(iFitter + 1, signal / np.sqrt(signal + bkg))
+            qa[comb]['sgn']['Chi2NDF'].SetBinContent(iFitter + 1, fitFunc.GetChisquare() / fitFunc.GetNDF())
+            qa[comb]['sgn']['mean'].SetBinContent(iFitter + 1, sgnFunc.GetParameter(1))
+            qa[comb]['sgn']['sigma'].SetBinContent(iFitter + 1, sgnFunc.GetParameter(2))
+            if config['sgn_func'] == 'voigt':
+                qa[comb]['sgn']['gamma'].SetBinContent(iFitter + 1, sgnFunc.GetParameter(3))
+            qa[comb]['sgn']['bkgpar0'].SetBinContent(iFitter + 1, bkgFunc.GetParameter(0))
+            qa[comb]['sgn']['bkgpar1'].SetBinContent(iFitter + 1, bkgFunc.GetParameter(1))
+            
+            # set uncertainties
+            qa[comb]['sgn']['sgn'].SetBinError(iFitter + 1, signalUnc)
+            qa[comb]['sgn']['bkg'].SetBinError(iFitter + 1, bkgUnc)
+            qa[comb]['sgn']['purity'].SetBinError(iFitter + 1, 0) # TODO fix
+            qa[comb]['sgn']['SoverB'].SetBinError(iFitter + 1, 0) # TODO fix
+            qa[comb]['sgn']['significance'].SetBinError(iFitter + 1, 0) # TODO fix
+            qa[comb]['sgn']['Chi2NDF'].SetBinError(iFitter + 1, 0) # TODO fix
+            qa[comb]['sgn']['mean'].SetBinError(iFitter + 1, sgnFunc.GetParError(1))
+            qa[comb]['sgn']['sigma'].SetBinError(iFitter + 1, sgnFunc.GetParError(2))
+            if config['sgn_func'] == 'voigt':
+                qa[comb]['sgn']['gamma'].SetBinError(iFitter + 1, sgnFunc.GetParError(3))
+            qa[comb]['sgn']['bkgpar0'].SetBinError(iFitter + 1, bkgFunc.GetParError(0))
+            qa[comb]['sgn']['bkgpar1'].SetBinError(iFitter + 1, bkgFunc.GetParError(1))
+
+        qa[comb]['sgn']['canvases']['fits'] = [c.Clone() for c in cFits]
+        qa[comb]['sgn']['canvases']['residuals'] = [c.Clone() for c in cResiduals]
+        qa[comb]['sgn']['canvases']['signals'] = [c.Clone() for c in cSignal]
+
+    return hSignal, qa
+    
+    
+def LoadDistributions(inFile, oFile, combs, regions, method, cfg):
+    if method == 'standard':
+        # Load 2D Mult-vs-kstar same- and mixed-event distributions
+        log.info('Loading Mult vs k* histograms')
+        hSEmultk, hMEmultk = LoadMultVsKstar(inFile, runsuffix=cfg['runsuffix'], regions=regions, combs=combs)
+        
+        log.info('Computing mult-reweighted ME')
         hMErew = {}
         hWeightsRew = {}
         for comb in combs:
@@ -286,13 +449,13 @@ def LoadDistributions(inFile, oFile, combs, regions, method, cfg):
             hMErew[comb] = {}
             hWeightsRew[comb] = {}
             for region in hSEmultk[comb]:
-                log.info("Reweight for %s %s", comb, region)
+                log.info('Reweight for %s %s', comb, region)
                 regionME = region.replace('/Common', '').replace('/NonCommon', '')
                 log.info('reweight %s %s', comb, region)
                 hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
 
                 for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
-                    log.info("Slice: %d", iSlice)
+                    log.info('Slice: %d', iSlice)
                     
                     oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
                     oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
@@ -306,13 +469,53 @@ def LoadDistributions(inFile, oFile, combs, regions, method, cfg):
                 hMErew[comb][region] = hMERew
                 hWeightsRew[comb][region] = hWeights
 
-                
-        log.info("Projecting 2D histograms")
+        log.info('Projecting 2D histograms')
         hSE = ProjectDistr(hSEmultk)
         hME = ProjectDistr(hMEmultk)
 
         return hSE, hME, hMErew, hWeightsRew
 
+    if method == 'massfit':
+        # Load 2D Mult-vs-kstar same- and mixed-event distributions
+        log.info('Computing SE and ME via fits to invariant mass')
+
+        dir = Load(inFile, f'HMResults{cfg["runsuffix"]}/HMResults{cfg["runsuffix"]}')
+        hInvMassVsKstarSE = LoadFemtoDreamResults(dir, combs, 'SERelKMinvDist')
+        hInvMassVsKstarME = LoadFemtoDreamResults(dir, combs, 'MERelKMinvDist')
+
+        hSE, qaSE = ExtractYieldsVsKstar(hInvMassVsKstarSE, 'SE', cfg['fitrange'])
+        hME, qaME = ExtractYieldsVsKstar(hInvMassVsKstarME, 'ME', cfg['fitrange'])
+
+        for comb in qaSE:
+            for region in qaSE[comb]:
+                oFile.mkdir(f'{comb}/{region}/qa/se')
+
+                for item in qaSE[comb][region]:
+                    if item == 'canvases':
+                        oFile.mkdir(f'{comb}/{region}/qa/se/fits')
+                        oFile.cd(f'{comb}/{region}/qa/se/fits')
+                        for key, plotList in qaSE[comb][region][item].items():
+                            [plot.Write() for plot in plotList] # if I write here it saves hframes
+                    else:    
+                        oFile.cd(f'{comb}/{region}/qa/se')
+                        qaSE[comb][region][item].Write()
+
+        for comb in qaME:
+            for region in qaME[comb]:
+                oFile.mkdir(f'{comb}/{region}/qa/me')
+                for item in qaME[comb][region]:
+                    if item == 'canvases':
+                        oFile.mkdir(f'{comb}/{region}/qa/me/fits')
+                        oFile.cd(f'{comb}/{region}/qa/me/fits')
+                        for key, plotList in qaME[comb][region][item].items():
+                            [plot.Write() for plot in plotList] # if I write here it saves hframes
+                    else:    
+                        oFile.cd(f'{comb}/{region}/qa/me')
+                        qaME[comb][region][item].Write()
+
+        return hSE, hME, None, None
+
+    log.fatal('Method "%s" is not implemented', method)
 
 def main(cfg): # pylint: disable=too-many-statements
     '''
@@ -352,26 +555,35 @@ def main(cfg): # pylint: disable=too-many-statements
 
     hSE, hME, hMErew, hWeightsRew = LoadDistributions(inFile, oFile, combs, regions, cfg['method'], cfg)
 
+    print('Same-event histograms:')
     print(hSE)
+    print('Mixed-event histograms:')
     print(hME)
 
     hSE = Combine(hSE, sumRecipe)
     hME = Combine(hME, sumRecipe)
-    hMErew = Combine(hMErew, sumRecipe)
-    hWeightsRew = Combine(hWeightsRew, sumRecipe)
+    if hMErew:
+        hMErew = Combine(hMErew, sumRecipe)
+        hWeightsRew = Combine(hWeightsRew, sumRecipe)
 
+    print('Same-event histograms combined:')
     print(hSE)
+    print('Mixed-event histograms combined:')
     print(hME)
 
     # Compute the CF and write to file
     for iComb, comb in enumerate(hSE):
         for region in hSE[comb]:
+            float(cfg['binwidth'])
+            hSE[comb][region].GetBinWidth(1) * 1000
+            float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000)
             rebin = round(float(cfg['binwidth']) / (hSE[comb][region].GetBinWidth(1) * 1000))
             hSE[comb][region].Rebin(rebin)
             # remove '/Common' and '/NonCommon' since the ME is the same as the inclusive ancestor
             regionME = region.replace('/Common', '').replace('/NonCommon', '')
             hME[comb][regionME].Rebin(rebin)
-            hMErew[comb][regionME].Rebin(rebin)
+            if hMErew:
+                hMErew[comb][regionME].Rebin(rebin)
 
             # Count number of pairs in the femto region
             regionBin = hFemtoPairs.GetXaxis().FindBin(region)
@@ -382,7 +594,7 @@ def main(cfg): # pylint: disable=too-many-statements
 
             if cfg['norm'] is None:  # if not specified, normalize to the yields
                 firstBinNorm = 1
-                lastBinNorm = hMErew[comb][region].GetNbinsX()
+                lastBinNorm = hME[comb][region].GetNbinsX()
             elif isinstance(cfg['norm'], list):
                 firstBinNorm = hSE[comb][region].FindBin(cfg['norm'][0]*1.0001)
                 lastBinNorm = hSE[comb][region].FindBin(cfg['norm'][1]*0.9999)
@@ -391,13 +603,15 @@ def main(cfg): # pylint: disable=too-many-statements
 
             YieldSE = hSE[comb][region].Integral(firstBinNorm, lastBinNorm)
             norm = hME[comb][regionME].Integral(firstBinNorm, lastBinNorm) / YieldSE
-            normRew = hMErew[comb][regionME].Integral(firstBinNorm, lastBinNorm) / YieldSE
+            if hMErew:
+                normRew = hMErew[comb][regionME].Integral(firstBinNorm, lastBinNorm) / YieldSE
 
             hSE[comb][region].Sumw2()
             hME[comb][regionME].Sumw2() # Just to trigger the same draw option as for hSE
 
             hCF = norm * hSE[comb][region] / hME[comb][regionME]
-            hCFrew = normRew * hSE[comb][region] / hMErew[comb][regionME]
+            if hMErew:
+                hCFrew = normRew * hSE[comb][region] / hMErew[comb][regionME]
 
             if not oFile.Get(f'{comb}/{region}'):
                 oFile.mkdir(f'{comb}/{region}')
@@ -412,21 +626,23 @@ def main(cfg): # pylint: disable=too-many-statements
             hME[comb][regionME].SetTitle(';#it{k}* (GeV/#it{c});Counts')
             hME[comb][regionME].Write()
 
-            hMErew[comb][region].SetName('hMErew')
-            hMErew[comb][region].SetTitle(';#it{k}* (GeV/#it{c});Counts')
-            hMErew[comb][region].Write('hMErew')
+            if hMErew:
+                hMErew[comb][region].SetName('hMErew')
+                hMErew[comb][region].SetTitle(';#it{k}* (GeV/#it{c});Counts')
+                hMErew[comb][region].Write('hMErew')
 
-            hWeightsRew[comb][regionME].SetName('hWeightsRew')
-            hWeightsRew[comb][regionME].SetTitle(';Mult bin;Weight')
-            hWeightsRew[comb][regionME].Write()
+                hWeightsRew[comb][regionME].SetName('hWeightsRew')
+                hWeightsRew[comb][regionME].SetTitle(';Mult bin;Weight')
+                hWeightsRew[comb][regionME].Write()
 
             hCF.SetName('hCF')
             hCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
             hCF.Write()
-
-            hCFrew.SetName('hCFrew')
-            hCFrew.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
-            hCFrew.Write()
+        
+            if hMErew:
+                hCFrew.SetName('hCFrew')
+                hCFrew.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
+                hCFrew.Write()
 
     oFile.cd()
     hFemtoPairs.Write()
