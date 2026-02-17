@@ -269,8 +269,51 @@ def Combine(hDistr, recipes):
             hDistr[target][region] = hDistr[comb1][region] +  hDistr[comb1][region]
 
     return hDistr
-    
-    
+
+def LoadDistributions(inFile, oFile, combs, regions, method, cfg):
+    if method == "standard":
+        # Load 2D Mult-vs-kstar same- and mixed-event distributions
+        log.info("Loading Mult vs k* histograms")
+        hSEmultk, hMEmultk = LoadMultVsKstar(inFile, suffix=cfg['runsuffix'], regions=regions, combs=combs)
+        
+        log.info("Computing mult-reweighted ME")
+        hMErew = {}
+        hWeightsRew = {}
+        for comb in combs:
+            oFile.mkdir(comb)
+            oFile.cd(comb)
+
+            hMErew[comb] = {}
+            hWeightsRew[comb] = {}
+            for region in hSEmultk[comb]:
+                log.info("Reweight for %s %s", comb, region)
+                regionME = region.replace('/Common', '').replace('/NonCommon', '')
+                log.info('reweight %s %s', comb, region)
+                hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
+
+                for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
+                    log.info("Slice: %d", iSlice)
+                    
+                    oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
+                    oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
+
+                    hCF.Write(f'hCF_multbin{iSlice}')
+                    hSE.Write(f'hSE_multbin{iSlice}')
+                    hME.Write(f'hME_multbin{iSlice}')
+
+                    oFile.cd(comb)
+
+                hMErew[comb][region] = hMERew
+                hWeightsRew[comb][region] = hWeights
+
+                
+        log.info("Projecting 2D histograms")
+        hSE = ProjectDistr(hSEmultk)
+        hME = ProjectDistr(hMEmultk)
+
+        return hSE, hME, hMErew, hWeightsRew
+
+
 def main(cfg): # pylint: disable=too-many-statements
     '''
     main function
@@ -307,44 +350,7 @@ def main(cfg): # pylint: disable=too-many-statements
     hFemtoPairs.GetYaxis().SetLabelSize(50)
     hFemtoPairs.GetXaxis().SetLabelSize(50)
 
-    # Load 2D Mult-vs-kstar same- and mixed-event distributions
-    log.info("Loading Mult vs k* histograms")
-    hSEmultk, hMEmultk = LoadMultVsKstar(inFile, suffix=cfg['runsuffix'], regions=regions, combs=combs)
-
-    log.info("Computing mult-reweighted ME")
-    hMErew = {}
-    hWeightsRew = {}
-    for comb in combs:
-        oFile.mkdir(comb)
-        oFile.cd(comb)
-
-        hMErew[comb] = {}
-        hWeightsRew[comb] = {}
-        for region in hSEmultk[comb]:
-            log.info("Reweight for %s %s", comb, region)
-            regionME = region.replace('/Common', '').replace('/NonCommon', '')
-            log.info('reweight %s %s', comb, region)
-            hMERew, hWeights, slices = Reweight(hSEmultk[comb][region], hMEmultk[comb][regionME], cfg['norm'], name=f'{comb}_{region}')
-
-            for iSlice, (hSE, hME, hCF) in enumerate(zip(*slices)):
-                log.info("Slice: %d", iSlice)
-                
-                oFile.mkdir(f'{comb}/{region}/multbins/{iSlice}')
-                oFile.cd(f'{comb}/{region}/multbins/{iSlice}')
-
-                hCF.Write(f'hCF_multbin{iSlice}')
-                hSE.Write(f'hSE_multbin{iSlice}')
-                hME.Write(f'hME_multbin{iSlice}')
-
-                oFile.cd(comb)
-
-            hMErew[comb][region] = hMERew
-            hWeightsRew[comb][region] = hWeights
-
-            
-    log.info("Projecting 2D histograms")
-    hSE = ProjectDistr(hSEmultk)
-    hME = ProjectDistr(hMEmultk)
+    hSE, hME, hMErew, hWeightsRew = LoadDistributions(inFile, oFile, combs, regions, cfg['method'], cfg)
 
     print(hSE)
     print(hME)
