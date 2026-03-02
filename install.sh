@@ -31,3 +31,8 @@ fi
 pip3 install -e . || pip3 install --user -e .
 
 popd
+mkdir -p build
+pushd build
+cmake ..
+make
+popd
