@@ -2,6 +2,6 @@
 
 mkdir -p build
 pushd build
-cmake ..
-make
+cmake .. || exit 1
+make || exit 1
 popd
