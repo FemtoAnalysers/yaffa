@@ -140,8 +140,8 @@ int main(int argc, const char** argv) {
     std::cout << "type " << type << std::endl;
     
     // Simulation parameters:
-    const double TIMEOUT = 600;
-    const double GLOB_TIMEOUT = 600;
+    const double GLOB_TIMEOUT = std::stoi(argv[1]);
+    const double TIMEOUT = GLOB_TIMEOUT;
     const unsigned NUM_CPU = 16;
     
     // Default parameters:
@@ -462,7 +462,7 @@ int main(int argc, const char** argv) {
         h_pT_d_all->Add(h_pT_ad);
     }
     if (type == "pp" || type == "pP") {
-        FilePath = TString::Format("~/sw/yaffa/yaffa/input/ptshapes/", "");
+        FilePath = TString::Format("~/ph/sw/yaffa/input/ptshapes/", "");
         TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
         FileNameP1 = "p_HMpp13TeV_reco.root";
         FileNameAP1 = "pbar_HMpp13TeV_reco.root";
@@ -541,7 +541,7 @@ int main(int argc, const char** argv) {
 
     if (type == "pL") {
         DLM_Histo<float>* dlmTemp = GetPtEta_13TeV(
-            TString::Format("~/sw/yaffa/yaffa/input/ptshapes/p_HMpp13TeV.root", ""), "Graph1D_y1", 500, 4050, EtaCut);
+            TString::Format("~/ph/sw/yaffa/yaffa/input/ptshapes/p_HMpp13TeV.root", ""), "Graph1D_y1", 500, 4050, EtaCut);
         dlm_pT_eta_p = dlmTemp[0];
         delete dlmTemp;
         dlmTemp = GetPtEta_13TeV(TString::Format("%s/CatsFiles/Source/CECA/Lambda_pT/L_dist_13TeV_ClassI.root", ""),
@@ -587,11 +587,13 @@ int main(int argc, const char** argv) {
         }
     }
 
-    TH2F* hSampleQA_p = new TH2F("hSampleQA_p", "hSampleQA_p", 64, -1, 8, 64, -1, 1);
+    TH2F* hSampleQA_p = new TH2F("hSampleQA_p", "hSampleQA_p", 64, 0, 5000, 64, -1, 1);
+    DLM_Random *dlmRandom = new DLM_Random(1);
     if (dlm_pT_p) {
         for (unsigned uIter = 0; uIter < 100 * 1000; uIter++) {
             double axisValues[2];
-            dlm_pT_eta_p.SampleYield(axisValues);
+            dlm_pT_eta_p.SampleYield(axisValues, false, dlmRandom);
+            std::cout << "(pt, eta) = " << axisValues[0] << ", " << axisValues[1] << std::endl;
             hSampleQA_p->Fill(axisValues[0], axisValues[1]);
         }
     }
@@ -947,7 +949,7 @@ int main(int argc, const char** argv) {
 
     Ivana.GoBabyGo(NUM_CPU);
 
-    Ivana.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
+    // Ivana.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
     // return;
     double TotPairs =
@@ -1241,7 +1243,7 @@ int main(int argc, const char** argv) {
 
     h_GhettoFemto_rstar->Fit(fSource, "Q, S, R, M +", "", lowerlimit, upperlimit);
     fOutput.cd();
-    h_GhettoFemto_rstar->Write("AAAAAAAAAAAAAAA");
+    h_GhettoFemto_rstar->Write("hRStar");
     printf("The effective Gaussian size is %.3f +/- %.3f fm, λ = %.3f +/- %.3f\n", fSource->GetParameter(0),
            fSource->GetParError(0), fSource->GetParameter(1), fSource->GetParError(1));
 
