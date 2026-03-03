@@ -33,6 +33,6 @@ pip3 install -e . || pip3 install --user -e .
 popd
 mkdir -p build
 pushd build
-cmake ..
-make
+cmake .. || exit 1
+make || exit 1
 popd
