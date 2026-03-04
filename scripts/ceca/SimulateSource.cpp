@@ -1,15 +1,19 @@
 /*
-* Script to simulate the source function
-*/
+ * Script to simulate the source function
+ */
 
 // C++ headers
 #include <omp.h>
 #include <unistd.h>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 // Third party headers
 #include <boost/algorithm/string.hpp>
@@ -33,7 +37,6 @@
 
 // DLM headers
 #include "CATS.h"
-#include "TREPNI.h"
 #include "CATSconstants.h"
 #include "CATStools.h"
 #include "CECA.h"
@@ -48,6 +51,7 @@
 #include "DLM_Random.h"
 #include "DLM_RootWrapper.h"
 #include "DLM_Source.h"
+#include "TREPNI.h"
 
 double GaussianSource(double* x, double* par) {
     // Variables
@@ -142,19 +146,83 @@ DLM_Histo<float>* GetPtEta_13TeV(TString FileNameIn, TString GraphNameIn, const 
     return dlm_pT_eta;
 }
 
-int main(int argc, const char** argv) {
-    const double d_delay = 0.0;
-    const TString type = "pp";
-    std::cout << "type " << type << std::endl;
+struct Config {
+    std::string ofile;
+    std::string system;
+    int ncpu = 1;
+    int glob_timeout = 0;
+};
 
-    // Simulation parameters:
-    unsigned NUM_CPU = std::stoi(argv[1]);
+// --- Helper: trim whitespace ---
+static inline std::string trim(const std::string& s) {
+    auto start = s.find_first_not_of(" \t\r\n");
+    auto end = s.find_last_not_of(" \t\r\n");
+    return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
+}
+
+// --- Parse config file ---
+Config load_config(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file) {
+        throw std::runtime_error("Cannot open config file: " + filename);
+    }
+
+    std::unordered_map<std::string, std::string> kv;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        line = trim(line);
+        if (line.empty()) continue;
+
+        auto pos = line.find(':');
+        if (pos == std::string::npos) continue;  // skip invalid lines
+
+        std::string key = trim(line.substr(0, pos));
+        std::string value = trim(line.substr(pos + 1));
+
+        kv[key] = value;
+    }
+
+    Config cfg;
+
+    if (kv.count("ofile")) cfg.ofile = kv["ofile"];
+    if (kv.count("system")) cfg.system = kv["system"];
+    if (kv.count("ncpu")) cfg.ncpu = std::stoi(kv["ncpu"]);
+    if (kv.count("glob_timeout")) cfg.glob_timeout = std::stoi(kv["glob_timeout"]);
+
+    return cfg;
+}
+
+int main(int argc, const char** argv) {
+    // Parse arguments form command line
+    std::string cfg_file;
+    if (argc == 1) {
+        cfg_file = "config.yaml";
+    } else {
+        cfg_file = argv[1];
+    }
+
+    // Load configuration from file
+    Config cfg = load_config(cfg_file);
+
+    std::cout << "ofile: " << cfg.ofile << "\n";
+    std::cout << "system: " << cfg.system << "\n";
+    std::cout << "ncpu: " << cfg.ncpu << "\n";
+    std::cout << "glob_timeout: " << cfg.glob_timeout << "\n";
+
+    unsigned NUM_CPU = cfg.ncpu;
     if (NUM_CPU == 0) {
         NUM_CPU = omp_get_max_threads();
     }
-    const unsigned GLOB_TIMEOUT = std::stoi(argv[2]);
+    std::string oFileName = cfg.ofile;
+    const TString system = cfg.system;
+
+    // Simulation parameters:
+    const double d_delay = 0.0;
+    const unsigned GLOB_TIMEOUT = cfg.glob_timeout;
     const unsigned TIMEOUT = GLOB_TIMEOUT;
 
+    std::cout << "system " << system << std::endl;
     printf("Using %d threads\n", NUM_CPU);
 
     // Default parameters:
@@ -237,7 +305,7 @@ int main(int argc, const char** argv) {
     // default is 0
     float rSP_FragBeta = 0;
 
-    if (type == "pp") {
+    if (system == "pp") {
         // jaime issue, to get his stuff, rSP is 0, rSP_hflc = 0.15
         rSP_core = EffFix ? 0.915 * 1.100 : 0.915;
         rSP_core = 1.12;
@@ -443,7 +511,7 @@ int main(int argc, const char** argv) {
     TH1F* h_pT_ad = NULL;
 
     TString FilePath;
-    if (type == "pp") {
+    if (system == "pp") {
         FilePath = TString::Format("~/ph/sw/yaffa/input/ptshapes/", "");
         TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
         FileNameP1 = "p_HMpp13TeV_reco.root";
@@ -536,9 +604,9 @@ int main(int argc, const char** argv) {
             } else {
                 prt->SetMass(Mass_p);
             }
-            if (type == "pp")
+            if (system == "pp")
                 prt->SetAbundance(frac_protons + (100. - frac_protons) * (!PROTON_RESO));
-            else if (type == "pP")
+            else if (system == "pP")
                 prt->SetAbundance(100.);
             else
                 prt->SetAbundance(0);
@@ -550,7 +618,7 @@ int main(int argc, const char** argv) {
                 prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
         } else if (prt->GetName() == "ProtonReso") {
             prt->SetMass(1362);
-            if (type == "pp" || type == "pP")
+            if (system == "pp" || system == "pP")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
                 prt->SetAbundance(0);
@@ -570,11 +638,11 @@ int main(int argc, const char** argv) {
     }
 
     std::vector<std::string> ListOfParticles;
-    if (type == "pp") {
+    if (system == "pp") {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("Proton");
     }
-    if (type == "pP") {
+    if (system == "pP") {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("PrimProton");
     }
@@ -621,7 +689,7 @@ int main(int argc, const char** argv) {
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
     ceca.GHETTO_EVENT = true;
-    if (type == "pp") {
+    if (system == "pp") {
         // ceca paper
         ceca.Ghetto_NumMtBins = 10;
         ceca.Ghetto_MtBins = new double[ceca.Ghetto_NumMtBins + 1];
