@@ -3,7 +3,7 @@ ofile: source.root
 system: pp
 ncpu: 1
 glob_timeout: 60
-timeout: 60
+thread_timeout: 60
 
 # ceca parameters
 delay: 0.0
