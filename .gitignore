@@ -8,3 +8,6 @@ build/**
 *_ACLiC_*
 *.d
 *.so
+
+# Root files
+tests/source.root
