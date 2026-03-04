@@ -1,15 +1,39 @@
+/*
+* Script to simulate the source function
+*/
 
+// C++ headers
 #include <omp.h>
 #include <unistd.h>
-
-#include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
 
+// Third party headers
+#include <boost/algorithm/string.hpp>
+
+// ROOT headers
+#include "TCanvas.h"
+#include "TF1.h"
+#include "TFile.h"
+#include "TFitResult.h"
+#include "TFitResultPtr.h"
+#include "TGenPhaseSpace.h"
+#include "TGraph.h"
+#include "TGraphAsymmErrors.h"
+#include "TGraphErrors.h"
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TNtuple.h"
+#include "TROOT.h"
+#include "TRandom3.h"
+#include "TSystem.h"
+
+// DLM headers
 #include "CATS.h"
+#include "TREPNI.h"
 #include "CATSconstants.h"
 #include "CATStools.h"
 #include "CECA.h"
@@ -24,22 +48,6 @@
 #include "DLM_Random.h"
 #include "DLM_RootWrapper.h"
 #include "DLM_Source.h"
-#include "TCanvas.h"
-#include "TF1.h"
-#include "TFile.h"
-#include "TFitResult.h"
-#include "TFitResultPtr.h"
-#include "TGenPhaseSpace.h"
-#include "TGraph.h"
-#include "TGraphAsymmErrors.h"
-#include "TGraphErrors.h"
-#include "TH1F.h"
-#include "TH2F.h"
-#include "TNtuple.h"
-#include "TREPNI.h"
-#include "TROOT.h"
-#include "TRandom3.h"
-#include "TSystem.h"
 
 double GaussianSource(double* x, double* par) {
     // Variables
@@ -138,7 +146,7 @@ int main(int argc, const char** argv) {
     const double d_delay = 0.0;
     const TString type = "pp";
     std::cout << "type " << type << std::endl;
-    
+
     // Simulation parameters:
     unsigned NUM_CPU = std::stoi(argv[1]);
     if (NUM_CPU == 0) {
@@ -161,7 +169,8 @@ int main(int argc, const char** argv) {
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = -1402;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
+    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // to 1 TeV
 
     // Reproduce simple gaussian-like source in CECA paper (only rd = 0.85 fm):
     // double HadronSize = 0;   // 0.75
@@ -175,8 +184,9 @@ int main(int argc, const char** argv) {
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = 9000;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
-    
+    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // to 1 TeV
+
     // Reproduce simple 1fm source with and remove lorentz boost
     double HadronSize = 0;   // 0.75
     double HadronSlope = 0;  // 0.2
@@ -190,8 +200,9 @@ int main(int argc, const char** argv) {
     const unsigned target_yield = 1000;  // originally 4M
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     const int EffFix = 9001;
-    const bool REMOVE_BOOST = true; // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
-    
+    const bool REMOVE_BOOST =
+        true;  // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
+
     // Reproduce simple 1fm source - verify non gaussianity of source due to lorentz boost
     // double HadronSize = 0;   // 0.75
     // double HadronSlope = 0;  // 0.2
@@ -204,8 +215,8 @@ int main(int argc, const char** argv) {
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = 9002;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
-
+    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // to 1 TeV
 
     // we run to either reproduce the core of 0.97,
     // or the upper limit of reff = 1.06+0.04
@@ -226,16 +237,11 @@ int main(int argc, const char** argv) {
     // default is 0
     float rSP_FragBeta = 0;
 
-    if (type == "pp" || type == "pipi" || type == "pipi_core" || type == "pP" || type == "pK" || type == "Kd" ||
-        type == "KdReso" || type == "pL") {
+    if (type == "pp") {
         // jaime issue, to get his stuff, rSP is 0, rSP_hflc = 0.15
         rSP_core = EffFix ? 0.915 * 1.100 : 0.915;
         rSP_core = 1.12;
         rSP_dispZ = rSP_core;
-        if ((type == "pK" || type == "pipi" || type == "pipi_core") && EffFix == 1) {
-            rSP_core = 0.8;
-            rSP_dispZ = 0.8;
-        }
         if (EffFix == -1) {
             rSP_core = 0.2;
             rSP_dispZ = 0.2;
@@ -437,37 +443,7 @@ int main(int argc, const char** argv) {
     TH1F* h_pT_ad = NULL;
 
     TString FilePath;
-    if (type == "pd") {
-        FilePath = TString::Format("%s/CatsFiles/Source/CECA/pd/pT_spectra/", "");
-        TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
-        FileNameP1 = "protonSpectra.root";
-        FileNameAP1 = "AntiProtonSpectra.root";
-        FileNameP2 = "deuteronSpectra.root";
-        FileNameAP2 = "AntiDeuteronSpectra.root";
-
-        TFile file_p(FilePath + FileNameP1, "read");
-        h_pT_p = (TH1F*)file_p.Get("pTDist_after");
-        if (!h_pT_p) printf("ISSUE with h_pT_p\n");
-        fOutput.cd();
-        h_pT_p_all = (TH1F*)h_pT_p->Clone("h_pT_p_all");
-
-        TFile file_ap(FilePath + FileNameAP1, "read");
-        h_pT_ap = (TH1F*)file_ap.Get("pTDist_after");
-        if (!h_pT_ap) printf("ISSUE with h_pT_ap\n");
-        h_pT_p_all->Add(h_pT_ap);
-
-        TFile file_d(FilePath + FileNameP2, "read");
-        h_pT_d = (TH1F*)file_d.Get("pTDist_after");
-        if (!h_pT_d) printf("ISSUE with h_pT_d\n");
-        fOutput.cd();
-        h_pT_d_all = (TH1F*)h_pT_d->Clone("h_pT_d_all");
-
-        TFile file_ad(FilePath + FileNameAP2, "read");
-        h_pT_ad = (TH1F*)file_ad.Get("pTDist_after");
-        if (!h_pT_ad) printf("ISSUE with h_pT_ad\n");
-        h_pT_d_all->Add(h_pT_ad);
-    }
-    if (type == "pp" || type == "pP") {
+    if (type == "pp") {
         FilePath = TString::Format("~/ph/sw/yaffa/input/ptshapes/", "");
         TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
         FileNameP1 = "p_HMpp13TeV_reco.root";
@@ -498,63 +474,6 @@ int main(int argc, const char** argv) {
         h_pT_d_all->Add(h_pT_ad);
     }
     // N.B. here we set the Kaons to the proton histo
-    if (type == "Kd" || type == "KdReso") {
-        FilePath = TString::Format("%s/CatsFiles/Source/CECA/Kd/", "");
-        TFile file(FilePath + "outKD_mydeuteronsOpenSyst.root", "read");
-        TDirectoryFile* dir = (TDirectoryFile*)(file.FindObjectAny(Form("PtEtaPhi")));
-
-        dir->GetObject(Form("h_kp_pT"), h_pT_p);
-        dir->GetObject(Form("h_km_pT"), h_pT_ap);
-        fOutput.cd();
-        h_pT_p_all = (TH1F*)h_pT_p->Clone("h_pT_p_all");
-        h_pT_p_all->Add(h_pT_ap);
-
-        dir->GetObject(Form("h_d_pT"), h_pT_d);
-        dir->GetObject(Form("h_ad_pT"), h_pT_ad);
-        fOutput.cd();
-        h_pT_d_all = (TH1F*)h_pT_d->Clone("h_pT_d_all");
-        h_pT_d_all->Add(h_pT_ad);
-    }
-    // N.B. here we set the Kaons to the deuteron histo
-    if (type == "pK") {
-        FilePath = TString::Format("%s/CatsFiles/Source/CECA/Kd/", "");
-        TFile fileK(FilePath + "outKD_mydeuteronsOpenSyst.root", "read");
-        TDirectoryFile* dir = (TDirectoryFile*)(fileK.FindObjectAny(Form("PtEtaPhi")));
-        dir->GetObject(Form("h_kp_pT"), h_pT_d);
-        dir->GetObject(Form("h_km_pT"), h_pT_ad);
-        fOutput.cd();
-        h_pT_d_all = (TH1F*)h_pT_d->Clone("h_pT_d_all");
-        h_pT_d_all->Add(h_pT_ad);
-
-        FilePath = TString::Format("%s/CatsFiles/Source/CECA/pd/pT_spectra/", "");
-        TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
-        FileNameP1 = "protonSpectra.root";
-        FileNameAP1 = "AntiProtonSpectra.root";
-        FileNameP2 = "protonSpectra.root";
-        FileNameAP2 = "AntiProtonSpectra.root";
-
-        TFile file_p(FilePath + FileNameP1, "read");
-        h_pT_p = (TH1F*)file_p.Get("pTDist_after");
-        if (!h_pT_p) printf("ISSUE with h_pT_p\n");
-        fOutput.cd();
-        h_pT_p_all = (TH1F*)h_pT_p->Clone("h_pT_p_all");
-
-        TFile file_ap(FilePath + FileNameAP1, "read");
-        h_pT_ap = (TH1F*)file_ap.Get("pTDist_after");
-        if (!h_pT_ap) printf("ISSUE with h_pT_ap\n");
-        h_pT_p_all->Add(h_pT_ap);
-    }
-
-    if (type == "pL") {
-        DLM_Histo<float>* dlmTemp = GetPtEta_13TeV(
-            TString::Format("~/ph/sw/yaffa/yaffa/input/ptshapes/p_HMpp13TeV.root", ""), "Graph1D_y1", 500, 4050, EtaCut);
-        dlm_pT_eta_p = dlmTemp[0];
-        delete dlmTemp;
-        dlmTemp = GetPtEta_13TeV(TString::Format("%s/CatsFiles/Source/CECA/Lambda_pT/L_dist_13TeV_ClassI.root", ""),
-                                 "Graph1D_y1", 400, 8000, EtaCut);
-        dlm_pT_eta_d = dlmTemp[0];
-        delete dlmTemp;
-    }
 
     if (h_pT_p_all) {
         dlm_pT_p = Convert_TH1F_DlmHisto(h_pT_p_all);
@@ -594,7 +513,7 @@ int main(int argc, const char** argv) {
     }
 
     TH2F* hSampleQA_p = new TH2F("hSampleQA_p", "hSampleQA_p", 64, 0, 5000, 64, -1, 1);
-    DLM_Random *dlmRandom = new DLM_Random(1);
+    DLM_Random* dlmRandom = new DLM_Random(1);
     if (dlm_pT_p) {
         for (unsigned uIter = 0; uIter < 100 * 1000; uIter++) {
             double axisValues[2];
@@ -617,7 +536,7 @@ int main(int argc, const char** argv) {
             } else {
                 prt->SetMass(Mass_p);
             }
-            if (type == "pd" || type == "pp" || type == "pK" || type == "pL")
+            if (type == "pp")
                 prt->SetAbundance(frac_protons + (100. - frac_protons) * (!PROTON_RESO));
             else if (type == "pP")
                 prt->SetAbundance(100.);
@@ -625,114 +544,20 @@ int main(int argc, const char** argv) {
                 prt->SetAbundance(0);
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_p || type == "pL")
+            if (dlm_pT_p)
                 prt->SetPtEtaPhi(dlm_pT_eta_p);
             else
                 prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-        } else if (prt->GetName() == "Lambda") {
-            prt->SetMass(Mass_L);
-            if (type == "pL")
-                prt->SetAbundance((100. - 64.38));
-            else
-                prt->SetAbundance(0);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_d || type == "pL")
-                prt->SetPtEtaPhi(dlm_pT_eta_d);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-        } else if (prt->GetName() == "Kaon") {
-            prt->SetMass(Mass_Kch);
-            if (type == "Kd" || type == "KdReso" || type == "pK")
-                prt->SetAbundance(frac_kaons + (100. - frac_kaons) * (!PROTON_RESO));
-            // if(type=="Kd"||type=="pK") prt->SetAbundance(100);
-            else
-                prt->SetAbundance(0);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-
-            if (type == "Kd" || type == "KdReso") {
-                if (dlm_pT_p)
-                    prt->SetPtEtaPhi(dlm_pT_eta_p);
-                else
-                    prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            } else if (type == "pK") {
-                if (dlm_pT_d)
-                    prt->SetPtEtaPhi(dlm_pT_eta_d);
-                else
-                    prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            } else {
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            }
-        } else if (prt->GetName() == "Deuteron") {
-            prt->SetMass(Mass_d);
-            if (type == "pd" || type == "Kd")
-                prt->SetAbundance(100.0);
-            else if (type == "KdReso")
-                prt->SetAbundance(100. * pow(frac_protons * 0.01, 2.));
-            else
-                prt->SetAbundance(0);
-            prt->SetRadius(HadronSize * 1.5);
-            prt->SetRadiusSlope(HadronSlope);
-            prt->SetDelayTau(d_delay);
-            if (dlm_pT_d)
-                prt->SetPtEtaPhi(dlm_pT_eta_d);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-        } else if (prt->GetName() == "Pion") {
-            prt->SetMass(Mass_pic);
-            prt->SetAbundance(0);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-        } else if (prt->GetName() == "PionFSI") {
-            prt->SetMass(Mass_pic);
-            // 59.8 is the amount of reso below 5 fm vs 28 prim, here we normed this to 100
-            if (type == "pipi")
-                prt->SetAbundance(31.8 + 68.2 * (!PROTON_RESO));
-            else if (type == "pipi_core")
-                prt->SetAbundance(100);
-            else if (type == "Dpi") {
-                prt->SetAbundance(31.8);
-                prt->SetDelayTau(d_delay);
-            } else
-                prt->SetAbundance(0);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            prt->SetAcceptance_pT(140, 100000);
-            prt->SetAcceptance_Eta(-EtaCut, EtaCut);
-        } else if (prt->GetName() == "Dch") {
-            prt->SetMass(Mass_Dch);
-            if (type == "Dpi")
-                prt->SetAbundance(70.5);
-            else
-                prt->SetAbundance(0);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-        } else if (prt->GetName() == "Dch_star") {
-            prt->SetMass(Mass_Dch_star);
-            // if(type=="Dpi") prt->SetAbundance(29.5);
-            prt->SetAbundance(0);
-            prt->SetWidth(0.0834);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-
-            prt->NewDecay();
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Dch"));
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
-            prt->GetDecay(0)->SetBranching(100);
         } else if (prt->GetName() == "ProtonReso") {
             prt->SetMass(1362);
-            if (type == "pd" || type == "pp" || type == "pP" || type == "pK" || type == "pL")
+            if (type == "pp" || type == "pP")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
                 prt->SetAbundance(0);
             prt->SetWidth(hbarc / 1.65);
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_p || type == "pL")
+            if (dlm_pT_p)
                 prt->SetPtEtaPhi(dlm_pT_eta_p);
             else
                 prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
@@ -741,111 +566,10 @@ int main(int argc, const char** argv) {
             prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Proton"));
             prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
             prt->GetDecay(0)->SetBranching(100);
-        } else if (prt->GetName() == "DeuteronReso") {
-            // so we assume this effective resonances has the same mass difference
-            // to the detueron as the mass difference between protons and their resonances
-            prt->SetMass(Mass_d + 1362. - Mass_p);
-            if (type == "KdReso")
-                prt->SetAbundance(100. - 100. * pow(frac_protons * 0.01, 2.));
-            else
-                prt->SetAbundance(0);
-            prt->SetWidth(hbarc / 1.65);
-            prt->SetRadius(HadronSize * 1.5);
-            prt->SetRadiusSlope(HadronSlope);
-            // the resonance is also delayed. While this makes no sence, it is kind of equivelent as delaying the
-            // deuteron formation.
-            prt->SetDelayTau(d_delay);
-            if (dlm_pT_d)
-                prt->SetPtEtaPhi(dlm_pT_eta_d);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-
-            prt->NewDecay();
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Deuteron"));
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
-            prt->GetDecay(0)->SetBranching(100);
-        } else if (prt->GetName() == "LambdaReso") {
-            prt->SetMass(1462);
-            if (type == "pL")
-                prt->SetAbundance(64.38);
-            else
-                prt->SetAbundance(0);
-            prt->SetWidth(hbarc / 4.69);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_d || type == "pL")
-                prt->SetPtEtaPhi(dlm_pT_eta_d);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-
-            prt->NewDecay();
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Lambda"));
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
-            prt->GetDecay(0)->SetBranching(100);
-        } else if (prt->GetName() == "KaonReso") {
-            prt->SetMass(1054);
-            if (type == "Kd" || type == "KdReso" || type == "pK") prt->SetAbundance((100. - frac_kaons) * PROTON_RESO);
-            // if(type=="Kd"||type=="pK") prt->SetAbundance(0);
-            else
-                prt->SetAbundance(0);
-            prt->SetWidth(hbarc / 3.66);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-
-            if (type == "Kd" || type == "KdReso") {
-                if (dlm_pT_p)
-                    prt->SetPtEtaPhi(dlm_pT_eta_p);
-                else
-                    prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            } else if (type == "pK") {
-                if (dlm_pT_d)
-                    prt->SetPtEtaPhi(dlm_pT_eta_d);
-                else
-                    prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            } else {
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            }
-
-            prt->NewDecay();
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Kaon"));
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
-            prt->GetDecay(0)->SetBranching(100);
-        } else if (prt->GetName() == "PionReso") {
-            prt->SetMass(1180);
-            if (type == "pipi")
-                prt->SetAbundance(68.2 * (PROTON_RESO));
-            else if (type == "pipi_core")
-                prt->SetAbundance(0);
-            else if (type == "Dpi")
-                prt->SetAbundance(68.2);
-            else
-                prt->SetAbundance(0);
-            prt->SetWidth(hbarc / 1.50);
-            prt->SetRadius(HadronSize);
-            prt->SetRadiusSlope(HadronSlope);
-            prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-            //  const double Tau_pi = 1.50;
-            // const double Mass_ProtonReso = 1362;
-            // const double Mass_piReso = 1180;
-            prt->NewDecay();
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("PionFSI"));
-            prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
-            prt->GetDecay(0)->SetBranching(100);
-
-            prt->SetAcceptance_pT(140, 100000);
-            prt->SetAcceptance_Eta(-EtaCut, EtaCut);
         }
     }
 
     std::vector<std::string> ListOfParticles;
-    if (type == "pd" || type == "pK") ListOfParticles.push_back("Proton");
-    if (type == "Kd" || type == "pK" || type == "KdReso") ListOfParticles.push_back("Kaon");
-    if (type == "pd" || type == "Kd" || type == "KdReso") ListOfParticles.push_back("Deuteron");
-
-    if (type == "Dpi") {
-        ListOfParticles.push_back("Dch");
-        ListOfParticles.push_back("PionFSI");
-    }
     if (type == "pp") {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("Proton");
@@ -854,18 +578,10 @@ int main(int argc, const char** argv) {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("PrimProton");
     }
-    if (type == "pipi" || type == "pipi_core") {
-        ListOfParticles.push_back("PionFSI");
-        ListOfParticles.push_back("PionFSI");
-    }
-    if (type == "pL") {
-        ListOfParticles.push_back("Proton");
-        ListOfParticles.push_back("Lambda");
-    }
 
-    CECA Ivana(Database, ListOfParticles);
+    CECA ceca(Database, ListOfParticles);
     for (int iThread = 0; iThread < NUM_CPU; iThread++) {
-        Ivana.SetSeed(iThread, iThread + 1);
+        ceca.SetSeed(iThread, iThread + 1);
     }
 
     printf("d %.3f %.3f\n", rSP_core, rSP_dispZ);
@@ -876,100 +592,77 @@ int main(int argc, const char** argv) {
     printf("fh %.3f\n", float(rSP_FixedHadr));
     printf("fb %.3f\n", rSP_FragBeta);
 
-    Ivana.SetDisplacementZ(rSP_dispZ);
-    Ivana.SetDisplacementT(rSP_core);
-    Ivana.SetHadronizationZ(rSP_hadrZ);
-    Ivana.SetHadronizationT(rSP_hadr);
-    Ivana.SetHadrFluctuation(rSP_hflc);
-    Ivana.SetTau(rSP_tau, tau_prp);
-    Ivana.SetTauFluct(rSP_tflc);
-    Ivana.SetThermalKick(rSP_ThK);
-    Ivana.SetFixedHadr(rSP_FixedHadr);
-    Ivana.SetFragmentBeta(rSP_FragBeta);
+    ceca.SetDisplacementZ(rSP_dispZ);
+    ceca.SetDisplacementT(rSP_core);
+    ceca.SetHadronizationZ(rSP_hadrZ);
+    ceca.SetHadronizationT(rSP_hadr);
+    ceca.SetHadrFluctuation(rSP_hflc);
+    ceca.SetTau(rSP_tau, tau_prp);
+    ceca.SetTauFluct(rSP_tflc);
+    ceca.SetThermalKick(rSP_ThK);
+    ceca.SetFixedHadr(rSP_FixedHadr);
+    ceca.SetFragmentBeta(rSP_FragBeta);
 
-    // Ivana.SetDisplacement(3.55*0.25);
-    // Ivana.SetHadronizationT(3.55);
-    // Ivana.SetHadrFluctuation(0.0);
-    // Ivana.SetTau(0);
+    // ceca.SetDisplacement(3.55*0.25);
+    // ceca.SetHadronizationT(3.55);
+    // ceca.SetHadrFluctuation(0.0);
+    // ceca.SetTau(0);
 
-    // Ivana.SetDisplacement(1);
-    // Ivana.SetHadronizationT(0);
-    // Ivana.SetTau(0);
+    // ceca.SetDisplacement(1);
+    // ceca.SetHadronizationT(0);
+    // ceca.SetTau(0);
 
-    Ivana.SetTargetStatistics(target_yield);
-    Ivana.SetEventMult(Multiplicity);
-    Ivana.SetSourceDim(2);
-    Ivana.SetDebugMode(true);
-    Ivana.SetThreadTimeout(TIMEOUT);
-    Ivana.SetGlobalTimeout(GLOB_TIMEOUT);
-    Ivana.EqualizeFsiTime(EQUALIZE_TAU);
-    Ivana.SetFemtoRegion(femto_region);
-    Ivana.GHETTO_EVENT = true;
+    ceca.SetTargetStatistics(target_yield);
+    ceca.SetEventMult(Multiplicity);
+    ceca.SetSourceDim(2);
+    ceca.SetDebugMode(true);
+    ceca.SetThreadTimeout(TIMEOUT);
+    ceca.SetGlobalTimeout(GLOB_TIMEOUT);
+    ceca.EqualizeFsiTime(EQUALIZE_TAU);
+    ceca.SetFemtoRegion(femto_region);
+    ceca.GHETTO_EVENT = true;
     if (type == "pp") {
-        // BinCenter_pp[0] = 1.1077;
-        // BinCenter_pp[1] = 1.1683;
-        // BinCenter_pp[2] = 1.2284;
-        // BinCenter_pp[3] = 1.3156;
-        // BinCenter_pp[4] = 1.4628;
-        // BinCenter_pp[5] = 1.6872;
-        // BinCenter_pp[6] = 2.2116;
-        /*
-            Ivana.Ghetto_NumMtBins = 9;
-            Ivana.Ghetto_MtBins = new double [Ivana.Ghetto_NumMtBins+1];
-            Ivana.Ghetto_MtBins[0] = 938;
-            Ivana.Ghetto_MtBins[1] = 1055;
-            Ivana.Ghetto_MtBins[2] = 1135;
-            Ivana.Ghetto_MtBins[3] = 1190;
-            Ivana.Ghetto_MtBins[4] = 1270;
-            Ivana.Ghetto_MtBins[5] = 1390;
-            Ivana.Ghetto_MtBins[6] = 1570;
-            Ivana.Ghetto_MtBins[7] = 1940;
-            Ivana.Ghetto_MtBins[8] = 2500;
-            Ivana.Ghetto_MtBins[9] = 4000;
-        */
-
         // ceca paper
-        Ivana.Ghetto_NumMtBins = 10;
-        Ivana.Ghetto_MtBins = new double[Ivana.Ghetto_NumMtBins + 1];
-        Ivana.Ghetto_MtBins[0] = 930;   // avg  983 ( 985)
-        Ivana.Ghetto_MtBins[1] = 1020;  // avg 1054 (1055)
-        Ivana.Ghetto_MtBins[2] = 1080;  // avg 1110 (1110)
-        Ivana.Ghetto_MtBins[3] = 1140;  // avg 1168 (1170)
-        Ivana.Ghetto_MtBins[4] = 1200;  // avg 1228 (1230)
-        Ivana.Ghetto_MtBins[5] = 1260;  // avg 1315 (1315)
-        Ivana.Ghetto_MtBins[6] = 1380;  // avg 1463 (1460)
-        Ivana.Ghetto_MtBins[7] = 1570;  // avg 1681 (1680)
-        Ivana.Ghetto_MtBins[8] = 1840;  // avg 1923 (1920)
-        Ivana.Ghetto_MtBins[9] = 2030;  // avg 2303 (2300)
-        Ivana.Ghetto_MtBins[10] = 4500;
+        ceca.Ghetto_NumMtBins = 10;
+        ceca.Ghetto_MtBins = new double[ceca.Ghetto_NumMtBins + 1];
+        ceca.Ghetto_MtBins[0] = 930;   // avg  983 ( 985)
+        ceca.Ghetto_MtBins[1] = 1020;  // avg 1054 (1055)
+        ceca.Ghetto_MtBins[2] = 1080;  // avg 1110 (1110)
+        ceca.Ghetto_MtBins[3] = 1140;  // avg 1168 (1170)
+        ceca.Ghetto_MtBins[4] = 1200;  // avg 1228 (1230)
+        ceca.Ghetto_MtBins[5] = 1260;  // avg 1315 (1315)
+        ceca.Ghetto_MtBins[6] = 1380;  // avg 1463 (1460)
+        ceca.Ghetto_MtBins[7] = 1570;  // avg 1681 (1680)
+        ceca.Ghetto_MtBins[8] = 1840;  // avg 1923 (1920)
+        ceca.Ghetto_MtBins[9] = 2030;  // avg 2303 (2300)
+        ceca.Ghetto_MtBins[10] = 4500;
 
-        Ivana.Ghetto_NumMomBins = 150;
-        Ivana.Ghetto_MomMin = 0;
-        Ivana.Ghetto_MomMax = 600;
+        ceca.Ghetto_NumMomBins = 150;
+        ceca.Ghetto_MomMin = 0;
+        ceca.Ghetto_MomMax = 600;
 
-        Ivana.Ghetto_NumRadBins = 2048;
-        Ivana.Ghetto_RadMin = 0;
-        Ivana.Ghetto_RadMax = 64;
+        ceca.Ghetto_NumRadBins = 2048;
+        ceca.Ghetto_RadMin = 0;
+        ceca.Ghetto_RadMax = 64;
     }
 
-    Ivana.GoBabyGo(NUM_CPU);
+    ceca.GoBabyGo(NUM_CPU);
 
-    // Ivana.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
+    // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
     // return;
-    double TotPairs =
-        Ivana.GhettoPrimReso[0] + Ivana.GhettoPrimReso[1] + Ivana.GhettoPrimReso[2] + Ivana.GhettoPrimReso[3];
-    double TotPP = double(Ivana.GhettoPrimReso[0]) / TotPairs;
-    double TotPR = double(Ivana.GhettoPrimReso[1]) / TotPairs;
-    double TotRP = double(Ivana.GhettoPrimReso[2]) / TotPairs;
-    double TotRR = double(Ivana.GhettoPrimReso[3]) / TotPairs;
+    double TotPairs = ceca.GhettoPrimReso[0] + ceca.GhettoPrimReso[1] + ceca.GhettoPrimReso[2] + ceca.GhettoPrimReso[3];
+    double TotPP = double(ceca.GhettoPrimReso[0]) / TotPairs;
+    double TotPR = double(ceca.GhettoPrimReso[1]) / TotPairs;
+    double TotRP = double(ceca.GhettoPrimReso[2]) / TotPairs;
+    double TotRR = double(ceca.GhettoPrimReso[3]) / TotPairs;
 
-    double FemtoPairs = Ivana.GhettoFemtoPrimReso[0] + Ivana.GhettoFemtoPrimReso[1] + Ivana.GhettoFemtoPrimReso[2] +
-                        Ivana.GhettoFemtoPrimReso[3];
-    double FemtoPP = double(Ivana.GhettoFemtoPrimReso[0]) / FemtoPairs;
-    double FemtoPR = double(Ivana.GhettoFemtoPrimReso[1]) / FemtoPairs;
-    double FemtoRP = double(Ivana.GhettoFemtoPrimReso[2]) / FemtoPairs;
-    double FemtoRR = double(Ivana.GhettoFemtoPrimReso[3]) / FemtoPairs;
+    double FemtoPairs = ceca.GhettoFemtoPrimReso[0] + ceca.GhettoFemtoPrimReso[1] + ceca.GhettoFemtoPrimReso[2] +
+                        ceca.GhettoFemtoPrimReso[3];
+    double FemtoPP = double(ceca.GhettoFemtoPrimReso[0]) / FemtoPairs;
+    double FemtoPR = double(ceca.GhettoFemtoPrimReso[1]) / FemtoPairs;
+    double FemtoRP = double(ceca.GhettoFemtoPrimReso[2]) / FemtoPairs;
+    double FemtoRR = double(ceca.GhettoFemtoPrimReso[3]) / FemtoPairs;
 
     printf("     Total  Femto\n");
     printf("PP%6.2f%% %6.2f\n", TotPP * 100., FemtoPP * 100.);
@@ -977,33 +670,33 @@ int main(int argc, const char** argv) {
     printf("RP%6.2f%% %6.2f\n", TotRP * 100., FemtoRP * 100.);
     printf("RR%6.2f%% %6.2f\n", TotRR * 100., FemtoRR * 100.);
 
-    Ivana.GhettoFemto_rstar->ComputeError();
-    Ivana.GhettoFemto_rstar->ScaleToIntegral();
-    Ivana.GhettoFemto_rstar->ScaleToBinSize();
+    ceca.GhettoFemto_rstar->ComputeError();
+    ceca.GhettoFemto_rstar->ScaleToIntegral();
+    ceca.GhettoFemto_rstar->ScaleToBinSize();
 
-    CATS Kitty_pp;
-    Kitty_pp.SetMomBins(80, 0, 320);
-    Kitty_pp.SetNotifications(CATS::nWarning);
+    CATS cat;
+    cat.SetMomBins(80, 0, 320);
+    cat.SetNotifications(CATS::nWarning);
     DLM_CommonAnaFunctions AnalysisObject;
     AnalysisObject.SetCatsFilesFolder(TString::Format("%s/CatsFiles", "").Data());
-    AnalysisObject.SetUpCats_pp(Kitty_pp, "AV18", "NULL", 0, 0);
-    DLM_HistoSource ppHistoSource(*Ivana.GhettoFemto_rstar);
-    Kitty_pp.SetAnaSource(CatsSourceForwarder, &ppHistoSource, 0);
-    Kitty_pp.SetUseAnalyticSource(true);
-    Kitty_pp.SetAutoNormSource(false);
-    Kitty_pp.SetNormalizedSource(true);
-    Kitty_pp.KillTheCat();
+    AnalysisObject.SetUpCats_pp(cat, "AV18", "NULL", 0, 0);
+    DLM_HistoSource ppHistoSource(*ceca.GhettoFemto_rstar);
+    cat.SetAnaSource(CatsSourceForwarder, &ppHistoSource, 0);
+    cat.SetUseAnalyticSource(true);
+    cat.SetAutoNormSource(false);
+    cat.SetNormalizedSource(true);
+    cat.KillTheCat();
     TGraph Ck_pp;
     Ck_pp.SetName("Ck_pp");
     Ck_pp.SetLineColor(kBlue);
     Ck_pp.SetLineWidth(5);
-    for (unsigned uBin = 0; uBin < Kitty_pp.GetNumMomBins(); uBin++) {
-        Ck_pp.SetPoint(uBin, Kitty_pp.GetMomentum(uBin), Kitty_pp.GetCorrFun(uBin));
+    for (unsigned uBin = 0; uBin < cat.GetNumMomBins(); uBin++) {
+        Ck_pp.SetPoint(uBin, cat.GetMomentum(uBin), cat.GetCorrFun(uBin));
     }
     fOutput.cd();
     Ck_pp.Write();
 
-    TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(Ivana.GhettoFemto_rstar, "GhettoFemto_rstar");
+    TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rstar, "GhettoFemto_rstar");
     fOutput.cd();
     h_GhettoFemto_rstar->SetLineWidth(3);
     h_GhettoFemto_rstar->SetLineColor(kAzure);
@@ -1021,10 +714,10 @@ int main(int argc, const char** argv) {
     fit_rstar->FixParameter(1, reff_Ceca);
     fit_rstar->Write();
 
-    Ivana.GhettoFemto_rcore->ComputeError();
-    Ivana.GhettoFemto_rcore->ScaleToIntegral();
-    Ivana.GhettoFemto_rcore->ScaleToBinSize();
-    TH1F* h_GhettoFemto_rcore = Convert_DlmHisto_TH1F(Ivana.GhettoFemto_rcore, "GhettoFemto_rcore");
+    ceca.GhettoFemto_rcore->ComputeError();
+    ceca.GhettoFemto_rcore->ScaleToIntegral();
+    ceca.GhettoFemto_rcore->ScaleToBinSize();
+    TH1F* h_GhettoFemto_rcore = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rcore, "GhettoFemto_rcore");
     fOutput.cd();
     h_GhettoFemto_rcore->SetLineWidth(3);
     h_GhettoFemto_rcore->SetLineColor(kBlack);
@@ -1040,115 +733,115 @@ int main(int argc, const char** argv) {
     fit_rcore->FixParameter(1, rcore_Ceca);
     fit_rcore->Write();
 
-    Ivana.Ghetto_kstar->ComputeError();
-    Ivana.Ghetto_kstar->ScaleToIntegral();
-    Ivana.Ghetto_kstar->ScaleToBinSize();
-    TH1F* h_Ghetto_kstar = Convert_DlmHisto_TH1F(Ivana.Ghetto_kstar, "Ghetto_kstar");
-    Ivana.Ghetto_kstar_rstar->ComputeError();
-    TH2F* h_Ghetto_kstar_rstar = Convert_DlmHisto_TH2F(Ivana.Ghetto_kstar_rstar, "Ghetto_kstar_rstar");
+    ceca.Ghetto_kstar->ComputeError();
+    ceca.Ghetto_kstar->ScaleToIntegral();
+    ceca.Ghetto_kstar->ScaleToBinSize();
+    TH1F* h_Ghetto_kstar = Convert_DlmHisto_TH1F(ceca.Ghetto_kstar, "Ghetto_kstar");
+    ceca.Ghetto_kstar_rstar->ComputeError();
+    TH2F* h_Ghetto_kstar_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar, "Ghetto_kstar_rstar");
 
-    Ivana.Ghetto_kstar_rstar_PP->ComputeError();
-    TH2F* h_Ghetto_kstar_rstar_PP = Convert_DlmHisto_TH2F(Ivana.Ghetto_kstar_rstar_PP, "Ghetto_kstar_rstar_PP");
-    Ivana.Ghetto_kstar_rstar_PR->ComputeError();
-    TH2F* h_Ghetto_kstar_rstar_PR = Convert_DlmHisto_TH2F(Ivana.Ghetto_kstar_rstar_PR, "Ghetto_kstar_rstar_PR");
-    Ivana.Ghetto_kstar_rstar_RP->ComputeError();
-    TH2F* h_Ghetto_kstar_rstar_RP = Convert_DlmHisto_TH2F(Ivana.Ghetto_kstar_rstar_RP, "Ghetto_kstar_rstar_RP");
-    Ivana.Ghetto_kstar_rstar_RR->ComputeError();
-    TH2F* h_Ghetto_kstar_rstar_RR = Convert_DlmHisto_TH2F(Ivana.Ghetto_kstar_rstar_RR, "Ghetto_kstar_rstar_RR");
+    ceca.Ghetto_kstar_rstar_PP->ComputeError();
+    TH2F* h_Ghetto_kstar_rstar_PP = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_PP, "Ghetto_kstar_rstar_PP");
+    ceca.Ghetto_kstar_rstar_PR->ComputeError();
+    TH2F* h_Ghetto_kstar_rstar_PR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_PR, "Ghetto_kstar_rstar_PR");
+    ceca.Ghetto_kstar_rstar_RP->ComputeError();
+    TH2F* h_Ghetto_kstar_rstar_RP = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RP, "Ghetto_kstar_rstar_RP");
+    ceca.Ghetto_kstar_rstar_RR->ComputeError();
+    TH2F* h_Ghetto_kstar_rstar_RR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RR, "Ghetto_kstar_rstar_RR");
 
-    TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(Ivana.Ghetto_mT_rstar, "Ghetto_mT_rstar");
-    Ivana.GhettoFemto_mT_rstar->ComputeError();
-    TH2F* h_GhettoFemto_mT_rstar = Convert_DlmHisto_TH2F(Ivana.GhettoFemto_mT_rstar, "GhettoFemto_mT_rstar");
+    TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_rstar, "Ghetto_mT_rstar");
+    ceca.GhettoFemto_mT_rstar->ComputeError();
+    TH2F* h_GhettoFemto_mT_rstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "GhettoFemto_mT_rstar");
 
     // fOutput.cd();
     // h_GhettoFemto_mT_rstar->Write();
-    Ivana.GhettoFemto_mT_rcore->ComputeError();
-    TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(Ivana.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
-    TH2F* h_GhettoFemto_mT_kstar = Convert_DlmHisto_TH2F(Ivana.GhettoFemto_mT_kstar, "GhettoFemto_mT_kstar");
-    TH2F* h_Ghetto_mT_costh = Convert_DlmHisto_TH2F(Ivana.Ghetto_mT_costh, "Ghetto_mT_costh");
-    TH2F* h_GhettoSP_pT_th = Convert_DlmHisto_TH2F(Ivana.GhettoSP_pT_th, "GhettoSP_pT_th");
-    TH1F* h_GhettoSP_pT_1 = Convert_DlmHisto_TH1F(Ivana.GhettoSP_pT_1, "GhettoSP_pT_1");
-    TH1F* h_GhettoSP_pT_2 = Convert_DlmHisto_TH1F(Ivana.GhettoSP_pT_2, "GhettoSP_pT_2");
-    // Ivana.GhettoFemto_rstar->ComputeError();
-    // TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(Ivana.GhettoFemto_rstar,"GhettoFemto_rstar");
-    Ivana.Ghetto_PP_AngleRcP1->ComputeError();
-    Ivana.Ghetto_PP_AngleRcP2->ComputeError();
-    Ivana.Ghetto_PP_AngleP1P2->ComputeError();
-    Ivana.Ghetto_RP_AngleRcP1->ComputeError();
-    Ivana.Ghetto_PR_AngleRcP2->ComputeError();
-    Ivana.Ghetto_RR_AngleRcP1->ComputeError();
-    Ivana.Ghetto_RR_AngleRcP2->ComputeError();
-    Ivana.Ghetto_RR_AngleP1P2->ComputeError();
-    TH1F* h_Ghetto_PP_AngleRcP1 = Convert_DlmHisto_TH1F(Ivana.Ghetto_PP_AngleRcP1, "Ghetto_PP_AngleRcP1");
-    TH1F* h_Ghetto_PP_AngleRcP2 = Convert_DlmHisto_TH1F(Ivana.Ghetto_PP_AngleRcP2, "Ghetto_PP_AngleRcP2");
-    TH1F* h_Ghetto_PP_AngleP1P2 = Convert_DlmHisto_TH1F(Ivana.Ghetto_PP_AngleP1P2, "Ghetto_PP_AngleP1P2");
-    TH1F* h_Ghetto_RP_AngleRcP1 = Convert_DlmHisto_TH1F(Ivana.Ghetto_RP_AngleRcP1, "Ghetto_RP_AngleRcP1");
-    TH1F* h_Ghetto_PR_AngleRcP2 = Convert_DlmHisto_TH1F(Ivana.Ghetto_PR_AngleRcP2, "Ghetto_PR_AngleRcP2");
-    TH1F* h_Ghetto_RR_AngleRcP1 = Convert_DlmHisto_TH1F(Ivana.Ghetto_RR_AngleRcP1, "Ghetto_RR_AngleRcP1");
-    TH1F* h_Ghetto_RR_AngleRcP2 = Convert_DlmHisto_TH1F(Ivana.Ghetto_RR_AngleRcP2, "Ghetto_RR_AngleRcP2");
-    TH1F* h_Ghetto_RR_AngleP1P2 = Convert_DlmHisto_TH1F(Ivana.Ghetto_RR_AngleP1P2, "Ghetto_RR_AngleP1P2");
+    ceca.GhettoFemto_mT_rcore->ComputeError();
+    TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
+    TH2F* h_GhettoFemto_mT_kstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_kstar, "GhettoFemto_mT_kstar");
+    TH2F* h_Ghetto_mT_costh = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_costh, "Ghetto_mT_costh");
+    TH2F* h_GhettoSP_pT_th = Convert_DlmHisto_TH2F(ceca.GhettoSP_pT_th, "GhettoSP_pT_th");
+    TH1F* h_GhettoSP_pT_1 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_1, "GhettoSP_pT_1");
+    TH1F* h_GhettoSP_pT_2 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_2, "GhettoSP_pT_2");
+    // ceca.GhettoFemto_rstar->ComputeError();
+    // TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rstar,"GhettoFemto_rstar");
+    ceca.Ghetto_PP_AngleRcP1->ComputeError();
+    ceca.Ghetto_PP_AngleRcP2->ComputeError();
+    ceca.Ghetto_PP_AngleP1P2->ComputeError();
+    ceca.Ghetto_RP_AngleRcP1->ComputeError();
+    ceca.Ghetto_PR_AngleRcP2->ComputeError();
+    ceca.Ghetto_RR_AngleRcP1->ComputeError();
+    ceca.Ghetto_RR_AngleRcP2->ComputeError();
+    ceca.Ghetto_RR_AngleP1P2->ComputeError();
+    TH1F* h_Ghetto_PP_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleRcP1, "Ghetto_PP_AngleRcP1");
+    TH1F* h_Ghetto_PP_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleRcP2, "Ghetto_PP_AngleRcP2");
+    TH1F* h_Ghetto_PP_AngleP1P2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleP1P2, "Ghetto_PP_AngleP1P2");
+    TH1F* h_Ghetto_RP_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_RP_AngleRcP1, "Ghetto_RP_AngleRcP1");
+    TH1F* h_Ghetto_PR_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PR_AngleRcP2, "Ghetto_PR_AngleRcP2");
+    TH1F* h_Ghetto_RR_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleRcP1, "Ghetto_RR_AngleRcP1");
+    TH1F* h_Ghetto_RR_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleRcP2, "Ghetto_RR_AngleRcP2");
+    TH1F* h_Ghetto_RR_AngleP1P2 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleP1P2, "Ghetto_RR_AngleP1P2");
 
-    Ivana.GhettoSPr_X->ComputeError();
-    Ivana.GhettoSPr_X->ScaleToIntegral();
-    Ivana.GhettoSPr_X->ScaleToBinSize();
-    TH1F* h_GhettoSPr_X = Convert_DlmHisto_TH1F(Ivana.GhettoSPr_X, "GhettoSPr_X");
+    ceca.GhettoSPr_X->ComputeError();
+    ceca.GhettoSPr_X->ScaleToIntegral();
+    ceca.GhettoSPr_X->ScaleToBinSize();
+    TH1F* h_GhettoSPr_X = Convert_DlmHisto_TH1F(ceca.GhettoSPr_X, "GhettoSPr_X");
 
-    Ivana.GhettoSPr_Y->ComputeError();
-    Ivana.GhettoSPr_Y->ScaleToIntegral();
-    Ivana.GhettoSPr_Y->ScaleToBinSize();
-    TH1F* h_GhettoSPr_Y = Convert_DlmHisto_TH1F(Ivana.GhettoSPr_Y, "GhettoSPr_Y");
+    ceca.GhettoSPr_Y->ComputeError();
+    ceca.GhettoSPr_Y->ScaleToIntegral();
+    ceca.GhettoSPr_Y->ScaleToBinSize();
+    TH1F* h_GhettoSPr_Y = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Y, "GhettoSPr_Y");
 
-    Ivana.GhettoSPr_Z->ComputeError();
-    Ivana.GhettoSPr_Z->ScaleToIntegral();
-    Ivana.GhettoSPr_Z->ScaleToBinSize();
-    TH1F* h_GhettoSPr_Z = Convert_DlmHisto_TH1F(Ivana.GhettoSPr_Z, "GhettoSPr_Z");
+    ceca.GhettoSPr_Z->ComputeError();
+    ceca.GhettoSPr_Z->ScaleToIntegral();
+    ceca.GhettoSPr_Z->ScaleToBinSize();
+    TH1F* h_GhettoSPr_Z = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Z, "GhettoSPr_Z");
 
-    Ivana.GhettoSPr_Rho->ComputeError();
-    Ivana.GhettoSPr_Rho->ScaleToIntegral();
-    Ivana.GhettoSPr_Rho->ScaleToBinSize();
-    TH1F* h_GhettoSPr_Rho = Convert_DlmHisto_TH1F(Ivana.GhettoSPr_Rho, "GhettoSPr_Rho");
+    ceca.GhettoSPr_Rho->ComputeError();
+    ceca.GhettoSPr_Rho->ScaleToIntegral();
+    ceca.GhettoSPr_Rho->ScaleToBinSize();
+    TH1F* h_GhettoSPr_Rho = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Rho, "GhettoSPr_Rho");
 
-    Ivana.GhettoSPr_R->ComputeError();
-    Ivana.GhettoSPr_R->ScaleToIntegral();
-    Ivana.GhettoSPr_R->ScaleToBinSize();
-    TH1F* h_GhettoSPr_R = Convert_DlmHisto_TH1F(Ivana.GhettoSPr_R, "GhettoSPr_R");
+    ceca.GhettoSPr_R->ComputeError();
+    ceca.GhettoSPr_R->ScaleToIntegral();
+    ceca.GhettoSPr_R->ScaleToBinSize();
+    TH1F* h_GhettoSPr_R = Convert_DlmHisto_TH1F(ceca.GhettoSPr_R, "GhettoSPr_R");
 
-    Ivana.GhettoSP_X->ComputeError();
-    Ivana.GhettoSP_X->ScaleToIntegral();
-    Ivana.GhettoSP_X->ScaleToBinSize();
-    TH1F* h_GhettoSP_X = Convert_DlmHisto_TH1F(Ivana.GhettoSP_X, "GhettoSP_X");
+    ceca.GhettoSP_X->ComputeError();
+    ceca.GhettoSP_X->ScaleToIntegral();
+    ceca.GhettoSP_X->ScaleToBinSize();
+    TH1F* h_GhettoSP_X = Convert_DlmHisto_TH1F(ceca.GhettoSP_X, "GhettoSP_X");
 
-    Ivana.GhettoSP_Y->ComputeError();
-    Ivana.GhettoSP_Y->ScaleToIntegral();
-    Ivana.GhettoSP_Y->ScaleToBinSize();
-    TH1F* h_GhettoSP_Y = Convert_DlmHisto_TH1F(Ivana.GhettoSP_Y, "GhettoSP_Y");
+    ceca.GhettoSP_Y->ComputeError();
+    ceca.GhettoSP_Y->ScaleToIntegral();
+    ceca.GhettoSP_Y->ScaleToBinSize();
+    TH1F* h_GhettoSP_Y = Convert_DlmHisto_TH1F(ceca.GhettoSP_Y, "GhettoSP_Y");
 
-    Ivana.GhettoSP_Z->ComputeError();
-    Ivana.GhettoSP_Z->ScaleToIntegral();
-    Ivana.GhettoSP_Z->ScaleToBinSize();
-    TH1F* h_GhettoSP_Z = Convert_DlmHisto_TH1F(Ivana.GhettoSP_Z, "GhettoSP_Z");
+    ceca.GhettoSP_Z->ComputeError();
+    ceca.GhettoSP_Z->ScaleToIntegral();
+    ceca.GhettoSP_Z->ScaleToBinSize();
+    TH1F* h_GhettoSP_Z = Convert_DlmHisto_TH1F(ceca.GhettoSP_Z, "GhettoSP_Z");
 
-    Ivana.GhettoSP_Rho->ComputeError();
-    Ivana.GhettoSP_Rho->ScaleToIntegral();
-    Ivana.GhettoSP_Rho->ScaleToBinSize();
-    TH1F* h_GhettoSP_Rho = Convert_DlmHisto_TH1F(Ivana.GhettoSP_Rho, "GhettoSP_Rho");
+    ceca.GhettoSP_Rho->ComputeError();
+    ceca.GhettoSP_Rho->ScaleToIntegral();
+    ceca.GhettoSP_Rho->ScaleToBinSize();
+    TH1F* h_GhettoSP_Rho = Convert_DlmHisto_TH1F(ceca.GhettoSP_Rho, "GhettoSP_Rho");
 
-    Ivana.GhettoSP_R->ComputeError();
-    Ivana.GhettoSP_R->ScaleToIntegral();
-    Ivana.GhettoSP_R->ScaleToBinSize();
-    TH1F* h_GhettoSP_R = Convert_DlmHisto_TH1F(Ivana.GhettoSP_R, "GhettoSP_R");
+    ceca.GhettoSP_R->ComputeError();
+    ceca.GhettoSP_R->ScaleToIntegral();
+    ceca.GhettoSP_R->ScaleToBinSize();
+    TH1F* h_GhettoSP_R = Convert_DlmHisto_TH1F(ceca.GhettoSP_R, "GhettoSP_R");
 
-    Ivana.GhettoFemto_mT_mTwrong->ComputeError();
-    TH2F* h_GhettoFemto_mT_mTwrong = Convert_DlmHisto_TH2F(Ivana.GhettoFemto_mT_mTwrong, "GhettoFemto_mT_mTwrong");
+    ceca.GhettoFemto_mT_mTwrong->ComputeError();
+    TH2F* h_GhettoFemto_mT_mTwrong = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_mTwrong, "GhettoFemto_mT_mTwrong");
 
-    Ivana.Ghetto_mT_mTwrong->ComputeError();
-    TH2F* h_Ghetto_mT_mTwrong = Convert_DlmHisto_TH2F(Ivana.Ghetto_mT_mTwrong, "Ghetto_mT_mTwrong");
+    ceca.Ghetto_mT_mTwrong->ComputeError();
+    TH2F* h_Ghetto_mT_mTwrong = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_mTwrong, "Ghetto_mT_mTwrong");
 
-    Ivana.GhettoFemto_pT1_pT2->ComputeError();
-    TH2F* h_GhettoFemto_pT1_pT2 = Convert_DlmHisto_TH2F(Ivana.GhettoFemto_pT1_pT2, "GhettoFemto_pT1_pT2");
+    ceca.GhettoFemto_pT1_pT2->ComputeError();
+    TH2F* h_GhettoFemto_pT1_pT2 = Convert_DlmHisto_TH2F(ceca.GhettoFemto_pT1_pT2, "GhettoFemto_pT1_pT2");
 
-    Ivana.GhettoFemto_pT1_div_pT->ComputeError();
-    TH1F* h_GhettoFemto_pT1_div_pT = Convert_DlmHisto_TH1F(Ivana.GhettoFemto_pT1_div_pT, "GhettoFemto_pT1_div_pT");
+    ceca.GhettoFemto_pT1_div_pT->ComputeError();
+    TH1F* h_GhettoFemto_pT1_div_pT = Convert_DlmHisto_TH1F(ceca.GhettoFemto_pT1_div_pT, "GhettoFemto_pT1_div_pT");
 
     TGraphErrors g_GhettoFemto_mT_rstar;
     g_GhettoFemto_mT_rstar.SetName("g_GhettoFemto_mT_rstar");
@@ -1198,9 +891,6 @@ int main(int argc, const char** argv) {
         }
         delete hProj;
 
-        // do the same for
-        // GhettoFemto_mT_rcore
-
         hProj = (TH1F*)h_GhettoFemto_mT_rcore->ProjectionY(TString::Format("hProj"), uBin + 1, uBin + 1);
         Mean = hProj->GetMean();
         Err = hProj->GetStdDev();
@@ -1225,8 +915,6 @@ int main(int argc, const char** argv) {
     printf("r(%.2f GeV) = %.2f\n", g_GhettoFemto_mT_rstar.GetPointX(0) * 0.001, mT_first * MeanToGauss);
     double mT_2GeV = g_GhettoFemto_mT_rstar.Eval(2000);
     printf("r(%.2f GeV) = %.2f\n", 2., mT_2GeV * MeanToGauss);
-    // printf("----FemTUM----\n");
-    // printf("CORE: <rcore> = %.3f; rcore = %.3f\n",);
 
     h_GhettoFemto_rstar->Scale(1. / h_GhettoFemto_rstar->Integral(), "width");
 
@@ -1235,15 +923,13 @@ int main(int argc, const char** argv) {
     double alpha = REMOVE_BOOST || EffFix == 9002 ? 0.99 : 0.9;
     alpha = 0.99;
     GetCentralInterval(*h_GhettoFemto_rstar, alpha, lowerlimit, upperlimit, true);
-    
+
     unsigned lowerbin = h_GhettoFemto_rstar->FindBin(lowerlimit);
     unsigned upperbin = h_GhettoFemto_rstar->FindBin(upperlimit);
     printf("The fit will be performed in the range [%.2f, %.2f] fm\n", lowerlimit, upperlimit);
     TF1* fSource = new TF1("fSource", ScaledGauss, 0, 32, 2);
     fSource->SetParameter(0, h_GhettoFemto_rstar->GetMean() / 2.3);
     fSource->SetParLimits(0, 0.5, 5.0);
-    // fSource->SetParameter(1,0.5);
-    // fSource->SetParLimits(1,0.1,1.0);
     fSource->FixParameter(1, 1.0);
 
     h_GhettoFemto_rstar->Fit(fSource, "Q, S, R, M +", "", lowerlimit, upperlimit);
@@ -1253,21 +939,12 @@ int main(int argc, const char** argv) {
            fSource->GetParError(0), fSource->GetParameter(1), fSource->GetParError(1));
 
     GetCentralInterval(*h_GhettoFemto_rstar, 0.9, lowerlimit, upperlimit, true);
-    // TF1* fitDG_rstar = new TF1("fitDG_rstar",NormDoubleGaussSourceTF1,lowerlimit,upperlimit,4);
     TF1* fitDG_rstar = new TF1("fitDG_rstar", NormDoubleGaussSourceTF1, 0.4, 16.0, 4);
-    // fitDG_rstar->SetParameter(3,1);
-    // fitDG_rstar->SetParLimits(3,0.8,1.0);//norm
     fitDG_rstar->FixParameter(3, 1);
-
-    // fitDG_rstar->SetParameter(0,0.36);//3.30932e-01
-    // fitDG_rstar->SetParLimits(0,0.0,0.6);//first source
     fitDG_rstar->FixParameter(0, fit_rcore->GetParameter(1));  // 3.30932e-01
 
     fitDG_rstar->SetParameter(1, 1.30);      // 1.23015e+00
     fitDG_rstar->SetParLimits(1, 0.9, 5.0);  // second source
-
-    // fitDG_rstar->SetParameter(2,0.24);//weight of first source
-    // fitDG_rstar->SetParLimits(2,0.0,0.4);
     fitDG_rstar->FixParameter(2, FemtoPP);
 
     h_GhettoFemto_rstar->Fit(fitDG_rstar, "S, N, R, M");
@@ -1302,17 +979,12 @@ int main(int argc, const char** argv) {
             h_Ghetto_kstar_rstar->ProjectionY(TString::Format("hkstar_rstar_%.0f", kstar), uMom + 1, uMom + 1);
         hkstar_rstar[uMom]->Scale(1. / hkstar_rstar[uMom]->Integral(), "width");
         GetCentralInterval(*hkstar_rstar[uMom], 0.9, lowerlimit, upperlimit, true);
-        // printf("--- k* = %.0f ---\n",kstar);
-        // printf(" The fit will be performed in the range [%.2f, %.2f] fm\n",lowerlimit,upperlimit);
         fSource->SetParameter(0, hkstar_rstar[uMom]->GetMean() / 2.3);
         fSource->SetParLimits(0, hkstar_rstar[uMom]->GetMean() / 4., hkstar_rstar[uMom]->GetMean());
         hkstar_rstar[uMom]->Fit(fSource, "Q, S, N, R, M", "", lowerlimit, upperlimit);
-        // printf(" The effective Gaussian size is %.3f +/- %.3f fm, λ = %.3f +/- %.3f\n",
-        // fSource->GetParameter(0),fSource->GetParError(0),fSource->GetParameter(1),fSource->GetParError(1));
         gRadKstar.SetPoint(uMom, kstar, fSource->GetParameter(0));
         gMeanRadKstar.SetPoint(uMom, kstar, hkstar_rstar[uMom]->GetMean());
         double gfm = GaussFromMean(hkstar_rstar[uMom]->GetMean());
-        // printf(" The mean is %f; The correponding r0 is %f\n",hkstar_rstar[uMom]->GetMean(),gfm);
         gGhettoRadKstar.SetPoint(uMom, kstar, gfm);
     }
 
@@ -1373,7 +1045,6 @@ int main(int argc, const char** argv) {
     h_Ghetto_kstar_rstar_RR->GetXaxis()->SetRangeUser(0, 1200);
 
     double UpRU = 100;
-    if (type == "pK") UpRU = 40;
     h_Ghetto_kstar_rstar->GetYaxis()->SetRangeUser(0, UpRU);
     h_Ghetto_kstar_rstar_PP->GetYaxis()->SetRangeUser(0, UpRU);
     h_Ghetto_kstar_rstar_PR->GetYaxis()->SetRangeUser(0, UpRU);
@@ -1431,7 +1102,6 @@ int main(int argc, const char** argv) {
     g_GhettoFemto_mT_rcore_G.Write();
     h_GhettoFemto_mT_kstar->Write();
     h_Ghetto_mT_costh->Write();
-    // return;
     h_GhettoSP_pT_th->Write();
     h_GhettoSP_pT_1->Write();
     h_GhettoSP_pT_2->Write();
