@@ -1,4 +1,25 @@
+# Reproduce simple 1fm source with and remove lorentz boost
 ofile: source.root
 system: pp
 ncpu: 1
 glob_timeout: 60
+timeout: 60
+
+# ceca parameters
+delay: 0.0
+hadron_size: 0
+hadron_slope: 0
+eta_cut: 0.8
+proton_reso: false
+frac_protons: 35.78
+equalize_tau: true
+mult: 2
+femto_region: 100
+target_yield: 1000
+remove_boost: true
+disp: 0.176
+hadr: 2.68
+tau: 3.76
+
+# fit params
+alpha: 0.99
