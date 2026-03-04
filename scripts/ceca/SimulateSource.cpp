@@ -140,10 +140,15 @@ int main(int argc, const char** argv) {
     std::cout << "type " << type << std::endl;
     
     // Simulation parameters:
-    const double GLOB_TIMEOUT = std::stoi(argv[1]);
-    const double TIMEOUT = GLOB_TIMEOUT;
-    const unsigned NUM_CPU = 16;
-    
+    unsigned NUM_CPU = std::stoi(argv[1]);
+    if (NUM_CPU == 0) {
+        NUM_CPU = omp_get_max_threads();
+    }
+    const unsigned GLOB_TIMEOUT = std::stoi(argv[2]);
+    const unsigned TIMEOUT = GLOB_TIMEOUT;
+
+    printf("Using %d threads\n", NUM_CPU);
+
     // Default parameters:
     // double HadronSize = 0;   // 0.75
     // double HadronSlope = 0;  // 0.2
@@ -182,7 +187,8 @@ int main(int argc, const char** argv) {
     const bool EQUALIZE_TAU = true;
     const unsigned Multiplicity = 2;
     const double femto_region = 100;
-    const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
+    const unsigned target_yield = 1000;  // originally 4M
+    // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     const int EffFix = 9001;
     const bool REMOVE_BOOST = true; // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
     
@@ -593,7 +599,6 @@ int main(int argc, const char** argv) {
         for (unsigned uIter = 0; uIter < 100 * 1000; uIter++) {
             double axisValues[2];
             dlm_pT_eta_p.SampleYield(axisValues, false, dlmRandom);
-            std::cout << "(pt, eta) = " << axisValues[0] << ", " << axisValues[1] << std::endl;
             hSampleQA_p->Fill(axisValues[0], axisValues[1]);
         }
     }
@@ -859,7 +864,7 @@ int main(int argc, const char** argv) {
     }
 
     CECA Ivana(Database, ListOfParticles);
-    for (int iThread = 0; iThread < omp_get_max_threads(); iThread++) {
+    for (int iThread = 0; iThread < NUM_CPU; iThread++) {
         Ivana.SetSeed(iThread, iThread + 1);
     }
 
