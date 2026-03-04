@@ -8,6 +8,7 @@ set(GSL_INCLUDE "/usr/include/gsl" CACHE PATH "GSL include directory")
 set(GSL_LIB "/usr/lib64" CACHE PATH "GSL library directory")
 SET(PROJECT_SOURCE "/home/battidan/ph/sw/yaffa/")
 set(BINARY_DESTINATION "${CMAKE_BINARY_DIR}/bin" CACHE PATH "Binary output directory")
+set(LOG_LEVEL 10 CACHE STRING "Logging level")
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -47,7 +48,12 @@ if (OPENMP_FOUND)
 endif()
 
 set_target_properties(SimulateSource PROPERTIES COMPILE_FLAGS ${CFLAGS})
+target_compile_definitions(SimulateSource PRIVATE LOG_LEVEL=${LOG_LEVEL})
 
+# Modify the behavior of __FILE__ so that it gives only the path relative to the repo
+target_compile_options(SimulateSource PRIVATE
+-fmacro-prefix-map=${CMAKE_SOURCE_DIR}=.
+)
 SET(VERSION_MAJOR 1)
 SET(VERSION_MINOR 0)
 SET(VERSION_PATCH 0)
@@ -55,6 +61,7 @@ SET(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
 
 include_directories(${PROJECT_SOURCE})
+include_directories(${PROJECT_SOURCE}/src/)
 include_directories(${CATS_INCLUDE})
 include_directories(${GSL_INCLUDE})
 include_directories(${ROOT_INCLUDE})
