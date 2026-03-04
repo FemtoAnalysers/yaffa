@@ -213,14 +213,7 @@ int main(int argc, const char** argv) {
     // Load configuration from file
     Config cfg = load_config(cfg_file);
 
-    std::cout << "ofile: " << cfg.ofile << "\n";
-    std::cout << "system: " << cfg.system << "\n";
-    std::cout << "ncpu: " << cfg.ncpu << "\n";
-    std::cout << "glob_timeout: " << cfg.glob_timeout << "\n";
-    std::cout << "thread_timeout: " << cfg.thread_timeout << "\n";
-    std::cout << "hadron_size:" << cfg.hadron_size << "\n";
-    std::cout << "hadron_slope:" << cfg.hadron_slope << "\n";
-    std::cout << "eta_cut:" << cfg.eta_cut << "\n";
+
 
     unsigned NUM_CPU = cfg.ncpu;
     if (NUM_CPU == 0) {
@@ -266,7 +259,7 @@ int main(int argc, const char** argv) {
     // Reproduce simple 1fm source with and remove lorentz boost
     double HadronSize = cfg.hadron_size;
     double HadronSlope = cfg.hadron_slope;
-    const double EtaCut = 0.8;
+    double EtaCut = 0.8;
     const bool PROTON_RESO = false;
     const double frac_protons = 35.78;
     const double frac_kaons = 52.4 * 1.1;
@@ -721,6 +714,15 @@ int main(int argc, const char** argv) {
         ceca.Ghetto_RadMax = 64;
     }
 
+    std::cout << "Simulation settings: " << cfg.ofile << "\n";
+    std::cout << "  - ofile: " << cfg.ofile << "\n";
+    std::cout << "  - system: " << cfg.system << "\n";
+    std::cout << "  - ncpu: " << cfg.ncpu << "\n";
+    std::cout << "  - glob_timeout: " << cfg.glob_timeout << "\n";
+    std::cout << "  - thread_timeout: " << cfg.thread_timeout << "\n";
+    std::cout << "  - hadron_size: " << cfg.hadron_size << "\n";
+    std::cout << "  - hadron_slope: " << cfg.hadron_slope << "\n";
+    std::cout << "  - eta_cut: " << EtaCut << "\n";
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
