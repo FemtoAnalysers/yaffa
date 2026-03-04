@@ -152,6 +152,9 @@ struct Config {
     int ncpu = 1;
     int glob_timeout = 0;
     int thread_timeout = 0;
+    double hadron_size = 0.;
+    double hadron_slope = 0.;
+    double eta_cut = 0.;
 };
 
 // --- Helper: trim whitespace ---
@@ -191,6 +194,9 @@ Config load_config(const std::string& filename) {
     if (kv.count("ncpu")) cfg.ncpu = std::stoi(kv["ncpu"]);
     if (kv.count("glob_timeout")) cfg.glob_timeout = std::stoi(kv["glob_timeout"]);
     if (kv.count("thread_timeout")) cfg.thread_timeout = std::stoi(kv["thread_timeout"]);
+    if (kv.count("hadron_size")) cfg.hadron_size = std::stof(kv["hadron_size"]);
+    if (kv.count("hadron_slope")) cfg.hadron_slope = std::stof(kv["hadron_slope"]);
+    if (kv.count("eta_cut")) cfg.eta_cut = std::stof(kv["eta_cut"]);
 
     return cfg;
 }
@@ -212,6 +218,9 @@ int main(int argc, const char** argv) {
     std::cout << "ncpu: " << cfg.ncpu << "\n";
     std::cout << "glob_timeout: " << cfg.glob_timeout << "\n";
     std::cout << "thread_timeout: " << cfg.thread_timeout << "\n";
+    std::cout << "hadron_size:" << cfg.hadron_size << "\n";
+    std::cout << "hadron_slope:" << cfg.hadron_slope << "\n";
+    std::cout << "eta_cut:" << cfg.eta_cut << "\n";
 
     unsigned NUM_CPU = cfg.ncpu;
     if (NUM_CPU == 0) {
@@ -221,7 +230,6 @@ int main(int argc, const char** argv) {
     const TString system = cfg.system;
 
     // Simulation parameters:
-    const double d_delay = 0.0;
     const unsigned GLOB_TIMEOUT = cfg.glob_timeout;
     const unsigned TIMEOUT = cfg.thread_timeout;
 
@@ -256,8 +264,8 @@ int main(int argc, const char** argv) {
     // to 1 TeV
 
     // Reproduce simple 1fm source with and remove lorentz boost
-    double HadronSize = 0;   // 0.75
-    double HadronSlope = 0;  // 0.2
+    double HadronSize = cfg.hadron_size;
+    double HadronSlope = cfg.hadron_slope;
     const double EtaCut = 0.8;
     const bool PROTON_RESO = false;
     const double frac_protons = 35.78;
