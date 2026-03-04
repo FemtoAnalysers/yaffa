@@ -259,7 +259,7 @@ int main(int argc, const char** argv) {
     // Reproduce simple 1fm source with and remove lorentz boost
     double HadronSize = cfg.hadron_size;
     double HadronSlope = cfg.hadron_slope;
-    double EtaCut = 0.8;
+    double EtaCut = 0.8; // TODO Change to cfg.eta_cut
     const bool PROTON_RESO = false;
     const double frac_protons = 35.78;
     const double frac_kaons = 52.4 * 1.1;
