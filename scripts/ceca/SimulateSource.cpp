@@ -496,12 +496,10 @@ int main(int argc, const char** argv) {
     ParticleList.push_back(Database.NewParticle("Dch"));
     ParticleList.push_back(Database.NewParticle("Dch_star"));
     ParticleList.push_back(Database.NewParticle("PionReso"));
-    if (!REMOVE_BOOST) {
-        ParticleList.push_back(Database.NewParticle("ProtonReso"));
-        ParticleList.push_back(Database.NewParticle("LambdaReso"));
-        ParticleList.push_back(Database.NewParticle("KaonReso"));
-        ParticleList.push_back(Database.NewParticle("DeuteronReso"));
-    }
+    ParticleList.push_back(Database.NewParticle("ProtonReso"));
+    ParticleList.push_back(Database.NewParticle("LambdaReso"));
+    ParticleList.push_back(Database.NewParticle("KaonReso"));
+    ParticleList.push_back(Database.NewParticle("DeuteronReso"));
 
     TFile fOutput(oFileName.data(), "recreate");
 
@@ -623,7 +621,11 @@ int main(int argc, const char** argv) {
             else
                 prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
         } else if (prt->GetName() == "ProtonReso") {
-            prt->SetMass(1362);
+            if (REMOVE_BOOST) {
+                prt->SetMass(1000000 * 1362./0.938);
+            } else {
+                prt->SetMass(1362);
+            }
             if (system == "pp" || system == "pP")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
