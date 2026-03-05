@@ -157,6 +157,7 @@ struct Config {
     double eta_cut = 0.;
     bool remove_boost = false;
     unsigned target_yield = 1;
+    bool enable_resonances = 0;
 };
 
 // --- Helper: trim whitespace ---
@@ -201,6 +202,7 @@ Config load_config(const std::string& filename) {
     if (kv.count("eta_cut")) cfg.eta_cut = std::stof(kv["eta_cut"]);
     if (kv.count("remove_boost")) cfg.remove_boost = std::stoi(kv["remove_boost"]);
     if (kv.count("target_yield")) cfg.target_yield = std::stoi(kv["target_yield"]);
+    if (kv.count("enable_resonances")) cfg.enable_resonances = std::stoi(kv["enable_resonances"]);
 
     return cfg;
 }
@@ -264,7 +266,7 @@ int main(int argc, const char** argv) {
     double HadronSize = cfg.hadron_size;
     double HadronSlope = cfg.hadron_slope;
     double EtaCut = 0.8; // TODO Change to cfg.eta_cut
-    const bool PROTON_RESO = false;
+    const bool PROTON_RESO = cfg.enable_resonances;
     const double frac_protons = 35.78;
     const double frac_kaons = 52.4 * 1.1;
     const bool EQUALIZE_TAU = true;
@@ -729,6 +731,7 @@ int main(int argc, const char** argv) {
     std::cout << "  - eta_cut: " << EtaCut << "\n";
     std::cout << "  - remove_boost: " << cfg.remove_boost << "\n";
     std::cout << "  - target_yield: " << cfg.target_yield << "\n";
+    std::cout << "  - enable_resonances: " << cfg.enable_resonances << "\n";
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
