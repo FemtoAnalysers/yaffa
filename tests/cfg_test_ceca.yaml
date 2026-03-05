@@ -15,7 +15,7 @@ equalize_tau: true
 mult: 2
 femto_region: 100
 target_yield: 1000
-remove_boost: true
+remove_boost: 1
 disp: 0.176
 hadr: 2.68
 tau: 3.76
