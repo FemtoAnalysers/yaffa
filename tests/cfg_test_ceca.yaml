@@ -9,7 +9,7 @@ thread_timeout: 60
 hadron_size: 0
 hadron_slope: 0
 eta_cut: 0.8
-proton_reso: false
+enable_resonances: 0
 frac_protons: 35.78
 equalize_tau: true
 mult: 2
