@@ -155,6 +155,7 @@ struct Config {
     double hadron_size = 0.;
     double hadron_slope = 0.;
     double eta_cut = 0.;
+    bool remove_boost = false;
 };
 
 // --- Helper: trim whitespace ---
@@ -197,6 +198,7 @@ Config load_config(const std::string& filename) {
     if (kv.count("hadron_size")) cfg.hadron_size = std::stof(kv["hadron_size"]);
     if (kv.count("hadron_slope")) cfg.hadron_slope = std::stof(kv["hadron_slope"]);
     if (kv.count("eta_cut")) cfg.eta_cut = std::stof(kv["eta_cut"]);
+    if (kv.count("remove_boost")) cfg.remove_boost = std::stoi(kv["remove_boost"]);
 
     return cfg;
 }
@@ -269,8 +271,8 @@ int main(int argc, const char** argv) {
     const unsigned target_yield = 1000;  // originally 4M
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     const int EffFix = 9001;
-    const bool REMOVE_BOOST =
-        true;  // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
+    const bool REMOVE_BOOST =cfg.remove_boost;
+        // true;  // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
 
     // Reproduce simple 1fm source - verify non gaussianity of source due to lorentz boost
     // double HadronSize = 0;   // 0.75
@@ -723,6 +725,7 @@ int main(int argc, const char** argv) {
     std::cout << "  - hadron_size: " << cfg.hadron_size << "\n";
     std::cout << "  - hadron_slope: " << cfg.hadron_slope << "\n";
     std::cout << "  - eta_cut: " << EtaCut << "\n";
+    std::cout << "  - remove_boost: " << cfg.remove_boost << "\n";
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
