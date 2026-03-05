@@ -156,6 +156,7 @@ struct Config {
     double hadron_slope = 0.;
     double eta_cut = 0.;
     bool remove_boost = false;
+    unsigned target_yield = 1;
 };
 
 // --- Helper: trim whitespace ---
@@ -199,6 +200,7 @@ Config load_config(const std::string& filename) {
     if (kv.count("hadron_slope")) cfg.hadron_slope = std::stof(kv["hadron_slope"]);
     if (kv.count("eta_cut")) cfg.eta_cut = std::stof(kv["eta_cut"]);
     if (kv.count("remove_boost")) cfg.remove_boost = std::stoi(kv["remove_boost"]);
+    if (kv.count("target_yield")) cfg.target_yield = std::stoi(kv["target_yield"]);
 
     return cfg;
 }
@@ -268,7 +270,7 @@ int main(int argc, const char** argv) {
     const bool EQUALIZE_TAU = true;
     const unsigned Multiplicity = 2;
     const double femto_region = 100;
-    const unsigned target_yield = 1000;  // originally 4M
+    const unsigned target_yield = cfg.target_yield;  // originally 4M
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     const int EffFix = 9001;
     const bool REMOVE_BOOST =cfg.remove_boost;
@@ -726,6 +728,7 @@ int main(int argc, const char** argv) {
     std::cout << "  - hadron_slope: " << cfg.hadron_slope << "\n";
     std::cout << "  - eta_cut: " << EtaCut << "\n";
     std::cout << "  - remove_boost: " << cfg.remove_boost << "\n";
+    std::cout << "  - target_yield: " << cfg.target_yield << "\n";
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
