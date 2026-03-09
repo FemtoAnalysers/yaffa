@@ -371,19 +371,12 @@ int main(int argc, const char** argv) {
     ceca.GHETTO_EVENT = true;
 
     // ceca paper
-    ceca.Ghetto_NumMtBins = 10;
-    ceca.Ghetto_MtBins = new double[ceca.Ghetto_NumMtBins + 1];
-    ceca.Ghetto_MtBins[0] = 930;   // avg  983 ( 985)
-    ceca.Ghetto_MtBins[1] = 1020;  // avg 1054 (1055)
-    ceca.Ghetto_MtBins[2] = 1080;  // avg 1110 (1110)
-    ceca.Ghetto_MtBins[3] = 1140;  // avg 1168 (1170)
-    ceca.Ghetto_MtBins[4] = 1200;  // avg 1228 (1230)
-    ceca.Ghetto_MtBins[5] = 1260;  // avg 1315 (1315)
-    ceca.Ghetto_MtBins[6] = 1380;  // avg 1463 (1460)
-    ceca.Ghetto_MtBins[7] = 1570;  // avg 1681 (1680)
-    ceca.Ghetto_MtBins[8] = 1840;  // avg 1923 (1920)
-    ceca.Ghetto_MtBins[9] = 2030;  // avg 2303 (2300)
-    ceca.Ghetto_MtBins[10] = 4500;
+    std::vector<double> mTBins = cfg["mt_bins"].as<std::vector<double>>();
+    ceca.Ghetto_NumMtBins = mTBins.size() -1;
+    ceca.Ghetto_MtBins = new double[mTBins.size()];
+    for (size_t iMt; iMt < mTBins.size(); iMt++) {
+        ceca.Ghetto_MtBins[iMt] = mTBins[iMt];    
+    }
 
     ceca.Ghetto_NumMomBins = 150;
     ceca.Ghetto_MomMin = 0;
