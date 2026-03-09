@@ -159,6 +159,7 @@ int main(int argc, const char** argv) {
     // Load configuration from file
     YAML::Node cfg = YAML::LoadFile(cfg_file);
 
+    // CECA configuration
     unsigned NUM_CPU = cfg["ncpu"].as<unsigned>() ? cfg["ncpu"].as<unsigned>() : omp_get_max_threads();
     std::string oFileName = cfg["ofile"].as<std::string>();
     std::string system = cfg["system"].as<std::string>();
@@ -173,244 +174,18 @@ int main(int argc, const char** argv) {
     const unsigned Multiplicity = cfg["mult"].as<unsigned>();
     const double femto_region = cfg["femto_region"].as<double>();;
     const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
-    const int EffFix = 9001;
-    // Effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
-    const bool removeBoost = cfg["remove_boost"].as<bool>();
-
-
-    // Default parameters:
-    // double HadronSize = 0;   // 0.75
-    // double HadronSlope = 0;  // 0.2
-    // const double EtaCut = 0.8;
-    // const bool PROTON_RESO = true;
-    // const double frac_protons = 35.78;
-    // const bool EQUALIZE_TAU = true;
-    // const unsigned Multiplicity = 2;
-    // const double femto_region = 100;
-    // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
-    // const int EffFix = -1402;
-    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
-    // to 1 TeV
-
-    // Reproduce simple gaussian-like source in CECA paper (only rd = 0.85 fm):
-    // double HadronSize = 0;   // 0.75
-    // double HadronSlope = 0;  // 0.2
-    // const double EtaCut = 0.8;
-    // const bool PROTON_RESO = false;
-    // const double frac_protons = 35.78;
-    // const bool EQUALIZE_TAU = true;
-    // const unsigned Multiplicity = 2;
-    // const double femto_region = 100;
-    // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
-    // const int EffFix = 9000;
-    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
-    // to 1 TeV
-
-    // Reproduce simple 1fm source with and remove lorentz boost
-
-
-    // Reproduce simple 1fm source - verify non gaussianity of source due to lorentz boost
-    // double HadronSize = 0;   // 0.75
-    // double HadronSlope = 0;  // 0.2
-    // const double EtaCut = 0.8;
-    // const bool PROTON_RESO = false;
-    // const double frac_protons = 35.78;
-    // const bool EQUALIZE_TAU = true;
-    // const unsigned Multiplicity = 2;
-    // const double femto_region = 100;
-    // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
-    // const int EffFix = 9002;
-    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
-    // to 1 TeV
-
-    // we run to either reproduce the core of 0.97,
-    // or the upper limit of reff = 1.06+0.04
-    // this leads to a 10% difference in the SP core source
-    double rSP_core = 0;
-    double rSP_dispZ = 0;
-    double rSP_hadr = 0;
-    double rSP_hadrZ = 0;
-    double rSP_hflc = 0;
-    double rSP_tau = 0;
-    bool tau_prp = true;
-    double rSP_tflc = 0;
-    double rSP_ThK = 0;
-
-    // default is true
-    bool rSP_FixedHadr = true;
-
-    // default is 0
-    float rSP_FragBeta = 0;
-
-    if (system == "pp") {
-        // jaime issue, to get his stuff, rSP is 0, rSP_hflc = 0.15
-        rSP_core = EffFix ? 0.915 * 1.100 : 0.915;
-        rSP_core = 1.12;
-        rSP_dispZ = rSP_core;
-        if (EffFix == -1) {
-            rSP_core = 0.2;
-            rSP_dispZ = 0.2;
-            // rSP_hadr = 2.7;
-            // rSP_tau = 1.7;
-            // rSP_hadr = 3.55;
-            // rSP_tau = 2.3;
-            rSP_hadr = 2.3;
-            rSP_tau = 3.55;
-            rSP_hflc = 0.00;
-        } else if (EffFix == -2) {
-            rSP_core = 0.25;
-            rSP_dispZ = 0.25;
-            rSP_hadr = 3.55;
-            rSP_tau = 2.3;
-            rSP_hflc = 0.1;
-        } else if (EffFix == -3) {
-            // this works well
-            // rSP_core = 0.35;
-            // rSP_hadr = 4.50;
-            // rSP_tau = 1.0;
-            // rSP_hflc = 0.0;
-            // HadronSize = 0.8;
-            // HadronSlope = 0.2;
-            // what works is all zero, but this is 0.25 and the tau is 3.10 exponential
-            // what kind of works (but not perfect) is to have tau of c.a. 4.5, 15% fluctuations
-            // the former leads to exp source (also the core), while for the latter it is a Gauss
-            rSP_core = 0.0;
-            rSP_dispZ = 0.0;
-            rSP_hadr = 0.0;
-            rSP_tau = 4.5;
-            rSP_tflc = 0.15;
-            tau_prp = false;
-            rSP_hflc = 0.0;
-            HadronSize = 0.0;
-            HadronSlope = 0.0;
-            rSP_ThK = 0.0;
-            // small increase of scaling at large mT values
-            rSP_FixedHadr = true;
-            // can also increase the radius.
-            // Big effect on Tau, where it creates strong scaling (at low mT values)
-            rSP_FragBeta = 1.0;
-
-            // rSP_core = 0.25;
-            // rSP_hadr = 3.55;
-            // rSP_tau = 1.0;
-        }
-        // some random tests
-        else if (EffFix == -900) {
-            rSP_core = 0.32;
-            rSP_dispZ = 0.32;
-            rSP_hadr = 2.3 / 2.;
-            rSP_hadrZ = 2.3 * 4.;
-            rSP_tau = 3.55 * 0;
-            rSP_hflc = 0.00;
-        }
-        // for FEMTUM
-        else if (EffFix == -1001) {
-            // rSP_core = 0.80;
-            // rSP_dispZ = 0.80;
-            // these values are for the ceca paper, work well with 1 fm effective
-            rSP_core = 0.85;
-            rSP_dispZ = 0.85;
-            rSP_hadr = 0.00;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1002) {
-            rSP_core = 1.20;
-            rSP_dispZ = 1.20;
-            rSP_hadr = 0.00;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1010) {
-            rSP_core = 0.00;
-            rSP_dispZ = 0.00;
-            // rSP_hadr = 4.00;
-            // these values are for the ceca paper, work well with 1 fm effective
-            rSP_hadr = 4.2;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1020) {
-            rSP_core = 0.00;
-            rSP_dispZ = 0.00;
-            rSP_hadr = 6.00;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1100) {
-            rSP_core = 0.00;
-            rSP_dispZ = 0.00;
-            rSP_hadr = 0.00;
-            // rSP_tau = 4.00;
-            // these values are for the ceca paper, work well with 1 fm effective
-            rSP_tau = 4.2;
-        } else if (EffFix == -1200) {
-            rSP_core = 0.00;
-            rSP_dispZ = 0.00;
-            rSP_hadr = 0.00;
-            rSP_tau = 6.00;
-        } else if (EffFix == -1300) {
-            rSP_core = 0.25;
-            rSP_dispZ = 0.00;
-            rSP_hadr = 7.00;
-            rSP_tau = 0.00;
-            // rSP_FragBeta = 1.0;
-            // tau_prp = false;
-            rSP_ThK = 100;
-        }
-        // examples for the animation for hadron 2023
-        else if (EffFix == -1400) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 0.00;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1401) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 2.68;
-            rSP_tau = 0.00;
-        } else if (EffFix == -1402) {
-            // this so happens to be exactly as the usmani fit in the ceca paper
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 2.68;
-            rSP_tau = 3.76;
-        } else if (EffFix == -1403) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 2.70;
-            rSP_tau = 3.78;
-        } else if (EffFix == -1404) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 2.24;
-            rSP_tau = 3.13;
-        } else if (EffFix == -1405) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 1.96;
-            rSP_tau = 2.74;
-        } else if (EffFix == -1406) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 1.44;
-            rSP_tau = 2.02;
-        } else if (EffFix == -1407) {
-            rSP_core = 0.176;
-            rSP_dispZ = 0.176;
-            rSP_hadr = 2.00;
-            rSP_tau = 3.78;
-        }
-        // these values are for the ceca paper -> with NLO
-        else if (EffFix == -1408) {
-            rSP_core = 0.288;
-            rSP_dispZ = 0.288;
-            rSP_hadr = 3.23;
-            rSP_tau = 3.26;
-        } else if (EffFix == 9000) {
-            rSP_core = 0.85;
-            rSP_dispZ = rSP_core;
-            rSP_hadr = 0;
-            rSP_tau = 0;
-        } else if (EffFix == 9001 || EffFix == 9002) {
-            rSP_core = 1.;
-            rSP_dispZ = rSP_core;
-            rSP_hadr = 0;
-            rSP_tau = 0;
-        }
-    }
+    const bool removeBoost = cfg["remove_boost"].as<bool>(); // Set particle's masses to 1 TeV
+    double rSP_core = cfg["disp"].as<double>();
+    double rSP_dispZ = rSP_core;
+    double rSP_hadr = cfg["hadr"].as<double>();
+    double rSP_tau = cfg["tau"].as<double>();
+    double rSP_hadrZ = cfg["hadr_z"].as<double>();
+    double rSP_hflc = cfg["hflc"].as<double>();
+    bool tau_prp = cfg["tau_prp"].as<bool>();
+    double rSP_tflc = cfg["tflc"].as<double>();
+    double rSP_ThK = cfg["thk"].as<double>();
+    bool rSP_FixedHadr = cfg["fix_hadron"].as<bool>();
+    float rSP_FragBeta = cfg["frag_beta"].as<float>();
 
     TREPNI Database(0);
     Database.SetSeed(11);
@@ -598,6 +373,7 @@ int main(int argc, const char** argv) {
     printf("fh %.3f\n", float(rSP_FixedHadr));
     printf("fb %.3f\n", rSP_FragBeta);
 
+    // Physics settings
     ceca.SetDisplacementZ(rSP_dispZ);
     ceca.SetDisplacementT(rSP_core);
     ceca.SetHadronizationZ(rSP_hadrZ);
@@ -609,15 +385,7 @@ int main(int argc, const char** argv) {
     ceca.SetFixedHadr(rSP_FixedHadr);
     ceca.SetFragmentBeta(rSP_FragBeta);
 
-    // ceca.SetDisplacement(3.55*0.25);
-    // ceca.SetHadronizationT(3.55);
-    // ceca.SetHadrFluctuation(0.0);
-    // ceca.SetTau(0);
-
-    // ceca.SetDisplacement(1);
-    // ceca.SetHadronizationT(0);
-    // ceca.SetTau(0);
-
+    // Simulation settings
     ceca.SetTargetStatistics(target_yield);
     ceca.SetEventMult(Multiplicity);
     ceca.SetSourceDim(2);
@@ -627,36 +395,35 @@ int main(int argc, const char** argv) {
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
     ceca.GHETTO_EVENT = true;
-    if (system == "pp") {
-        // ceca paper
-        ceca.Ghetto_NumMtBins = 10;
-        ceca.Ghetto_MtBins = new double[ceca.Ghetto_NumMtBins + 1];
-        ceca.Ghetto_MtBins[0] = 930;   // avg  983 ( 985)
-        ceca.Ghetto_MtBins[1] = 1020;  // avg 1054 (1055)
-        ceca.Ghetto_MtBins[2] = 1080;  // avg 1110 (1110)
-        ceca.Ghetto_MtBins[3] = 1140;  // avg 1168 (1170)
-        ceca.Ghetto_MtBins[4] = 1200;  // avg 1228 (1230)
-        ceca.Ghetto_MtBins[5] = 1260;  // avg 1315 (1315)
-        ceca.Ghetto_MtBins[6] = 1380;  // avg 1463 (1460)
-        ceca.Ghetto_MtBins[7] = 1570;  // avg 1681 (1680)
-        ceca.Ghetto_MtBins[8] = 1840;  // avg 1923 (1920)
-        ceca.Ghetto_MtBins[9] = 2030;  // avg 2303 (2300)
-        ceca.Ghetto_MtBins[10] = 4500;
 
-        ceca.Ghetto_NumMomBins = 150;
-        ceca.Ghetto_MomMin = 0;
-        ceca.Ghetto_MomMax = 600;
+    // ceca paper
+    ceca.Ghetto_NumMtBins = 10;
+    ceca.Ghetto_MtBins = new double[ceca.Ghetto_NumMtBins + 1];
+    ceca.Ghetto_MtBins[0] = 930;   // avg  983 ( 985)
+    ceca.Ghetto_MtBins[1] = 1020;  // avg 1054 (1055)
+    ceca.Ghetto_MtBins[2] = 1080;  // avg 1110 (1110)
+    ceca.Ghetto_MtBins[3] = 1140;  // avg 1168 (1170)
+    ceca.Ghetto_MtBins[4] = 1200;  // avg 1228 (1230)
+    ceca.Ghetto_MtBins[5] = 1260;  // avg 1315 (1315)
+    ceca.Ghetto_MtBins[6] = 1380;  // avg 1463 (1460)
+    ceca.Ghetto_MtBins[7] = 1570;  // avg 1681 (1680)
+    ceca.Ghetto_MtBins[8] = 1840;  // avg 1923 (1920)
+    ceca.Ghetto_MtBins[9] = 2030;  // avg 2303 (2300)
+    ceca.Ghetto_MtBins[10] = 4500;
 
-        ceca.Ghetto_NumRadBins = 2048;
-        ceca.Ghetto_RadMin = 0;
-        ceca.Ghetto_RadMax = 64;
-    }
+    ceca.Ghetto_NumMomBins = 150;
+    ceca.Ghetto_MomMin = 0;
+    ceca.Ghetto_MomMax = 600;
 
+    ceca.Ghetto_NumRadBins = 2048;
+    ceca.Ghetto_RadMin = 0;
+    ceca.Ghetto_RadMax = 64;
+
+    // Run CECA
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
-    // return;
     double TotPairs = ceca.GhettoPrimReso[0] + ceca.GhettoPrimReso[1] + ceca.GhettoPrimReso[2] + ceca.GhettoPrimReso[3];
     double TotPP = double(ceca.GhettoPrimReso[0]) / TotPairs;
     double TotPR = double(ceca.GhettoPrimReso[1]) / TotPairs;
