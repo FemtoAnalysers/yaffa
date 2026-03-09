@@ -9,16 +9,79 @@ thread_timeout: 60
 hadron_size: 0
 hadron_slope: 0
 eta_cut: 0.8
-enable_resonances: 0
+enable_resonances: false
 frac_protons: 35.78
 equalize_tau: true
 mult: 2
 femto_region: 100
 target_yield: 1000
-remove_boost: 1
-disp: 0.176
-hadr: 2.68
-tau: 3.76
+remove_boost: true
+equalize_tau: true
+frac_prim:
+    p: 35.78
+mult: 2
+disp: 1
+hadr: 0
+tau: 0
+hadr_z: 0
+hflc: 0
+tau_prp: true
+tflc: 0
+thk: 0
+fix_hadron: true
+frag_beta: 0
+
+# disp: 0.176
+# hadr: 2.68
+# tau: 3.76
+
 
 # fit params
 alpha: 0.99
+
+
+
+
+# WIP:
+    # // Default parameters:
+    # // double HadronSize = 0;   // 0.75
+    # // double HadronSlope = 0;  // 0.2
+    # // const double EtaCut = 0.8;
+    # // const bool PROTON_RESO = true;
+    # // const double frac_protons = 35.78;
+    # // const bool EQUALIZE_TAU = true;
+    # // const unsigned Multiplicity = 2;
+    # // const double femto_region = 100;
+    # // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
+    # // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    # // to 1 TeV
+
+    # // Reproduce simple gaussian-like source in CECA paper (only rd = 0.85 fm):
+    # // double HadronSize = 0;   // 0.75
+    # // double HadronSlope = 0;  // 0.2
+    # // const double EtaCut = 0.8;
+    # // const bool PROTON_RESO = false;
+    # // const double frac_protons = 35.78;
+    # // const bool EQUALIZE_TAU = true;
+    # // const unsigned Multiplicity = 2;
+    # // const double femto_region = 100;
+    # // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
+    # // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    # // to 1 TeV
+
+    # // Reproduce simple 1fm source with and remove lorentz boost
+
+
+    # // Reproduce simple 1fm source - verify non gaussianity of source due to lorentz boost
+    # // double HadronSize = 0;   // 0.75
+    # // double HadronSlope = 0;  // 0.2
+    # // const double EtaCut = 0.8;
+    # // const bool PROTON_RESO = false;
+    # // const double frac_protons = 35.78;
+    # // const bool EQUALIZE_TAU = true;
+    # // const unsigned Multiplicity = 2;
+    # // const double femto_region = 100;
+    # // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
+    # // const int EffFix = 9002;
+    # // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    # // to 1 TeV

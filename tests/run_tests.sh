@@ -1,6 +1,7 @@
 #!/bin/bash
 
-pushd ../build
+mkdir -p ../build || exit 1
+pushd ../build || exit 1
 cmake -DLOG_LEVEL=40 .. || exit 1
 make || exit 1
 popd
