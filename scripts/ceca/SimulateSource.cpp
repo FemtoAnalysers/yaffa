@@ -176,10 +176,10 @@ int main(int argc, const char** argv) {
     double HadronSlope = cfg["hadron_slope"].as<double>();
     double EtaCut = cfg["eta_cut"].as<double>();
     const bool PROTON_RESO = cfg["enable_resonances"].as<bool>();
-    const double frac_protons = cfg["frac_prim"]["p"].as<double>();;
+    const double frac_protons = cfg["frac_prim"]["p"].as<double>();
     const bool EQUALIZE_TAU = cfg["equalize_tau"].as<bool>();
     const unsigned Multiplicity = cfg["mult"].as<unsigned>();
-    const double femto_region = cfg["femto_region"].as<double>();;
+    const double femto_region = cfg["femto_region"].as<double>();
     const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
     const bool removeBoost = cfg["remove_boost"].as<bool>(); // Set particle's masses to 1 TeV
     double rSP_core = cfg["disp"].as<double>();
@@ -215,16 +215,16 @@ int main(int argc, const char** argv) {
 
     TFile fOutput(oFileName.data(), "recreate");
 
-    DLM_Histo<float>* dlm_pT_p = NULL;
-    DLM_Histo<float>* dlm_pT_d = NULL;
+    DLM_Histo<float>* dlm_pT_p = nullptr;
+    DLM_Histo<float>* dlm_pT_d = nullptr;
     DLM_Histo<float> dlm_pT_eta_p;
     DLM_Histo<float> dlm_pT_eta_d;
-    TH1F* h_pT_p_all = NULL;
-    TH1F* h_pT_d_all = NULL;
-    TH1F* h_pT_p = NULL;
-    TH1F* h_pT_ap = NULL;
-    TH1F* h_pT_d = NULL;
-    TH1F* h_pT_ad = NULL;
+    TH1F* h_pT_p_all = nullptr;
+    TH1F* h_pT_d_all = nullptr;
+    TH1F* h_pT_p = nullptr;
+    TH1F* h_pT_ap = nullptr;
+    TH1F* h_pT_d = nullptr;
+    TH1F* h_pT_ad = nullptr;
 
     TFile file_p((YAFFA_PATH + "/input/ptshapes/p_HMpp13TeV_reco.root").data(), "read");
     h_pT_p = (TH1F*)file_p.Get("pTDist_after");
@@ -248,51 +248,38 @@ int main(int argc, const char** argv) {
     if (!h_pT_ad) LOG(FATAL, "ISSUE with h_pT_ad");
     h_pT_d_all->Add(h_pT_ad);
 
-    if (h_pT_p_all) {
-        dlm_pT_p = Convert_TH1F_DlmHisto(h_pT_p_all);
-        dlm_pT_p->RescaleAxis(0, 1000, false);
-    }
-    if (h_pT_d_all) {
-        dlm_pT_d = Convert_TH1F_DlmHisto(h_pT_d_all);
-        dlm_pT_d->RescaleAxis(0, 1000, false);
-    }
+    dlm_pT_p = Convert_TH1F_DlmHisto(h_pT_p_all);
+    dlm_pT_p->RescaleAxis(0, 1000, false);
+    dlm_pT_d = Convert_TH1F_DlmHisto(h_pT_d_all);
+    dlm_pT_d->RescaleAxis(0, 1000, false);
 
-    double* BinRange = NULL;
-    double axis[2];
-
-    if (dlm_pT_p) {
-        dlm_pT_eta_p.SetUp(2);
-        BinRange = dlm_pT_p->GetBinRange(0);
-        dlm_pT_eta_p.SetUp(0, dlm_pT_p->GetNbins(), BinRange);
-        delete[] BinRange;
-        dlm_pT_eta_p.SetUp(1, 1, -EtaCut, EtaCut);
-        dlm_pT_eta_p.Initialize();
-        for (unsigned uBin = 0; uBin < dlm_pT_p->GetNbins(); uBin++) {
-            dlm_pT_eta_p.SetBinContent(uBin, 0, dlm_pT_p->GetBinContent(uBin));
-            // printf("b%u %.3e\n",uBin,dlm_pT_p->GetBinContent(uBin));
-        }
+    double* BinRange = nullptr;
+    dlm_pT_eta_p.SetUp(2);
+    BinRange = dlm_pT_p->GetBinRange(0);
+    dlm_pT_eta_p.SetUp(0, dlm_pT_p->GetNbins(), BinRange);
+    delete[] BinRange;
+    dlm_pT_eta_p.SetUp(1, 1, -EtaCut, EtaCut);
+    dlm_pT_eta_p.Initialize();
+    for (unsigned uBin = 0; uBin < dlm_pT_p->GetNbins(); uBin++) {
+        dlm_pT_eta_p.SetBinContent(uBin, 0, dlm_pT_p->GetBinContent(uBin));
     }
 
-    if (dlm_pT_d) {
-        dlm_pT_eta_d.SetUp(2);
-        BinRange = dlm_pT_d->GetBinRange(0);
-        dlm_pT_eta_d.SetUp(0, dlm_pT_d->GetNbins(), BinRange);
-        delete[] BinRange;
-        dlm_pT_eta_d.SetUp(1, 1, -EtaCut, EtaCut);
-        dlm_pT_eta_d.Initialize();
-        for (unsigned uBin = 0; uBin < dlm_pT_d->GetNbins(); uBin++) {
-            dlm_pT_eta_d.SetBinContent(uBin, 0, dlm_pT_d->GetBinContent(uBin));
-        }
+    dlm_pT_eta_d.SetUp(2);
+    BinRange = dlm_pT_d->GetBinRange(0);
+    dlm_pT_eta_d.SetUp(0, dlm_pT_d->GetNbins(), BinRange);
+    delete[] BinRange;
+    dlm_pT_eta_d.SetUp(1, 1, -EtaCut, EtaCut);
+    dlm_pT_eta_d.Initialize();
+    for (unsigned uBin = 0; uBin < dlm_pT_d->GetNbins(); uBin++) {
+        dlm_pT_eta_d.SetBinContent(uBin, 0, dlm_pT_d->GetBinContent(uBin));
     }
 
     TH2F* hSampleQA_p = new TH2F("hSampleQA_p", "hSampleQA_p", 64, 0, 5000, 64, -1, 1);
     DLM_Random* dlmRandom = new DLM_Random(1);
-    if (dlm_pT_p) {
-        for (unsigned uIter = 0; uIter < 100 * 1000; uIter++) {
-            double axisValues[2];
-            dlm_pT_eta_p.SampleYield(axisValues, false, dlmRandom);
-            hSampleQA_p->Fill(axisValues[0], axisValues[1]);
-        }
+    for (unsigned uIter = 0; uIter < 100 * 1000; uIter++) {
+        double axisValues[2];
+        dlm_pT_eta_p.SampleYield(axisValues, false, dlmRandom);
+        hSampleQA_p->Fill(axisValues[0], axisValues[1]);
     }
 
     fOutput.cd();
@@ -302,8 +289,6 @@ int main(int argc, const char** argv) {
 
     for (TreParticle* prt : ParticleList) {
         if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
-            // if(prt->GetName()=="PrimProton")prt->SetMass(2.*Mass_p);
-            // else prt->SetMass(Mass_p);
             if (removeBoost) {
                 prt->SetMass(1000000);
             } else {
@@ -317,10 +302,7 @@ int main(int argc, const char** argv) {
                 prt->SetAbundance(0);
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_p)
-                prt->SetPtEtaPhi(dlm_pT_eta_p);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
+            prt->SetPtEtaPhi(dlm_pT_eta_p);
         } else if (prt->GetName() == "ProtonReso") {
             if (removeBoost) {
                 prt->SetMass(1000000 * 1362. / 0.938);
@@ -334,11 +316,7 @@ int main(int argc, const char** argv) {
             prt->SetWidth(hbarc / 1.65);
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
-            if (dlm_pT_p)
-                prt->SetPtEtaPhi(dlm_pT_eta_p);
-            else
-                prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
-
+            prt->SetPtEtaPhi(dlm_pT_eta_p);
             prt->NewDecay();
             prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Proton"));
             prt->GetDecay(0)->AddDaughter(*Database.GetParticle("Pion"));
@@ -410,7 +388,6 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_NumMomBins = 150;
     ceca.Ghetto_MomMin = 0;
     ceca.Ghetto_MomMax = 600;
-
     ceca.Ghetto_NumRadBins = 2048;
     ceca.Ghetto_RadMin = 0;
     ceca.Ghetto_RadMax = 64;
@@ -741,7 +718,7 @@ int main(int argc, const char** argv) {
 
     for (unsigned uMom = 0; uMom < h_Ghetto_kstar_rstar->GetXaxis()->GetNbins(); uMom++) {
         double kstar = h_Ghetto_kstar_rstar->GetXaxis()->GetBinCenter(uMom + 1);
-        hkstar_rstar[uMom] = NULL;
+        hkstar_rstar[uMom] = nullptr;
         if (kstar > 780) continue;
         hkstar_rstar[uMom] =
             h_Ghetto_kstar_rstar->ProjectionY(TString::Format("hkstar_rstar_%.0f", kstar), uMom + 1, uMom + 1);
