@@ -40,6 +40,7 @@ string(REGEX REPLACE "\n$" "" CATS_LIBS "${CATS_LIBS}")
 
 set(CFLAGS " -O2 -std=c++11 -pthread ${CFLAGS}")
 
+find_package(yaml-cpp REQUIRED)
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -66,4 +67,4 @@ include_directories(${CATS_INCLUDE})
 include_directories(${GSL_INCLUDE})
 include_directories(${ROOT_INCLUDE})
 
-target_link_libraries(SimulateSource -L${CATS_LIBS} ${LIBS} -L${GSL_LIB} -lgsl -lgslcblas)
+target_link_libraries(SimulateSource -L${CATS_LIBS} ${LIBS} -L${GSL_LIB} -lgsl -lgslcblas -lyaml-cpp)
