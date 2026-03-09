@@ -54,6 +54,8 @@
 #include "DLM_Source.h"
 #include "TREPNI.h"
 
+#include "Logger.h"
+
 double GaussianSource(double* x, double* par) {
     // Variables
     double rstar = x[0];
@@ -148,6 +150,11 @@ DLM_Histo<float>* GetPtEta_13TeV(TString FileNameIn, TString GraphNameIn, const 
 }
 
 int main(int argc, const char** argv) {
+    const std::string YAFFA_PATH = std::getenv("YAFFA");
+    if (YAFFA_PATH == "") {
+        LOG(FATAL, "Environment variable 'YAFFA' is not set. It must point to the main directory of the yaffa repo.");
+    }
+
     // Parse arguments form command line
     std::string cfg_file;
     if (argc == 1) {
@@ -219,38 +226,27 @@ int main(int argc, const char** argv) {
     TH1F* h_pT_d = NULL;
     TH1F* h_pT_ad = NULL;
 
-    TString FilePath;
-    if (system == "pp") {
-        FilePath = TString::Format("~/ph/sw/yaffa/input/ptshapes/", "");
-        TString FileNameP1, FileNameAP1, FileNameP2, FileNameAP2;
-        FileNameP1 = "p_HMpp13TeV_reco.root";
-        FileNameAP1 = "pbar_HMpp13TeV_reco.root";
-        FileNameP2 = "p_HMpp13TeV_reco.root";
-        FileNameAP2 = "pbar_HMpp13TeV_reco.root";
+    TFile file_p((YAFFA_PATH + "/input/ptshapes/p_HMpp13TeV_reco.root").data(), "read");
+    h_pT_p = (TH1F*)file_p.Get("pTDist_after");
+    if (!h_pT_p) LOG(FATAL, "ISSUE with h_pT_p");
+    fOutput.cd();
+    h_pT_p_all = (TH1F*)h_pT_p->Clone("h_pT_p_all");
 
-        TFile file_p(FilePath + FileNameP1, "read");
-        h_pT_p = (TH1F*)file_p.Get("pTDist_after");
-        if (!h_pT_p) printf("ISSUE with h_pT_p\n");
-        fOutput.cd();
-        h_pT_p_all = (TH1F*)h_pT_p->Clone("h_pT_p_all");
+    TFile file_ap((YAFFA_PATH + "/input/ptshapes/pbar_HMpp13TeV_reco.root").data(), "read");
+    h_pT_ap = (TH1F*)file_ap.Get("pTDist_after");
+    if (!h_pT_ap) LOG(FATAL, "ISSUE with h_pT_ap");
+    h_pT_p_all->Add(h_pT_ap);
 
-        TFile file_ap(FilePath + FileNameAP1, "read");
-        h_pT_ap = (TH1F*)file_ap.Get("pTDist_after");
-        if (!h_pT_ap) printf("ISSUE with h_pT_ap\n");
-        h_pT_p_all->Add(h_pT_ap);
+    TFile file_d((YAFFA_PATH + "/input/ptshapes/p_HMpp13TeV_reco.root").data(), "read");
+    h_pT_d = (TH1F*)file_d.Get("pTDist_after");
+    if (!h_pT_d) LOG(FATAL, "ISSUE with h_pT_d");
+    fOutput.cd();
+    h_pT_d_all = (TH1F*)h_pT_d->Clone("h_pT_d_all");
 
-        TFile file_d(FilePath + FileNameP2, "read");
-        h_pT_d = (TH1F*)file_d.Get("pTDist_after");
-        if (!h_pT_d) printf("ISSUE with h_pT_d\n");
-        fOutput.cd();
-        h_pT_d_all = (TH1F*)h_pT_d->Clone("h_pT_d_all");
-
-        TFile file_ad(FilePath + FileNameAP2, "read");
-        h_pT_ad = (TH1F*)file_ad.Get("pTDist_after");
-        if (!h_pT_ad) printf("ISSUE with h_pT_ad\n");
-        h_pT_d_all->Add(h_pT_ad);
-    }
-    // N.B. here we set the Kaons to the proton histo
+    TFile file_ad((YAFFA_PATH + "/input/ptshapes/pbar_HMpp13TeV_reco.root").data(), "read");
+    h_pT_ad = (TH1F*)file_ad.Get("pTDist_after");
+    if (!h_pT_ad) LOG(FATAL, "ISSUE with h_pT_ad");
+    h_pT_d_all->Add(h_pT_ad);
 
     if (h_pT_p_all) {
         dlm_pT_p = Convert_TH1F_DlmHisto(h_pT_p_all);
