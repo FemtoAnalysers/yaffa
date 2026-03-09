@@ -5,6 +5,7 @@
 // C++ headers
 #include <omp.h>
 #include <unistd.h>
+#include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <fstream>
@@ -146,67 +147,6 @@ DLM_Histo<float>* GetPtEta_13TeV(TString FileNameIn, TString GraphNameIn, const 
     return dlm_pT_eta;
 }
 
-struct Config {
-    std::string ofile;
-    std::string system;
-    int ncpu = 1;
-    int glob_timeout = 0;
-    int thread_timeout = 0;
-    double hadron_size = 0.;
-    double hadron_slope = 0.;
-    double eta_cut = 0.;
-    bool remove_boost = false;
-    unsigned target_yield = 1;
-    bool enable_resonances = 0;
-};
-
-// --- Helper: trim whitespace ---
-static inline std::string trim(const std::string& s) {
-    auto start = s.find_first_not_of(" \t\r\n");
-    auto end = s.find_last_not_of(" \t\r\n");
-    return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
-}
-
-// --- Parse config file ---
-Config load_config(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file) {
-        throw std::runtime_error("Cannot open config file: " + filename);
-    }
-
-    std::unordered_map<std::string, std::string> kv;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
-
-        auto pos = line.find(':');
-        if (pos == std::string::npos) continue;  // skip invalid lines
-
-        std::string key = trim(line.substr(0, pos));
-        std::string value = trim(line.substr(pos + 1));
-
-        kv[key] = value;
-    }
-
-    Config cfg;
-
-    if (kv.count("ofile")) cfg.ofile = kv["ofile"];
-    if (kv.count("system")) cfg.system = kv["system"];
-    if (kv.count("ncpu")) cfg.ncpu = std::stoi(kv["ncpu"]);
-    if (kv.count("glob_timeout")) cfg.glob_timeout = std::stoi(kv["glob_timeout"]);
-    if (kv.count("thread_timeout")) cfg.thread_timeout = std::stoi(kv["thread_timeout"]);
-    if (kv.count("hadron_size")) cfg.hadron_size = std::stof(kv["hadron_size"]);
-    if (kv.count("hadron_slope")) cfg.hadron_slope = std::stof(kv["hadron_slope"]);
-    if (kv.count("eta_cut")) cfg.eta_cut = std::stof(kv["eta_cut"]);
-    if (kv.count("remove_boost")) cfg.remove_boost = std::stoi(kv["remove_boost"]);
-    if (kv.count("target_yield")) cfg.target_yield = std::stoi(kv["target_yield"]);
-    if (kv.count("enable_resonances")) cfg.enable_resonances = std::stoi(kv["enable_resonances"]);
-
-    return cfg;
-}
-
 int main(int argc, const char** argv) {
     // Parse arguments form command line
     std::string cfg_file;
@@ -217,20 +157,26 @@ int main(int argc, const char** argv) {
     }
 
     // Load configuration from file
-    Config cfg = load_config(cfg_file);
+    YAML::Node cfg = YAML::LoadFile(cfg_file);
 
+    unsigned NUM_CPU = cfg["ncpu"].as<unsigned>() ? cfg["ncpu"].as<unsigned>() : omp_get_max_threads();
+    std::string oFileName = cfg["ofile"].as<std::string>();
+    std::string system = cfg["system"].as<std::string>();
+    const unsigned globalTimeout = cfg["glob_timeout"].as<unsigned>();
+    const unsigned threadTimeout = cfg["thread_timeout"].as<unsigned>();
+    double HadronSize = cfg["hadron_size"].as<double>();
+    double HadronSlope = cfg["hadron_slope"].as<double>();
+    double EtaCut = cfg["eta_cut"].as<double>();
+    const bool PROTON_RESO = cfg["enable_resonances"].as<bool>();
+    const double frac_protons = cfg["frac_prim"]["p"].as<double>();;
+    const bool EQUALIZE_TAU = cfg["equalize_tau"].as<bool>();
+    const unsigned Multiplicity = cfg["mult"].as<unsigned>();
+    const double femto_region = cfg["femto_region"].as<double>();;
+    const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
+    const int EffFix = 9001;
+    // Effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
+    const bool removeBoost = cfg["remove_boost"].as<bool>();
 
-
-    unsigned NUM_CPU = cfg.ncpu;
-    if (NUM_CPU == 0) {
-        NUM_CPU = omp_get_max_threads();
-    }
-    std::string oFileName = cfg.ofile;
-    const TString system = cfg.system;
-
-    // Simulation parameters:
-    const unsigned GLOB_TIMEOUT = cfg.glob_timeout;
-    const unsigned TIMEOUT = cfg.thread_timeout;
 
     // Default parameters:
     // double HadronSize = 0;   // 0.75
@@ -238,13 +184,12 @@ int main(int argc, const char** argv) {
     // const double EtaCut = 0.8;
     // const bool PROTON_RESO = true;
     // const double frac_protons = 35.78;
-    // const double frac_kaons = 52.4 * 1.1;
     // const bool EQUALIZE_TAU = true;
     // const unsigned Multiplicity = 2;
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = -1402;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
     // to 1 TeV
 
     // Reproduce simple gaussian-like source in CECA paper (only rd = 0.85 fm):
@@ -253,30 +198,16 @@ int main(int argc, const char** argv) {
     // const double EtaCut = 0.8;
     // const bool PROTON_RESO = false;
     // const double frac_protons = 35.78;
-    // const double frac_kaons = 52.4 * 1.1;
     // const bool EQUALIZE_TAU = true;
     // const unsigned Multiplicity = 2;
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = 9000;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
     // to 1 TeV
 
     // Reproduce simple 1fm source with and remove lorentz boost
-    double HadronSize = cfg.hadron_size;
-    double HadronSlope = cfg.hadron_slope;
-    double EtaCut = 0.8; // TODO Change to cfg.eta_cut
-    const bool PROTON_RESO = cfg.enable_resonances;
-    const double frac_protons = 35.78;
-    const double frac_kaons = 52.4 * 1.1;
-    const bool EQUALIZE_TAU = true;
-    const unsigned Multiplicity = 2;
-    const double femto_region = 100;
-    const unsigned target_yield = cfg.target_yield;  // originally 4M
-    // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
-    const int EffFix = 9001;
-    const bool REMOVE_BOOST =cfg.remove_boost;
-        // true;  // effectively remove the lorentz boost effect by setting the particle's masses to 1 TeV
+
 
     // Reproduce simple 1fm source - verify non gaussianity of source due to lorentz boost
     // double HadronSize = 0;   // 0.75
@@ -284,13 +215,12 @@ int main(int argc, const char** argv) {
     // const double EtaCut = 0.8;
     // const bool PROTON_RESO = false;
     // const double frac_protons = 35.78;
-    // const double frac_kaons = 52.4 * 1.1;
     // const bool EQUALIZE_TAU = true;
     // const unsigned Multiplicity = 2;
     // const double femto_region = 100;
     // const unsigned target_yield = 512 * 1000 / 64.;  // originally 4M
     // const int EffFix = 9002;
-    // const bool REMOVE_BOOST = false; // effectively remove the lorentz boost effect by setting the particle's masses
+    // const bool removeBoost = false; // effectively remove the lorentz boost effect by setting the particle's masses
     // to 1 TeV
 
     // we run to either reproduce the core of 0.97,
@@ -603,7 +533,7 @@ int main(int argc, const char** argv) {
         if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
             // if(prt->GetName()=="PrimProton")prt->SetMass(2.*Mass_p);
             // else prt->SetMass(Mass_p);
-            if (REMOVE_BOOST) {
+            if (removeBoost) {
                 prt->SetMass(1000000);
             } else {
                 prt->SetMass(Mass_p);
@@ -621,8 +551,8 @@ int main(int argc, const char** argv) {
             else
                 prt->SetPtPz(0.85 * prt->GetMass(), 0.85 * prt->GetMass());
         } else if (prt->GetName() == "ProtonReso") {
-            if (REMOVE_BOOST) {
-                prt->SetMass(1000000 * 1362./0.938);
+            if (removeBoost) {
+                prt->SetMass(1000000 * 1362. / 0.938);
             } else {
                 prt->SetMass(1362);
             }
@@ -692,8 +622,8 @@ int main(int argc, const char** argv) {
     ceca.SetEventMult(Multiplicity);
     ceca.SetSourceDim(2);
     ceca.SetDebugMode(true);
-    ceca.SetThreadTimeout(TIMEOUT);
-    ceca.SetGlobalTimeout(GLOB_TIMEOUT);
+    ceca.SetThreadTimeout(threadTimeout);
+    ceca.SetGlobalTimeout(globalTimeout);
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
     ceca.GHETTO_EVENT = true;
@@ -722,18 +652,6 @@ int main(int argc, const char** argv) {
         ceca.Ghetto_RadMax = 64;
     }
 
-    std::cout << "Simulation settings: " << cfg.ofile << "\n";
-    std::cout << "  - ofile: " << cfg.ofile << "\n";
-    std::cout << "  - system: " << cfg.system << "\n";
-    std::cout << "  - ncpu: " << cfg.ncpu << "\n";
-    std::cout << "  - glob_timeout: " << cfg.glob_timeout << "\n";
-    std::cout << "  - thread_timeout: " << cfg.thread_timeout << "\n";
-    std::cout << "  - hadron_size: " << cfg.hadron_size << "\n";
-    std::cout << "  - hadron_slope: " << cfg.hadron_slope << "\n";
-    std::cout << "  - eta_cut: " << EtaCut << "\n";
-    std::cout << "  - remove_boost: " << cfg.remove_boost << "\n";
-    std::cout << "  - target_yield: " << cfg.target_yield << "\n";
-    std::cout << "  - enable_resonances: " << cfg.enable_resonances << "\n";
     ceca.GoBabyGo(NUM_CPU);
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
@@ -1008,8 +926,7 @@ int main(int argc, const char** argv) {
 
     double lowerlimit;
     double upperlimit;
-    double alpha = REMOVE_BOOST || EffFix == 9002 ? 0.99 : 0.9;
-    alpha = 0.99;
+    double alpha = cfg["alpha"].as<double>();
     GetCentralInterval(*h_GhettoFemto_rstar, alpha, lowerlimit, upperlimit, true);
 
     unsigned lowerbin = h_GhettoFemto_rstar->FindBin(lowerlimit);
