@@ -181,7 +181,7 @@ int main(int argc, const char** argv) {
     const unsigned Multiplicity = cfg["mult"].as<unsigned>();
     const double femto_region = cfg["femto_region"].as<double>();
     const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
-    const bool removeBoost = cfg["remove_boost"].as<bool>(); // Set particle's masses to 1 TeV
+    const bool removeBoost = cfg["remove_boost"].as<bool>();           // Set particle's masses to 1 TeV
     double rSP_core = cfg["disp"].as<double>();
     double rSP_dispZ = rSP_core;
     double rSP_hadr = cfg["hadr"].as<double>();
@@ -283,9 +283,6 @@ int main(int argc, const char** argv) {
     }
 
     fOutput.cd();
-    hSampleQA_p->Write();
-    if (h_pT_p_all) h_pT_p_all->Write();
-    if (h_pT_d_all) h_pT_d_all->Write();
 
     for (TreParticle* prt : ParticleList) {
         if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
@@ -372,10 +369,10 @@ int main(int argc, const char** argv) {
 
     // ceca paper
     std::vector<double> mTBins = cfg["mt_bins"].as<std::vector<double>>();
-    ceca.Ghetto_NumMtBins = mTBins.size() -1;
+    ceca.Ghetto_NumMtBins = mTBins.size() - 1;
     ceca.Ghetto_MtBins = new double[mTBins.size()];
     for (size_t iMt; iMt < mTBins.size(); iMt++) {
-        ceca.Ghetto_MtBins[iMt] = mTBins[iMt];    
+        ceca.Ghetto_MtBins[iMt] = mTBins[iMt];
     }
 
     ceca.Ghetto_NumMomBins = 150;
@@ -433,13 +430,11 @@ int main(int argc, const char** argv) {
         Ck_pp.SetPoint(uBin, cat.GetMomentum(uBin), cat.GetCorrFun(uBin));
     }
     fOutput.cd();
-    Ck_pp.Write();
 
     TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rstar, "GhettoFemto_rstar");
     fOutput.cd();
     h_GhettoFemto_rstar->SetLineWidth(3);
     h_GhettoFemto_rstar->SetLineColor(kAzure);
-    h_GhettoFemto_rstar->Write();
     TF1* fit_rstar = new TF1(
         "fit_rstar", "[0]*4.*TMath::Pi()*x*x*pow(4.*TMath::Pi()*[1]*[1],-1.5)*exp(-(x*x)/(4.*[1]*[1]))+1.-[0]", 0, 16);
     fit_rstar->SetLineColor(kAzure);
@@ -451,7 +446,6 @@ int main(int argc, const char** argv) {
     fOutput.cd();
     fit_rstar->FixParameter(0, 1);
     fit_rstar->FixParameter(1, reff_Ceca);
-    fit_rstar->Write();
 
     ceca.GhettoFemto_rcore->ComputeError();
     ceca.GhettoFemto_rcore->ScaleToIntegral();
@@ -460,7 +454,6 @@ int main(int argc, const char** argv) {
     fOutput.cd();
     h_GhettoFemto_rcore->SetLineWidth(3);
     h_GhettoFemto_rcore->SetLineColor(kBlack);
-    h_GhettoFemto_rcore->Write();
     TF1* fit_rcore = new TF1(
         "fit_rcore", "[0]*4.*TMath::Pi()*x*x*pow(4.*TMath::Pi()*[1]*[1],-1.5)*exp(-(x*x)/(4.*[1]*[1]))+1.-[0]", 0, 16);
     fit_rcore->SetLineColor(kBlack);
@@ -470,7 +463,6 @@ int main(int argc, const char** argv) {
     fOutput.cd();
     fit_rcore->FixParameter(0, 1);
     fit_rcore->FixParameter(1, rcore_Ceca);
-    fit_rcore->Write();
 
     ceca.Ghetto_kstar->ComputeError();
     ceca.Ghetto_kstar->ScaleToIntegral();
@@ -493,7 +485,6 @@ int main(int argc, const char** argv) {
     TH2F* h_GhettoFemto_mT_rstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "GhettoFemto_mT_rstar");
 
     // fOutput.cd();
-    // h_GhettoFemto_mT_rstar->Write();
     ceca.GhettoFemto_mT_rcore->ComputeError();
     TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
     TH2F* h_GhettoFemto_mT_kstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_kstar, "GhettoFemto_mT_kstar");
@@ -672,7 +663,6 @@ int main(int argc, const char** argv) {
 
     h_GhettoFemto_rstar->Fit(fSource, "Q, S, R, M +", "", lowerlimit, upperlimit);
     fOutput.cd();
-    h_GhettoFemto_rstar->Write("hRStar");
     printf("The effective Gaussian size is %.3f +/- %.3f fm, λ = %.3f +/- %.3f\n", fSource->GetParameter(0),
            fSource->GetParError(0), fSource->GetParameter(1), fSource->GetParError(1));
 
@@ -736,10 +726,6 @@ int main(int argc, const char** argv) {
     h_Ghetto_RR_AngleP1P2->Scale(1. / h_Ghetto_RR_AngleP1P2->Integral(), "width");
 
     fOutput.cd();
-    // h_Ghetto_rstar->Write();
-    // fit_rstar->Write();
-    // h_Ghetto_rcore->Write();
-    // fit_rcore->Write();
 
     TH1F* hAxisSource = new TH1F("hAxisSource", "hAxisSource", 128, 0, 8);
     hAxisSource->SetStats(false);
@@ -754,7 +740,6 @@ int main(int argc, const char** argv) {
     hAxisSource->GetYaxis()->SetLabelSize(0.06);
     hAxisSource->GetYaxis()->SetTitleOffset(1.00);
     hAxisSource->GetYaxis()->SetRangeUser(0.001, 1.50);
-    hAxisSource->Write();
 
     TH1F* hAxisMt = new TH1F("hAxisMt", "hAxisMt", 128, 1.05, 2.25);
     hAxisMt->SetStats(false);
@@ -769,12 +754,6 @@ int main(int argc, const char** argv) {
     hAxisMt->GetYaxis()->SetLabelSize(0.06);
     hAxisMt->GetYaxis()->SetTitleOffset(1.00);
     hAxisMt->GetYaxis()->SetRangeUser(0.4, 1.85);
-    hAxisMt->Write();
-
-    h_Ghetto_mT_mTwrong->Write();
-    h_GhettoFemto_mT_mTwrong->Write();
-    h_GhettoFemto_pT1_pT2->Write();
-    h_GhettoFemto_pT1_div_pT->Write();
 
     h_Ghetto_kstar_rstar->GetXaxis()->SetRangeUser(0, 1200);
     h_Ghetto_kstar_rstar_PP->GetXaxis()->SetRangeUser(0, 1200);
@@ -821,6 +800,26 @@ int main(int argc, const char** argv) {
     g_GhettoFemto_mT_rstar_G.Draw("same");
 
     fOutput.cd();
+    hSampleQA_p->Write();
+    if (h_pT_p_all) h_pT_p_all->Write();
+    if (h_pT_d_all) h_pT_d_all->Write();
+    Ck_pp.Write();
+    h_GhettoFemto_rstar->Write("hRStar");
+    h_GhettoFemto_rstar->Write();
+    fit_rstar->Write();
+    h_GhettoFemto_rcore->Write();
+    fit_rcore->Write();
+    // h_GhettoFemto_mT_rstar->Write();
+    // h_Ghetto_rstar->Write();
+    // fit_rstar->Write();
+    // h_Ghetto_rcore->Write();
+    // fit_rcore->Write();
+    hAxisSource->Write();
+    h_Ghetto_mT_mTwrong->Write();
+    h_GhettoFemto_mT_mTwrong->Write();
+    h_GhettoFemto_pT1_pT2->Write();
+    h_GhettoFemto_pT1_div_pT->Write();
+    hAxisMt->Write();
     cSource->Write();
     cMt->Write();
     // h_GhettoFemto_rstar->Write();
