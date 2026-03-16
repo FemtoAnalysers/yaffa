@@ -295,8 +295,10 @@ int main(int argc, const char** argv) {
                 prt->SetAbundance(frac_protons + (100. - frac_protons) * (!PROTON_RESO));
             else if (system == "pP")
                 prt->SetAbundance(100.);
-            else
+            else {
+                LOG(FATAL, "Unknown system");
                 prt->SetAbundance(0);
+            }
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
             prt->SetPtEtaPhi(dlm_pT_eta_p);
