@@ -387,6 +387,7 @@ int main(int argc, const char** argv) {
     ceca.SetSourceDim(2);
     ceca.SetDebugMode(true);
     ceca.SetThreadTimeout(threadTimeout);
+    ceca.SetThreadYieldout(target_yield);
     ceca.SetGlobalTimeout(globalTimeout);
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
