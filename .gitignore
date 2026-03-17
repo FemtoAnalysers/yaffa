@@ -11,3 +11,6 @@ build/**
 
 # Root files
 tests/source.root
+
+# python
+*.pyc
