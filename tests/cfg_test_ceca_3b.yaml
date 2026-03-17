@@ -1,0 +1,33 @@
+# Reproduce simple 1fm source with and remove lorentz boost
+ofile: source_3b.root
+system: ppp
+ncpu: 1
+glob_timeout: 600
+thread_timeout: 600
+
+# ceca parameters
+hadron_size: 0
+hadron_slope: 0
+eta_cut: 0.8
+enable_resonances: false
+frac_protons: 35.78
+equalize_tau: true
+femto_region: 1000
+target_yield: 30000
+remove_boost: false
+equalize_tau: true
+frac_prim:
+    p: 35.78
+mult: 3
+disp: 1
+hadr: 0
+tau: 0
+hadr_z: 0
+hflc: 0
+tau_prp: true
+tflc: 0
+thk: 0
+fix_hadron: true
+frag_beta: 0
+alpha: 0.99
+mt_bins: []

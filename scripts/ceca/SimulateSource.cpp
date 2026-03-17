@@ -1,5 +1,6 @@
 /*
  * Script to simulate the source function
+ * Using DLM@snap-3bsource-v0.1.0
  */
 
 // C++ headers
@@ -291,7 +292,7 @@ int main(int argc, const char** argv) {
             } else {
                 prt->SetMass(Mass_p);
             }
-            if (system == "pp")
+            if (system == "pp" || system == "ppp")
                 prt->SetAbundance(frac_protons + (100. - frac_protons) * (!PROTON_RESO));
             else if (system == "pP")
                 prt->SetAbundance(100.);
@@ -327,8 +328,11 @@ int main(int argc, const char** argv) {
     if (system == "pp") {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("Proton");
-    }
-    if (system == "pP") {
+    } else if (system == "ppp") {
+        ListOfParticles.push_back("Proton");
+        ListOfParticles.push_back("Proton");
+        ListOfParticles.push_back("Proton");
+    } else if (system == "pP") {
         ListOfParticles.push_back("Proton");
         ListOfParticles.push_back("PrimProton");
     }
@@ -361,7 +365,7 @@ int main(int argc, const char** argv) {
     // Simulation settings
     ceca.SetTargetStatistics(target_yield);
     ceca.SetEventMult(Multiplicity);
-    ceca.SetSourceDim(2);
+    ceca.SetSourceDim(system.size());
     ceca.SetDebugMode(true);
     ceca.SetThreadTimeout(threadTimeout);
     ceca.SetGlobalTimeout(globalTimeout);
@@ -371,18 +375,24 @@ int main(int argc, const char** argv) {
 
     // ceca paper
     std::vector<double> mTBins = cfg["mt_bins"].as<std::vector<double>>();
-    ceca.Ghetto_NumMtBins = mTBins.size() - 1;
-    ceca.Ghetto_MtBins = new double[mTBins.size()];
-    for (size_t iMt; iMt < mTBins.size(); iMt++) {
-        ceca.Ghetto_MtBins[iMt] = mTBins[iMt];
+    if (mTBins.size()) {
+        ceca.Ghetto_NumMtBins = mTBins.size() - 1;
+        ceca.Ghetto_MtBins = new double[mTBins.size()];
+        for (size_t iMt; iMt < mTBins.size(); iMt++) {
+            ceca.Ghetto_MtBins[iMt] = mTBins[iMt];
+        }
+    } else {
+        ceca.Ghetto_MtMax = 5000;
+        ceca.Ghetto_MtMin = 0;
+        ceca.Ghetto_NumMtBins = (ceca.Ghetto_MtMax - ceca.Ghetto_MtMin) / 100;
     }
 
     ceca.Ghetto_NumMomBins = 150;
     ceca.Ghetto_MomMin = 0;
     ceca.Ghetto_MomMax = 600;
-    ceca.Ghetto_NumRadBins = 2048;
+    ceca.Ghetto_NumRadBins = 200;
     ceca.Ghetto_RadMin = 0;
-    ceca.Ghetto_RadMax = 64;
+    ceca.Ghetto_RadMax = 20;
 
     // Run CECA
     ceca.GoBabyGo(NUM_CPU);
@@ -484,7 +494,8 @@ int main(int argc, const char** argv) {
 
     TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_rstar, "Ghetto_mT_rstar");
     ceca.GhettoFemto_mT_rstar->ComputeError();
-    TH2F* h_GhettoFemto_mT_rstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "GhettoFemto_mT_rstar");
+    TH2F* hRhoVsMt = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "hRhoVsMt");
+    hRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
     // fOutput.cd();
     ceca.GhettoFemto_mT_rcore->ComputeError();
@@ -603,11 +614,11 @@ int main(int argc, const char** argv) {
 
     unsigned uPointRS = 0;
     unsigned uPointRC = 0;
-    for (unsigned uBin = 0; uBin < h_GhettoFemto_mT_rstar->GetXaxis()->GetNbins(); uBin++) {
-        TH1F* hProj = (TH1F*)h_GhettoFemto_mT_rstar->ProjectionY(TString::Format("hProj"), uBin + 1, uBin + 1);
+    for (unsigned uBin = 0; uBin < hRhoVsMt->GetXaxis()->GetNbins(); uBin++) {
+        TH1F* hProj = (TH1F*)hRhoVsMt->ProjectionY(TString::Format("hProj"), uBin + 1, uBin + 1);
         double Mean = hProj->GetMean();
         double Err = hProj->GetStdDev();
-        double mT = h_GhettoFemto_mT_rstar->GetXaxis()->GetBinCenter(uBin + 1);
+        double mT = hRhoVsMt->GetXaxis()->GetBinCenter(uBin + 1);
         if (Mean && Err && hProj->GetEntries() > 128) {
             hProj->Scale(1. / hProj->Integral(), "width");
             g_GhettoFemto_mT_rstar.SetPoint(uPointRS, mT * 0.001, Mean);
@@ -811,7 +822,7 @@ int main(int argc, const char** argv) {
     fit_rstar->Write();
     h_GhettoFemto_rcore->Write();
     fit_rcore->Write();
-    // h_GhettoFemto_mT_rstar->Write();
+    // hRhoVsMt->Write();
     // h_Ghetto_rstar->Write();
     // fit_rstar->Write();
     // h_Ghetto_rcore->Write();
@@ -834,7 +845,7 @@ int main(int argc, const char** argv) {
     h_Ghetto_kstar_rstar_RP->Write();
     h_Ghetto_kstar_rstar_RR->Write();
     h_Ghetto_mT_rstar->Write();
-    h_GhettoFemto_mT_rstar->Write();
+    hRhoVsMt->Write();
     g_GhettoFemto_mT_rstar.Write();
     g_GhettoFemto_mT_rstar_G.Write();
     g_GhettoFemto_mT_rcore.Write();
