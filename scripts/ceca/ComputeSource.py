@@ -9,6 +9,10 @@ sys.path.append('../../src')
 from utils import SliceVertically
 
 def main(cfg:dict):
+    '''
+    Compute the source size as a function of mT
+    '''
+
     mTMins = cfg['mt_bins'][:-1]
     mTMaxs = cfg['mt_bins'][1:]
 
@@ -20,31 +24,31 @@ def main(cfg:dict):
     # Load hitograms from file
     hRhoVsMt = inFile.Get('hRhoVsMt')
 
-    fSource = TF1('fSource', SourceAAA, 0, 20, 1)
-    fSource.SetNpx(10000)
-    fSource.SetParameter(0, 1)
-    print("int: ", integ)
-
     hMt = hRhoVsMt.ProjectionX('hMt')
+    hMt.Write()
+
     hRhos = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho')
 
     gRho0VsMt = TGraphErrors()
     gRho0VsMt.SetName('gRho0VsMt')
-    for hRho in hRhos:
-        hRho.SetTitle(';#rho* (fm);Counts')
+    for iBin, hRho in enumerate(hRhos):
+        fSource = TF1(f'fSource_{mTMins[iBin]:.0f}_{mTMins[iBin]:.0f}', SourceAAA, 0, 20, 1)
+        fSource.SetNpx(10000)
+        fSource.SetParameter(0, 1)
+        
         hRho.Scale(1./hRho.GetEntries() / hRho.GetBinWidth(1))
         hRho.Fit(fSource, 'MR+')
+        hRho.SetTitle(';#rho* (fm);Counts')
         hRho.Write()
+        fSource.Write()
+
+        # Fit results
         rho0 = fSource.GetParameter(0)
         rho0unc = fSource.GetParError(0)
 
-        integ = fSource.Integral(0, 20)
-    
-        iBin = gRho0VsMt.GetN()
         gRho0VsMt.SetPoint(iBin, (mTMaxs[iBin] + mTMins[iBin]) / 2, rho0)
         gRho0VsMt.SetPointError(iBin, (mTMaxs[iBin] - mTMins[iBin]) / 2, rho0unc)
-    fSource.Write()
-    hMt.Write()
+    gRho0VsMt.SetTitle(';m_{T} (GeV);#rho_{0} (fm)')
     gRho0VsMt.Write()
 
 if __name__ == '__main__':

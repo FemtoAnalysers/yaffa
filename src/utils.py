@@ -1,4 +1,12 @@
+'''
+A mix of utility functions
+'''
+
 def SliceVertically(hist, edges, name=None):
+    '''
+    Slice a TH2 vertically (ProjectionY) and return the list of slices
+    '''
+
     slices = []
     lowEdges = edges[:-1]
     upEdges = edges[1:]
