@@ -85,10 +85,41 @@ def compare_files(f1name, f2name):
     keys2 = {k.GetName(): k.GetClassName() for k in f2.GetListOfKeys()}
 
     if keys1 != keys2:
+        only1 = set(keys1) - set(keys2)
+        only2 = set(keys2) - set(keys1)
+
         print("Different object lists!")
-        print("Only in file1:", set(keys1) - set(keys2))
-        print("Only in file2:", set(keys2) - set(keys1))
-        return False
+        print("Only in file1:", only1)
+        print("Only in file2:", only2)
+
+        # Try to detect renames
+        for n1 in list(only1):
+            o1 = f1.Get(n1)
+            for n2 in list(only2):
+                o2 = f2.Get(n2)
+
+                same = False
+
+                if o1.InheritsFrom("TH1") and o2.InheritsFrom("TH1"):
+                    same = compare_hist(o1, o2)
+                elif o1.InheritsFrom("TF1") and o2.InheritsFrom("TF1"):
+                    same = compare_tf1(o1, o2)
+                elif o1.InheritsFrom("TGraph") and o2.InheritsFrom("TGraph"):
+                    same = compare_graph(o1, o2)
+
+                if same:
+                    print(f"Object renamed: {n1} -> {n2}")
+                    only1.remove(n1)
+                    only2.remove(n2)
+                    keys1.pop(n1)
+                    keys2.pop(n2)
+                    break
+
+        if only1 or only2:
+            print("Unmatched objects remain.")
+            print("Only in file1:", only1)
+            print("Only in file2:", only2)
+            return False
 
     for name, cls in keys1.items():
         o1 = f1.Get(name)
