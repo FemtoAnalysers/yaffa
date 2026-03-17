@@ -1,3 +1,3 @@
 infile: /home/battidan/ph/sw/yaffa/tests/source_3b.root
 ofile: /home/battidan/ph/sw/yaffa/tests/source_vs_mT.root
-mt_bins: [0, 1200, 3000] # um = MeV
+mt_bins: [1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100] # um = MeV
