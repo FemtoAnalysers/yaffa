@@ -1,6 +1,8 @@
 yaffa.egg-info/*
 */__pycache__/*
 *cpython*
+scratch/**
+
 build/**
 .vscode
 
