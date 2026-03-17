@@ -11,6 +11,8 @@ build/**
 
 # Root files
 tests/source.root
+tests/source_3b.root
+tests/source_vs_mT.root
 
 # python
 *.pyc
