@@ -8,40 +8,46 @@ import ctypes
 
 def compare_tf1(f1, f2, tol=1e-12):
     if not f1 or not f2:
-        return False
+        msg = f'  --> f1={f1} and f2={f2}'
+        return False, msg
 
     # Formula
     if f1.GetExpFormula("p") != f2.GetExpFormula("p"):
-        return False
+        msg = f'  --> Different formula: {f1.GetExpFormula("p")} vs {f2.GetExpFormula("p")}'
+        return False, msg
 
     # Range
     xmin1, xmax1 = f1.GetXmin(), f1.GetXmax()
     xmin2, xmax2 = f2.GetXmin(), f2.GetXmax()
     if abs(xmin1 - xmin2) > tol or abs(xmax1 - xmax2) > tol:
-        return False
+        msg = f'  --> Different range: {xmin1}, {xmax1} vs {xmin2}, {xmax2}'
+        return False, msg
 
     # Parameters
     if f1.GetNpar() != f2.GetNpar():
-        return False
+        msg = f'  --> Different number of parameters: {f1.GetNpar()} vs {f2.GetNpar()}'
+        return False, msg
 
     for i in range(f1.GetNpar()):
         if abs(f1.GetParameter(i) - f2.GetParameter(i)) > tol:
-            return False
+            msg = f'  --> Different parameter value: {f1.GetParameter(i)} vs {f2.GetParameter(i)}'
+            return False, msg
         if f1.GetParName(i) != f2.GetParName(i):
-            return False
+            msg = f'  --> Different parameter name: {f1.GetParName(i)} vs {f2.GetParName(i)}'
+            return False, msg
 
-    return True
+    return True, None
 
 def compare_hist(h1, h2, tol=1e-12):
     if h1.GetNbinsX() != h2.GetNbinsX():
-        print("Different number of bins X")
-        return False
+        print("  --> Different number of bins X")
+        return False, None
     if h1.GetNbinsY() != h2.GetNbinsY():
-        print("Different number of bins Y")
-        return False
+        print("  --> Different number of bins Y")
+        return False, None
     if h1.GetNbinsZ() != h2.GetNbinsZ():
-        print("Different number of bins Z")
-        return False
+        print("  --> Different number of bins Z")
+        return False, None
 
     for i in range(0, h1.GetNcells()):
         if abs(h1.GetBinContent(i) - h2.GetBinContent(i)) > tol:
@@ -58,12 +64,12 @@ def compare_hist(h1, h2, tol=1e-12):
             x = h2.GetXaxis().GetBinCenter(ix)
             y = h2.GetYaxis().GetBinCenter(iy)
 
-            print(f"[{h1.GetName()}] Different bin content for bin {i}: x: {ix}({x}), y: {iy}({y}) bc1 = {h1.GetBinContent(i)}, bc2 = {h2.GetBinContent(i)}")
-            return False
+            msg = f"  --> Different bin content for bin {i}: x: {ix}({x}), y: {iy}({y}) bc1 = {h1.GetBinContent(i)}, bc2 = {h2.GetBinContent(i)}"
+            return False, msg
         if abs(h1.GetBinError(i) - h2.GetBinError(i)) > tol:
-            print(f"Different bin error for bin {i}")
-            return False
-    return True
+            msg = f"  --> Different bin error for bin {i}"
+            return False, msg
+    return True, None
 
 def compare_graph(g1, g2, tol=1e-12):
     if g1.GetN() != g2.GetN():
@@ -119,28 +125,43 @@ def compare_files(f1name, f2name):
             print("Unmatched objects remain.")
             print("Only in file1:", only1)
             print("Only in file2:", only2)
-            return False
 
+    are_same = True
     for name, cls in keys1.items():
         o1 = f1.Get(name)
         o2 = f2.Get(name)
+        
+        if o2 == None:
+            continue
 
+        print(f"Comparing {name} ", end="")
         if o1.InheritsFrom("TH1"):
-            ok = compare_hist(o1, o2)
+            print("(TH1)... ", end="")
+            ok, msg = compare_hist(o1, o2)
         elif o1.InheritsFrom("TF1"):
-            ok = compare_tf1(o1, o2)
+            print("(TF1)... ", end="")
+            ok, msg = compare_tf1(o1, o2)
         elif o1.InheritsFrom("TGraph"):
+            print("(TGraph)... ", end="")
             ok = compare_graph(o1, o2)
         else:
-            print(f"Skipping unsupported object: {name} ({cls})")
+            print(f"({cls})... \033[33munsupported\033[0m")
             continue
 
         if not ok:
-            print(f"{name} is different")
-            sys.exit(1)
+            print("\033[31mdifferent!\033[0m")
+            print(msg)
+            are_same = False
+        else:
+            print("\033[32msame\033[0m")
 
-    print("Files are equivalent")
-    return True
+    if are_same:
+        print("Files are equivalent")
+        return True
+
+    print("Files are different")
+    return False
+
 
 if __name__ == "__main__":
     compare_files(sys.argv[1], sys.argv[2])
