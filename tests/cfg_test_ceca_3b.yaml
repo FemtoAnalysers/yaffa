@@ -13,7 +13,7 @@ enable_resonances: false
 frac_protons: 35.78
 equalize_tau: true
 femto_region: 1000
-target_yield: 30000
+target_yield: 1000
 remove_boost: false
 equalize_tau: true
 frac_prim:
