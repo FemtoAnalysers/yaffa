@@ -1,6 +1,6 @@
 /*
  * Script to simulate the source function
- * Using DLM@snap-3bsource-v0.1.0
+ * Using DLM@v0.1.1
  */
 
 // C++ headers
