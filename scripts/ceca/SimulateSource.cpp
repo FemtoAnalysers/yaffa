@@ -1,6 +1,6 @@
 /*
  * Script to simulate the source function
- * Using DLM@v0.1.1
+ * Using DLM@v0.2.0
  */
 
 // C++ headers
@@ -396,6 +396,14 @@ int main(int argc, const char** argv) {
 
     // Run CECA
     ceca.GoBabyGo(NUM_CPU);
+
+    TH2F* hR12R312 = Convert_DlmHisto_TH2F(ceca.GetR12R312(), "hR12R312");
+    hR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
+    TH2F* hPhiVsRho = Convert_DlmHisto_TH2F(ceca.GetPhiVsRho(), "hPhiVsRho");
+    hPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
+    fOutput.cd();
+    hR12R312->Write();
+    hPhiVsRho->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
