@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Load environment variables from .env
+source ../.env
+
 mkdir -p ../build || exit 1
 pushd ../build || exit 1
 cmake -DLOG_LEVEL=40 .. || exit 1
