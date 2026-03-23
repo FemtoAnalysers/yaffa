@@ -35,6 +35,10 @@ cp yaffa/bin/yaffa-farm-tui.py ~/.local/bin/yaffa-farm-tui
 chmod +x ~/.local/bin/yaffa-farm-tui
 
 cd $currentDir
+
+# Load environment variables from .env
+source .env
+
 mkdir -p build
 pushd build
 cmake -U LOG_LEVEL .. || exit 1

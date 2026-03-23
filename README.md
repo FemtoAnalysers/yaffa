@@ -2,6 +2,8 @@
 Yet Another Framework for Femtoscopy Analyses
 
 ## Installation:
+Set the environment variables: `cp .env.example .env` and modify `.env` according to your machine.
+
 1. Install the dependencies:
 * `pip3 install [--user] pylint`
 *  Install docker

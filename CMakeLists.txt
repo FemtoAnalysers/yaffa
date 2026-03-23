@@ -3,10 +3,10 @@ SET(PROJECT_NAME "exe")
 
 project(${PROJECT_NAME})
 # SET PATHS #
-SET(CATS_PATH "/home/battidan/ph/sw/cats/install") #the CATS main folder (containing cats-config)
+SET(CATS_PATH "$ENV{CATS}/install") #the CATS main folder (containing cats-config)
 set(GSL_INCLUDE "/usr/include/gsl" CACHE PATH "GSL include directory")
 set(GSL_LIB "/usr/lib64" CACHE PATH "GSL library directory")
-SET(PROJECT_SOURCE "/home/battidan/ph/sw/yaffa/")
+SET(PROJECT_SOURCE "$ENV{YAFFA}")
 set(BINARY_DESTINATION "${CMAKE_BINARY_DIR}/bin" CACHE PATH "Binary output directory")
 set(LOG_LEVEL 10 CACHE STRING "Logging level")
 
