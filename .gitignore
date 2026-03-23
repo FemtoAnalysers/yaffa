@@ -1,6 +1,7 @@
 yaffa.egg-info/*
 */__pycache__/*
 *cpython*
+.env
 scratch/**
 
 build/**
