@@ -94,9 +94,6 @@ def compare_files(f1name, f2name):
         only1 = set(keys1) - set(keys2)
         only2 = set(keys2) - set(keys1)
 
-        print("Different object lists!")
-        print("Only in file1:", only1)
-        print("Only in file2:", only2)
 
         # Try to detect renames
         for n1 in list(only1):
@@ -121,17 +118,17 @@ def compare_files(f1name, f2name):
                     keys2.pop(n2)
                     break
 
-        if only1 or only2:
-            print("Unmatched objects remain.")
-            print("Only in file1:", only1)
-            print("Only in file2:", only2)
+        if only1:
+            print("\033[33mOnly in file1:\033[0m", only1)
+        if only2:
+            print("\033[33mOnly in file2:\033[0m", only2)
 
     are_same = True
     for name, cls in keys1.items():
         o1 = f1.Get(name)
         o2 = f2.Get(name)
         
-        if o2 == None:
+        if not o2:
             continue
 
         print(f"Comparing {name} ", end="")
