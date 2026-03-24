@@ -405,10 +405,16 @@ int main(int argc, const char** argv) {
     // TODO genralize to AAB and ABC systems
     TH1F* hKStarInTriplets = Convert_DlmHisto_TH1F(ceca.GetKStarInTriplets(), "hKStarInTriplets");
     hKStarInTriplets->SetTitle(";k* (MeV/c); Counts");
+
+    // TODO genralize to AAB and ABC systems
+    TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(ceca.GetRStarInTriplets(), "hRStarInTriplets");
+    hRStarInTriplets->SetTitle(";r* (fm); Counts");
+
     fOutput.cd();
     hR12R312->Write();
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
+    hRStarInTriplets->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
