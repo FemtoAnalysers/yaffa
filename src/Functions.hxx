@@ -14,4 +14,9 @@ double _SourceAAA(double hyperRadius,  // Hyper-radius defined as in 3B NOTES
     return exp(-hyperRadius * hyperRadius / rho0 / rho0) / pow(rho0, 6) * pow(hyperRadius, 5);
 }
 
+// Gaussian source for 2B
+double _SourceGauss(double rStar, double r0) {
+    return 4 * M_PI * rStar * rStar * exp(-rStar * rStar / 4 / r0 / r0) / pow(4 * M_PI * r0 * r0, 1.5);
+}
+
 #endif
