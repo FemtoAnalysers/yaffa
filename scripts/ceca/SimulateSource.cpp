@@ -401,17 +401,26 @@ int main(int argc, const char** argv) {
     // Run CECA
     ceca.GoBabyGo(NUM_CPU);
 
-    TH2F* hR12R312 = Convert_DlmHisto_TH2F(ceca.GetR12R312(), "hR12R312");
+    auto dlmR12R312 = ceca.GetR12R312();
+    dlmR12R312->ComputeError();
+    TH2F* hR12R312 = Convert_DlmHisto_TH2F(dlmR12R312, "hR12R312");
     hR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
-    TH2F* hPhiVsRho = Convert_DlmHisto_TH2F(ceca.GetPhiVsRho(), "hPhiVsRho");
+
+    auto dlmPhiVsRho = ceca.GetPhiVsRho();
+    dlmPhiVsRho->ComputeError();
+    TH2F* hPhiVsRho = Convert_DlmHisto_TH2F(dlmPhiVsRho, "hPhiVsRho");
     hPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
 
     // TODO genralize to AAB and ABC systems
-    TH1F* hKStarInTriplets = Convert_DlmHisto_TH1F(ceca.GetKStarInTriplets(), "hKStarInTriplets");
+    auto dlmKStarInTriplets = ceca.GetKStarInTriplets();
+    dlmKStarInTriplets->ComputeError();
+    TH1F* hKStarInTriplets = Convert_DlmHisto_TH1F(dlmKStarInTriplets, "hKStarInTriplets");
     hKStarInTriplets->SetTitle(";k* (MeV/c); Counts");
 
     // TODO genralize to AAB and ABC systems
-    TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(ceca.GetRStarInTriplets(), "hRStarInTriplets");
+    auto dlmRStarInTriplets = ceca.GetRStarInTriplets();
+    dlmRStarInTriplets->ComputeError();
+    TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(dlmRStarInTriplets, "hRStarInTriplets");
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
 
     fOutput.cd();
