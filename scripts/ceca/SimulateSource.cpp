@@ -195,6 +195,10 @@ int main(int argc, const char** argv) {
     bool rSP_FixedHadr = cfg["fix_hadron"].as<bool>();
     float rSP_FragBeta = cfg["frag_beta"].as<float>();
 
+    if (removeBoost && PROTON_RESO) {
+        throw std::runtime_error("Options 'remove boost' and 'enable_resonances' are mutually exclusive");
+    }
+
     TREPNI Database(0);
     Database.SetSeed(11);
     std::vector<TreParticle*> ParticleList;
