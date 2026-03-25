@@ -516,8 +516,9 @@ int main(int argc, const char** argv) {
     TH2F* h_Ghetto_kstar_rstar_RR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RR, "Ghetto_kstar_rstar_RR");
 
     TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_rstar, "Ghetto_mT_rstar");
-    ceca.GhettoFemto_mT_rstar->ComputeError();
-    TH2F* hRhoVsMt = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "hRhoVsMt");
+    auto dlmRhoVsMt = ceca.GetRhoVsMt();
+    dlmRhoVsMt->ComputeError();
+    TH2F* hRhoVsMt = Convert_DlmHisto_TH2F(dlmRhoVsMt, "hRhoVsMt");
     hRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
     // fOutput.cd();
