@@ -11,6 +11,7 @@ hadron_slope: 0
 eta_cut: 0.8
 enable_resonances: false
 frac_protons: 35.78
+arbitrary_mass: 469.13605 # m_proton / 2. um = MeV
 equalize_tau: true
 femto_region: 1000
 target_yield: 1000

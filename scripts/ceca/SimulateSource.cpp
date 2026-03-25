@@ -194,6 +194,7 @@ int main(int argc, const char** argv) {
     double rSP_ThK = cfg["thk"].as<double>();
     bool rSP_FixedHadr = cfg["fix_hadron"].as<bool>();
     float rSP_FragBeta = cfg["frag_beta"].as<float>();
+    double arbitraryMass = cfg["arbitrary_mass"].as<double>(-1);
 
     if (removeBoost && PROTON_RESO) {
         throw std::runtime_error("Options 'remove boost' and 'enable_resonances' are mutually exclusive");
@@ -365,6 +366,7 @@ int main(int argc, const char** argv) {
     ceca.SetThermalKick(rSP_ThK);
     ceca.SetFixedHadr(rSP_FixedHadr);
     ceca.SetFragmentBeta(rSP_FragBeta);
+    ceca.SetArbitraryMass(arbitraryMass);
 
     // Simulation settings
     ceca.SetTargetStatistics(target_yield);
