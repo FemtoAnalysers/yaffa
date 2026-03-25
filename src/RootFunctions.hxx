@@ -16,4 +16,15 @@ double SourceAAA(double* x, double* p) {
     return _SourceAAA(hyperRadius, rho0);
 }
 
+// Source function for 2 particles
+double SourceGauss(double* x, double* p) {
+    // Variables
+    double rStar = x[0];
+    
+    // Parameters
+    double r0 = p[0];
+
+    return _SourceGauss(rStar, r0);
+}
+
 #endif
