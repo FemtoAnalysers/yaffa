@@ -26,7 +26,7 @@ def GetMtScaling(hSources, mTMins, mTMaxs, func, name):
         return gRStar0VsMt
     
     for iBin, hRStar in enumerate(hSources):
-        fSource = TF1(f'fSource_{mTMins[iBin]:.0f}_{mTMins[iBin]:.0f}', func, 0, 20, 1)
+        fSource = TF1(f'fSource_{mTMins[iBin]:.0f}_{mTMaxs[iBin]:.0f}', func, 0, 20, 1)
         fSource.SetNpx(10000)
         fSource.SetParameter(0, 1)
         fSource.SetParLimits(0, 0.1, 5)
@@ -58,7 +58,7 @@ def main(cfg:dict):
     oFile = TFile(cfg['ofile'], 'recreate')
 
     # Load hitograms from file
-    hRhoVsMt = inFile.Get('hRhoVsMt')
+    # hRhoVsMt = inFile.Get('hRhoVsMt')
     # if hRhoVsMt.Integral() > 0:
     #     hMt3B = hRhoVsMt.ProjectionX('hMt3B')
     #     hMt3B.Write()
@@ -89,17 +89,32 @@ def main(cfg:dict):
     
     # mT scaling for 2B
     hRStarVsMt = inFile.Get('hRStarVsMt')
-    hMt = hRStarVsMt.ProjectionX('hMt')
-    hMt.Write()
-    
-    hRStars = SliceVertically(hRStarVsMt, cfg['mt_bins'], name='hRStar')
-    gRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, SourceGauss, 'gRStarVsMt')
-    Write(hRStars)
-    gRStar0VsMt.Write()
+    if hRStarVsMt.Integral():
+        hMt = hRStarVsMt.ProjectionX('hMt')
+        hMt.Write()
+        
+        hRStars = SliceVertically(hRStarVsMt, cfg['mt_bins'], name='hRStar')
+        gRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, SourceGauss, 'gRStarVsMt')
+        Write(hRStars)
+        gRStar0VsMt.Write()
 
+        # Method = average
+        gAvgRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, 'average', 'gAvgRStarVsMt')
+        gAvgRStar0VsMt.Write()
+
+    # mT scaling for 3B
+    hRhoVsMt = inFile.Get('hRhoVsMt')
+    h3BMt = hRhoVsMt.ProjectionX('h3BMt')
+    h3BMt.Write()
+
+    hRhos = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho')
+    gRho0VsMt = GetMtScaling(hRhos, mTMins, mTMaxs, SourceAAA, 'gRho0VsMt')
+    Write(hRhos)
+    gRho0VsMt.Write()
+    
     # Method = average
-    gAvgRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, 'average', 'gAvgRStarVsMt')
-    gAvgRStar0VsMt.Write()
+    gAvgRho0VsMt = GetMtScaling(hRhos, mTMins, mTMaxs, 'average', 'gAvgRhoVsMt')
+    gAvgRho0VsMt.Write()
 
     oFile.Close()
 
