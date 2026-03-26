@@ -532,6 +532,10 @@ int main(int argc, const char** argv) {
     TH2F* hRhoVsMt = Convert_DlmHisto_TH2F(dlmRhoVsMt, "hRhoVsMt");
     hRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
+    ceca.GhettoFemto_mT_rstar->ComputeError();
+    TH2F* hRStarVsMt = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "hRStarVsMt");
+    hRStarVsMt->SetTitle(";m_{T} (GeV);r* (fm)");
+
     // fOutput.cd();
     ceca.GhettoFemto_mT_rcore->ComputeError();
     TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
@@ -881,6 +885,7 @@ int main(int argc, const char** argv) {
     h_Ghetto_kstar_rstar_RR->Write();
     h_Ghetto_mT_rstar->Write();
     hRhoVsMt->Write();
+    hRStarVsMt->Write();
     g_GhettoFemto_mT_rstar.Write();
     g_GhettoFemto_mT_rstar_G.Write();
     g_GhettoFemto_mT_rcore.Write();
