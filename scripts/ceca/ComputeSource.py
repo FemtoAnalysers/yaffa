@@ -1,7 +1,7 @@
 import sys
 import ctypes
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, RooRealVar, RooArgSet, TCanvas, gPad, RooDataHist
+from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, RooArgList, RooRealVar, RooGaussian, RooArgSet, TCanvas, gPad, RooDataHist
 from ROOT.RooFit import bindPdf
 
 
@@ -96,10 +96,14 @@ def RooFit1(hist, ):
 def RooFit(cfg):
     # Create observables x,y
     radius = RooRealVar("radius", "radius", 0, 10, 'fm')
-    rho0 = RooRealVar("rho0", "rho0", 0, 10, 'fm')
-    radiusMin = RooRealVar("radius", "radius", 0, 'fm')
-    radiusMax = RooRealVar("radius", "radius", 10, 'fm')
-    radius.setRange("radius", 0, 20)
+    rho0 = RooRealVar("rho0", "rho0", 1, 0, 5, 'fm')
+
+    x = RooRealVar("x", "x", 0, 10)
+    mean = RooRealVar("mean", "mean of gaussian", 1, 0, 10)
+    sigma = RooRealVar("sigma", "width of gaussian", 1, 0.1, 10)
+
+    # Build gaussian pdf in terms of x,mean and sigma
+    gauss = RooGaussian("gauss", "gaussian PDF", radius, mean, sigma)
 
 
     # Open input file
@@ -109,20 +113,23 @@ def RooFit(cfg):
     # mT scaling for 3B
     hRhoVsMt = inFile.Get('hRhoVsMt')
     hRho = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT')[3]
-    hRho.Scale(1./hRho.GetEntries() / hRho.GetBinWidth(1))
+    hRho.Scale(1./hRho.Integral())
+    print("--------> ", hRho.Integral())
     
     dh = RooDataHist("dh", "dh", [radius], Import=hRho)
 
     fSource = TF1(f'fSource', SourceAAA, 0, 10, 1)
     fSource.SetNpx(10000)
-    fSource.SetParameter(0, 1)
-    
-    pdfSource = bindPdf("pdfSource",fSource,radius) ; 
-    pdfSource.fitTo(dh, PrintLevel=-2)
+    fSource.SetParameter(0, rho0.getVal())  # Initialize with rho0's value
 
+    # pdfSource = bindPdf("pdfSource",fSource,radius)
+    # pdfSource.fitTo(dh, radius, PrintLevel=-2)
+
+    gauss.fitTo(dh)
     # Plot cdf of gx versus radius
     frame = radius.frame()
-    pdfSource.plotOn(frame)
+    # pdfSource.plotOn(frame)
+    gauss.plotOn(frame)
     dh.plotOn(frame)
 
     # Draw plot on canvas
