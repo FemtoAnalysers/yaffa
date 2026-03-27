@@ -1,7 +1,10 @@
 import sys
 import ctypes
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
+from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, RooRealVar, RooArgSet, TCanvas, gPad, RooDataHist
+from ROOT.RooFit import bindPdf
+
+
 gInterpreter.Declare('#include "../../src/RootFunctions.hxx"')
 from ROOT import SourceAAA
 
@@ -86,6 +89,49 @@ class FitResult():
             output += f'  {iPar}: {par[0]} = {par[1]:.2f} +/- {par[2]:.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}'
         return output
 
+def RooFit1(hist, ):
+    pass
+
+
+def RooFit(cfg):
+    # Create observables x,y
+    radius = RooRealVar("radius", "radius", 0, 10, 'fm')
+    rho0 = RooRealVar("rho0", "rho0", 0, 10, 'fm')
+    radiusMin = RooRealVar("radius", "radius", 0, 'fm')
+    radiusMax = RooRealVar("radius", "radius", 10, 'fm')
+    radius.setRange("radius", 0, 20)
+
+
+    # Open input file
+    inFile = TFile(cfg['infile'])
+    oFile = TFile(cfg['ofile'], 'recreate')
+
+    # mT scaling for 3B
+    hRhoVsMt = inFile.Get('hRhoVsMt')
+    hRho = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT')[3]
+    hRho.Scale(1./hRho.GetEntries() / hRho.GetBinWidth(1))
+    
+    dh = RooDataHist("dh", "dh", [radius], Import=hRho)
+
+    fSource = TF1(f'fSource', SourceAAA, 0, 10, 1)
+    fSource.SetNpx(10000)
+    fSource.SetParameter(0, 1)
+    
+    pdfSource = bindPdf("pdfSource",fSource,radius) ; 
+    pdfSource.fitTo(dh, PrintLevel=-2)
+
+    # Plot cdf of gx versus radius
+    frame = radius.frame()
+    pdfSource.plotOn(frame)
+    dh.plotOn(frame)
+
+    # Draw plot on canvas
+    c = TCanvas("test", "test", 600, 600)
+    gPad.SetLeftMargin(0.15)
+    frame.GetYaxis().SetTitleOffset(1.6)
+    frame.Draw()
+
+    c.SaveAs("test.png")
 
 def Fit(obj, func, range, pars):
     '''
@@ -133,4 +179,8 @@ if __name__ == '__main__':
     with open(args.cfg) as file:
         cfg = yaml.safe_load(file)
 
-    main(cfg)
+
+    RooFit(cfg)
+
+    
+    # main(cfg)
