@@ -1,141 +1,127 @@
 import sys
+import ctypes
 
 from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
 gInterpreter.Declare('#include "../../src/RootFunctions.hxx"')
-from ROOT import SourceAAA, SourceGauss
+from ROOT import SourceAAA
 
 sys.path.append('../../src')
 
-from utils import SliceVertically, FitHistList
+from utils import SliceVertically
 
-def Write(objects):
-    for object in objects:
-        object.Write()
+class Chain:
+    def __init__(self, chain):
+        self._chain = chain
+        self.results = {}
 
-def GetMtScaling(hSources, mTMins, mTMaxs, func, name):
-    gRStar0VsMt = TGraphErrors()
-    gRStar0VsMt.SetName(name)
+    def do(self, func, *args, id=None):
+        if id and self.results.get(id):
+            raise RuntimeError('results with id="{}" already exists'.format(id))
+        
+        results = []
+        for ring in self._chain:
+            results.append(func(ring, *args))
 
-    if func == 'average':
-        gRStar0VsMt.SetTitle(';m_{T} (GeV);#LT r_{0} #GT (fm)')
-        for iBin, hRStar in enumerate(hSources):
-            rStarAvg = hRStar.GetMean()
-            rStarAvgUnc = hRStar.GetMeanError()
-            gRStar0VsMt.SetPoint(iBin, (mTMaxs[iBin] + mTMins[iBin]) / 2, rStarAvg)
-            gRStar0VsMt.SetPointError(iBin, (mTMaxs[iBin] - mTMins[iBin]) / 2, rStarAvgUnc)
-        return gRStar0VsMt
+        if id:
+            self.results[id] = results
+
+        return self
+
+class FitResult():
+    def __init__(self, name, result):
+        self.name = name
+        self.result = result.Get()
+        self.chi2 = None
+        self.ndf = None
+        self.pars = None
+        self.ncalls = None
+        
+        self.ready = False
+        
+    def __compile(self):
+        if self.result.Status() == 0:
+            self.status = '\033[32mOK\033[0m'
+        else:
+            self.status = '\033[31mFAIL: UNKNOWN REASON\033[0m'
+
+        self.chi2 = self.result.Chi2()
+        self.ndf = self.result.Ndf()
+        self.ncalls = self.result.NCalls()
+
+        
+        if self.chi2 / self.ndf > 5:
+            self.status = '\033[31mFAIL: LARGE CHI2/NDF\033[0m'
+            
+        self.pars = []
+        for iPar in range(self.result.NPar()):
+            par = self.result.Parameter(iPar)
+            unc = self.result.ParError(iPar)
+            name = self.result.ParName(iPar)
+            
+            # Check if parameter is at limit
+            lower = ctypes.c_double()
+            upper = ctypes.c_double()
+            self.result.ParameterBounds(iPar, lower, upper)
+            lower = lower.value
+            upper = upper.value
+            
+            if par - lower < (upper - lower) * 1.e-5:
+                status = '\033[33m[[AT LOWER LIMIT]]\033[0m'
+                self.status = '\033[31mFAIL: PARAMETERS AT LIMIT\033[0m'
+            elif upper - par < (upper - lower) * 1.e-5:
+                status = '\033[33m[[AT UPPER LIMIT]]\033[0m'
+                self.status = '\033[31mFAIL: PARAMETERS AT LIMIT\033[0m'
+            else:
+                status = ''
+            
+            self.pars.append([name, par, unc, lower, upper, status])
+        self.ready = True
+
+    def __str__(self):
+        if not self.ready:
+            self.__compile()
+
+        output = f"\nFit to {self.name}: status={self.status} ({self.ncalls} calls) chi2/ndf={self.chi2:.0f}/{self.ndf:.0f}\n"
+        for iPar, par in enumerate(self.pars):
+            output += f'  {iPar}: {par[0]} = {par[1]:.2f} +/- {par[2]:.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}'
+        return output
+
+
+def Fit(obj, func, range, pars):
+    '''
+    Create fit function
+    '''
     
-    for iBin, hRStar in enumerate(hSources):
-        fSource = TF1(f'fSource_{mTMins[iBin]:.0f}_{mTMaxs[iBin]:.0f}', func, 0, 20, 1)
-        fSource.SetNpx(10000)
-        fSource.SetParameter(0, 1)
-        fSource.SetParLimits(0, 0.1, 5)
+    fFit = TF1(f'fFit', func, *range, len(pars))
+    fFit.SetNpx(10000)
+    for iPar, par in enumerate(pars):
+        fFit.SetParName(iPar, par[0])
+        fFit.SetParameter(iPar, (par[2] + par[3]) / 2)
+        fFit.SetParLimits(iPar, par[2], par[3])
 
-        hRStar.Scale(1./hRStar.GetEntries() / hRStar.GetBinWidth(1))
-        hRStar.Fit(fSource, 'MR+L')
-        hRStar.SetTitle(';r* (fm);Counts')
-        fSource.Write()
+    result = obj.Fit(fFit, 'QWLLS')
+    return FitResult(obj.GetName(), result)
 
-        # Fit results
-        rho0 = fSource.GetParameter(0)
-        rho0unc = fSource.GetParError(0)
-
-        gRStar0VsMt.SetPoint(iBin, (mTMaxs[iBin] + mTMins[iBin]) / 2, rho0)
-        gRStar0VsMt.SetPointError(iBin, (mTMaxs[iBin] - mTMins[iBin]) / 2, rho0unc)
-    return gRStar0VsMt
 
 def main(cfg:dict):
     '''
     Compute the source size as a function of mT
     '''
-
-    mTMins = cfg['mt_bins'][:-1]
-    mTMaxs = cfg['mt_bins'][1:]
-
     # Open input file
     inFile = TFile(cfg['infile'])
-
     oFile = TFile(cfg['ofile'], 'recreate')
-
-    # Load hitograms from file
-    # hRhoVsMt = inFile.Get('hRhoVsMt')
-    # if hRhoVsMt.Integral() > 0:
-    #     hMt3B = hRhoVsMt.ProjectionX('hMt3B')
-    #     hMt3B.Write()
-
-    #     hRhos = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho')
-
-    #     gRho0VsMt = TGraphErrors()
-    #     gRho0VsMt.SetName('gRho0VsMt')
-    #     for iBin, hRho in enumerate(hRhos):
-    #         fSource = TF1(f'fSource_{mTMins[iBin]:.0f}_{mTMins[iBin]:.0f}', SourceAAA, 0, 20, 1)
-    #         fSource.SetNpx(10000)
-    #         fSource.SetParameter(0, 1)
-            
-    #         hRho.Scale(1./hRho.GetEntries() / hRho.GetBinWidth(1))
-    #         hRho.Fit(fSource, 'MR+L')
-    #         hRho.SetTitle(';#rho* (fm);Counts')
-    #         hRho.Write()
-    #         fSource.Write()
-
-    #         # Fit results
-    #         rho0 = fSource.GetParameter(0)
-    #         rho0unc = fSource.GetParError(0)
-
-    #         gRho0VsMt.SetPoint(iBin, (mTMaxs[iBin] + mTMins[iBin]) / 2, rho0)
-    #         gRho0VsMt.SetPointError(iBin, (mTMaxs[iBin] - mTMins[iBin]) / 2, rho0unc)
-    #     gRho0VsMt.SetTitle(';m_{T} (GeV);#rho_{0} (fm)')
-    #     gRho0VsMt.Write()
-    
-    # mT scaling for 2B
-    hRStarVsMt = inFile.Get('hRStarVsMt')
-    if hRStarVsMt.Integral():
-        hMt = hRStarVsMt.ProjectionX('hMt')
-        hMt.Write()
-        
-        hRStars = SliceVertically(hRStarVsMt, cfg['mt_bins'], name='hRStar')
-        gRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, SourceGauss, 'gRStarVsMt')
-        Write(hRStars)
-        gRStar0VsMt.Write()
-
-        # Method = average
-        gAvgRStar0VsMt = GetMtScaling(hRStars, mTMins, mTMaxs, 'average', 'gAvgRStarVsMt')
-        gAvgRStar0VsMt.Write()
 
     # mT scaling for 3B
     hRhoVsMt = inFile.Get('hRhoVsMt')
-    h3BMt = hRhoVsMt.ProjectionX('h3BMt')
-    h3BMt.Write()
-
-    hRStarInTriplets = inFile.Get('hRStarInTriplets')
-    hRStarInTriplets.Scale(1./hRStarInTriplets.Integral() / hRStarInTriplets.GetBinWidth(1))
-    fSourceInTriplets = TF1(f'fRStarInTriplets', SourceGauss, 0, 20, 1)
-    fSourceInTriplets.SetParameter(0, 1)
-    fSourceInTriplets.SetParLimits(0, 0.1, 5)
-    hRStarInTriplets.Fit(fSourceInTriplets, 'MR+L')
-    print(f'r0 in triplets: ({fSourceInTriplets.GetParameter(0):.2f} +/- {fSourceInTriplets.GetParError(0):.2f}) fm')
-    hRStarInTriplets.Write()
-
-    hRho = hRhoVsMt.ProjectionY('hRho')
-    hRho.Scale(1./hRho.GetEntries() / hRho.GetBinWidth(1))
-    fSource = TF1(f'fRho', SourceAAA, 0, 20, 1)
-    fSource.SetParameter(0, 1)
-    fSource.SetParLimits(0, 0.1, 5)
-    hRho.Fit(fSource, 'MR+L')
-    print(f'rho0: ({fSource.GetParameter(0):.2f} +/- {fSource.GetParError(0):.2f}) fm')
-    hRho.Write()
-
-    hRhos = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho')
-    gRho0VsMt = GetMtScaling(hRhos, mTMins, mTMaxs, SourceAAA, 'gRho0VsMt')
-    Write(hRhos)
-    gRho0VsMt.Write()
-    
-    # Method = average
-    gAvgRho0VsMt = GetMtScaling(hRhos, mTMins, mTMaxs, 'average', 'gAvgRhoVsMt')
-    gAvgRho0VsMt.Write()
+    chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+     
+    chRhos.do(lambda h : h.Scale(1. / h.Integral() / h.GetBinWidth(1))) \
+        .do(Fit, SourceAAA, [0, 20], [['rho0', 1, 0, 10]], id='results') \
+        .do(lambda h : h.Write())
+    [print(r) for r in chRhos.results['results']]
 
     oFile.Close()
-
+    
 if __name__ == '__main__':
     import argparse
     import yaml
