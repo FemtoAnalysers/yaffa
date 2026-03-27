@@ -1,12 +1,12 @@
 import sys
 import ctypes
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, RooArgList, RooRealVar, RooGaussian, RooArgSet, TCanvas, gPad, RooDataHist
-from ROOT.RooFit import bindPdf
+from ROOT import TFile, gInterpreter, TF1, gROOT, gSystem, TGraphErrors, RooArgList, RooRealVar, RooGaussian, RooArgSet, TCanvas, gPad, RooDataHist
+from ROOT.RooFit import bindPdf, bindFunction
 
-
-gInterpreter.Declare('#include "../../src/RootFunctions.hxx"')
-from ROOT import SourceAAA
+# TODO make portable
+gSystem.Load('/home/battidan/ph/proj/source3b/ext/yaffa/src/RooFitFunctions_hxx.so')
+from ROOT import RooSourceAAA
 
 sys.path.append('../../src')
 
@@ -98,12 +98,13 @@ def RooFit(cfg):
     radius = RooRealVar("radius", "radius", 0, 10, 'fm')
     rho0 = RooRealVar("rho0", "rho0", 1, 0, 5, 'fm')
 
-    x = RooRealVar("x", "x", 0, 10)
-    mean = RooRealVar("mean", "mean of gaussian", 1, 0, 10)
-    sigma = RooRealVar("sigma", "width of gaussian", 1, 0.1, 10)
+    # x = RooRealVar("x", "x", 0, 10)
+    # mean = RooRealVar("mean", "mean of gaussian", 1, 0, 10)
+    # sigma = RooRealVar("sigma", "width of gaussian", 1, 0.1, 10)
 
     # Build gaussian pdf in terms of x,mean and sigma
-    gauss = RooGaussian("gauss", "gaussian PDF", radius, mean, sigma)
+    # gauss = RooGaussian("gauss", "gaussian PDF", radius, mean, sigma)
+    pdfSource = RooSourceAAA("aa", "gaussian PDF", radius, rho0)
 
 
     # Open input file
@@ -118,18 +119,20 @@ def RooFit(cfg):
     
     dh = RooDataHist("dh", "dh", [radius], Import=hRho)
 
-    fSource = TF1(f'fSource', SourceAAA, 0, 10, 1)
-    fSource.SetNpx(10000)
-    fSource.SetParameter(0, rho0.getVal())  # Initialize with rho0's value
+    pars = RooArgList(rho0)
+   
+    # fSource = TF1(f'fSource', RooSourceAAA, 0, 10, 1)
+    # fSource.SetNpx(10000)
+    # fSource.SetParameter(0, rho0.getVal())
 
-    # pdfSource = bindPdf("pdfSource",fSource,radius)
-    # pdfSource.fitTo(dh, radius, PrintLevel=-2)
+    # pdfSource = bindFunction(fSource, radius, pars)
+    # pdfSource.fitTo(dh, PrintLevel=-2)
 
-    gauss.fitTo(dh)
+    pdfSource.fitTo(dh)
     # Plot cdf of gx versus radius
     frame = radius.frame()
-    # pdfSource.plotOn(frame)
-    gauss.plotOn(frame)
+    pdfSource.plotOn(frame)
+    # gauss.plotOn(frame)
     dh.plotOn(frame)
 
     # Draw plot on canvas
