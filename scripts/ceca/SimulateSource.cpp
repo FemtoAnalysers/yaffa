@@ -425,10 +425,16 @@ int main(int argc, const char** argv) {
     TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(dlmRStarInTriplets, "hRStarInTriplets");
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
 
+    auto dlmKStarInTripletsVsQ3 = ceca.GetKStarInTripletsVsQ3();
+    dlmKStarInTripletsVsQ3->ComputeError();
+    TH2F* hKStarInTripletsVsQ3 = Convert_DlmHisto_TH2F(dlmKStarInTripletsVsQ3, "hKStarInTripletsVsQ3");
+    hKStarInTripletsVsQ3->SetTitle(";Q_{3} (MeV/c); k* (MeV/c); Counts");
+
     fOutput.cd();
     hR12R312->Write();
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
+    hKStarInTripletsVsQ3->Write();
     hRStarInTriplets->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
