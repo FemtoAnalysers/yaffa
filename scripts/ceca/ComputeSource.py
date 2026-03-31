@@ -2,11 +2,15 @@ import sys
 import ctypes
 
 from ROOT import TFile, TF1, gSystem, TGraphErrors, RooArgList, RooRealVar, TCanvas, gPad, RooDataHist
-from ROOT.RooFit import Range
+from ROOT.RooFit import Range, NormRange, WARNING
 
 # TODO make portable
 gSystem.Load('/home/battidan/ph/proj/source3b/ext/yaffa/src/RooFitFunctions_hxx.so')
-from ROOT import RooSourceAAA
+from ROOT import RooSourceAAA, RooMsgService
+
+msg = RooMsgService.instance()
+msg.setGlobalKillBelow(WARNING)
+
 
 sys.path.append('../../src')
 
@@ -87,54 +91,99 @@ class FitResult():
             output += f'  {iPar}: {par[0]} = {par[1]:.2f} +/- {par[2]:.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}'
         return output
 
-def RooFit(cfg):
+def RooFit(hist, fitrange):
     # Create observables x,y
     radius = RooRealVar("radius", "radius", 0, 15, 'fm')
     rho0 = RooRealVar("rho0", "rho0", 1, 0, 15, 'fm')
-    radius.setRange("fitRange", *cfg['fitrange'])
+    radius.setRange("fitRange", *fitrange)
 
-    # x = RooRealVar("x", "x", 0, 10)
-    # mean = RooRealVar("mean", "mean of gaussian", 1, 0, 10)
-    # sigma = RooRealVar("sigma", "width of gaussian", 1, 0.1, 10)
-
-    # Build gaussian pdf in terms of x,mean and sigma
-    # gauss = RooGaussian("gauss", "gaussian PDF", radius, mean, sigma)
     pdfSource = RooSourceAAA("aa", "gaussian PDF", radius, rho0)
 
+    hist.Scale(1. / hist.Integral())
+    if abs(hist.Integral() - 1) > 1.e-6:
+        print("\033{31mERROR: fit function is not normalized!")
+        print("  --> Integral: ", hist.Integral())
+
+    dh = RooDataHist("dh", "dh", RooArgList(radius), Import=hist)
+
+    # TODO: clarify which error estimation is better
+    result = pdfSource.fitTo(dh, Range("fitRange"), Save=True, PrintLevel=-1, SumW2Error=True) 
+    # result.Print()
+    # pdfSource.plotOn(frame)
+    # dh.plotOn(frame)
+
+    # # Draw plot on canvas
+    # c = TCanvas("test", "test", 600, 600)
+    # gPad.SetLeftMargin(0.15)
+    # frame.GetYaxis().SetTitleOffset(1.6)
+    # frame.Draw()
+    # c.SaveAs("test.png")
+    pdfSource._fit_result = result
+    pdfSource._radius = radius
+    pdfSource._rho0   = rho0
+    pdfSource._data   = dh
+    pdfSource._hist   = hist
+    pdfSource._fitres = result
+    
+    return pdfSource
+
+
+def main(cfg):
     # Open input file
     inFile = TFile(cfg['infile'])
+    hRhoVsMt = inFile.Get('hRhoVsMt')
+    hRhoVsMt.SetDirectory(0)
+    inFile.Close()
+    
     oFile = TFile(cfg['ofile'], 'recreate')
 
     # mT scaling for 3B
-    hRhoVsMt = inFile.Get('hRhoVsMt')
-    hRho = SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT')[3]
-    hRho.Scale(1./hRho.Integral())
-    print("--------> ", hRho.Integral())
-    
-    dh = RooDataHist("dh", "dh", [radius], Import=hRho)
-
-    pars = RooArgList(rho0)
+    hRho = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+    hRho.do(RooFit, cfg['fitrange'], id='source').do(lambda h : h.Write())
    
-    # fSource = TF1(f'fSource', RooSourceAAA, 0, 10, 1)
-    # fSource.SetNpx(10000)
-    # fSource.SetParameter(0, rho0.getVal())
+    print(f'Output saved to \'{cfg["ofile"]}\'')
 
-    # pdfSource = bindFunction(fSource, radius, pars)
-    # pdfSource.fitTo(dh, PrintLevel=-2)
+    # def RooDraw(pdf, name):
+    #     frame = radius.frame()
+        # data.plotOn(frame)
+        
+    
+    results = hRho.results['source']
 
-    pdfSource.fitTo(dh, Range("fitRange"))
-    # Plot cdf of gx versus radius
-    frame = radius.frame()
-    pdfSource.plotOn(frame)
-    # gauss.plotOn(frame)
-    dh.plotOn(frame)
+    radius = RooRealVar("radius", "radius", *cfg['framerange'], 'fm')
+    radius.setRange('fitrange', *cfg['fitrange'])
 
-    # Draw plot on canvas
-    c = TCanvas("test", "test", 600, 600)
-    gPad.SetLeftMargin(0.15)
-    frame.GetYaxis().SetTitleOffset(1.6)
-    frame.Draw()
-    c.SaveAs("test.png")
+    for iRes, res in enumerate(results):
+        print(res, type(res))
+
+        c = TCanvas(f"aaa{iRes}", f"aaa{iRes}", 600, 600)
+        gPad.SetLeftMargin(0.15)
+        frame = radius.frame()
+        res.plotOn(frame, Range('fitrange'), NormRange("fitRange"))
+        res._data.plotOn(frame)
+        frame.GetYaxis().SetTitleOffset(1.6)
+        frame.Draw()
+        c.SaveAs(f"aaa{iRes}.png")
+        f = res.asTF(RooArgList(res._radius))
+        
+
+        npars = res._fitres.floatParsFinal().getSize()
+        chi2 = frame.chiSquare(npars)
+
+        print(chi2, npars)
+
+        
+        f.Write()
+        
+        
+        # print(res) # Segmentation violation
+        # pass
+    
+    # results.do(lambda pdf : RooDraw(pdf, "aaa"))
+        
+    oFile.Close()
+
+    # # Draw plot on canvas
 
 def Fit(obj, func, range, pars):
     '''
@@ -152,16 +201,19 @@ def Fit(obj, func, range, pars):
     return FitResult(obj.GetName(), result)
 
 
-def main(cfg:dict):
+def _main(cfg:dict):
     '''
     Compute the source size as a function of mT
     '''
     # Open input file
     inFile = TFile(cfg['infile'])
+    hRhoVsMt = inFile.Get('hRhoVsMt')
+    hRhoVsMt.SetDirectory(0)
+    inFile.Close()
+    
     oFile = TFile(cfg['ofile'], 'recreate')
 
     # mT scaling for 3B
-    hRhoVsMt = inFile.Get('hRhoVsMt')
     chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
      
     chRhos.do(lambda h : h.Scale(1. / h.Integral() / h.GetBinWidth(1))) \
@@ -182,8 +234,4 @@ if __name__ == '__main__':
     with open(args.cfg) as file:
         cfg = yaml.safe_load(file)
 
-
-    RooFit(cfg)
-
-    
-    # main(cfg)
+    main(cfg)
