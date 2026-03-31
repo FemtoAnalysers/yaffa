@@ -1,8 +1,8 @@
 import sys
 import ctypes
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, gSystem, TGraphErrors, RooArgList, RooRealVar, RooGaussian, RooArgSet, TCanvas, gPad, RooDataHist
-from ROOT.RooFit import bindPdf, bindFunction
+from ROOT import TFile, TF1, gSystem, TGraphErrors, RooArgList, RooRealVar, TCanvas, gPad, RooDataHist
+from ROOT.RooFit import Range
 
 # TODO make portable
 gSystem.Load('/home/battidan/ph/proj/source3b/ext/yaffa/src/RooFitFunctions_hxx.so')
@@ -38,9 +38,8 @@ class FitResult():
         self.ndf = None
         self.pars = None
         self.ncalls = None
-        
         self.ready = False
-        
+
     def __compile(self):
         if self.result.Status() == 0:
             self.status = '\033[32mOK\033[0m'
@@ -50,7 +49,6 @@ class FitResult():
         self.chi2 = self.result.Chi2()
         self.ndf = self.result.Ndf()
         self.ncalls = self.result.NCalls()
-
         
         if self.chi2 / self.ndf > 5:
             self.status = '\033[31mFAIL: LARGE CHI2/NDF\033[0m'
@@ -89,14 +87,11 @@ class FitResult():
             output += f'  {iPar}: {par[0]} = {par[1]:.2f} +/- {par[2]:.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}'
         return output
 
-def RooFit1(hist, ):
-    pass
-
-
 def RooFit(cfg):
     # Create observables x,y
-    radius = RooRealVar("radius", "radius", 0, 10, 'fm')
-    rho0 = RooRealVar("rho0", "rho0", 1, 0, 5, 'fm')
+    radius = RooRealVar("radius", "radius", 0, 15, 'fm')
+    rho0 = RooRealVar("rho0", "rho0", 1, 0, 15, 'fm')
+    radius.setRange("fitRange", *cfg['fitrange'])
 
     # x = RooRealVar("x", "x", 0, 10)
     # mean = RooRealVar("mean", "mean of gaussian", 1, 0, 10)
@@ -105,7 +100,6 @@ def RooFit(cfg):
     # Build gaussian pdf in terms of x,mean and sigma
     # gauss = RooGaussian("gauss", "gaussian PDF", radius, mean, sigma)
     pdfSource = RooSourceAAA("aa", "gaussian PDF", radius, rho0)
-
 
     # Open input file
     inFile = TFile(cfg['infile'])
@@ -128,7 +122,7 @@ def RooFit(cfg):
     # pdfSource = bindFunction(fSource, radius, pars)
     # pdfSource.fitTo(dh, PrintLevel=-2)
 
-    pdfSource.fitTo(dh)
+    pdfSource.fitTo(dh, Range("fitRange"))
     # Plot cdf of gx versus radius
     frame = radius.frame()
     pdfSource.plotOn(frame)
@@ -140,7 +134,6 @@ def RooFit(cfg):
     gPad.SetLeftMargin(0.15)
     frame.GetYaxis().SetTitleOffset(1.6)
     frame.Draw()
-
     c.SaveAs("test.png")
 
 def Fit(obj, func, range, pars):
