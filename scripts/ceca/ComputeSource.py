@@ -3,7 +3,7 @@ import ctypes
 
 from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
 gInterpreter.Declare('#include "../../src/RootFunctions.hxx"')
-from ROOT import SourceAAA
+from ROOT import SourceAAA, SourceCountsAAA
 
 sys.path.append('../../src')
 
@@ -83,7 +83,7 @@ class FitResult():
 
         output = f"\nFit to {self.name}: status={self.status} ({self.ncalls} calls) chi2/ndf={self.chi2:.0f}/{self.ndf:.0f}\n"
         for iPar, par in enumerate(self.pars):
-            output += f'  {iPar}: {par[0]} = {par[1]:.2f} +/- {par[2]:.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}'
+            output += f'  {iPar}: {par[0]} = {par[1]:>{8}.2f} +/- {par[2]:<{8}.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}\n'
         return output
 
 
@@ -96,8 +96,8 @@ def Fit(obj, func, range, pars):
     fFit.SetNpx(10000)
     for iPar, par in enumerate(pars):
         fFit.SetParName(iPar, par[0])
-        fFit.SetParameter(iPar, (par[2] + par[3]) / 2)
-        fFit.SetParLimits(iPar, par[2], par[3])
+        fFit.SetParameter(iPar, (par[1] + par[2]) / 2)
+        fFit.SetParLimits(iPar, par[1], par[2])
 
     result = obj.Fit(fFit, 'QWLLS')
     return FitResult(obj.GetName(), result)
@@ -115,8 +115,7 @@ def main(cfg:dict):
     hRhoVsMt = inFile.Get('hRhoVsMt')
     chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
      
-    chRhos.do(lambda h : h.Scale(1. / h.Integral() / h.GetBinWidth(1))) \
-        .do(Fit, SourceAAA, [0, 20], [['rho0', 1, 0, 10]], id='results') \
+    chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
         .do(lambda h : h.Write())
     [print(r) for r in chRhos.results['results']]
 
