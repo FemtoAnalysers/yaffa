@@ -5,8 +5,9 @@ Yet Another Framework for Femtoscopy Analyses
 Set the environment variables: `cp .env.example .env` and modify `.env` according to your machine.
 
 1. Install the dependencies:
-* `pip3 install [--user] pylint`
-*  Install docker
+* `pip3 install [--user] rich, numexpr, pylint`
+* Install docker
+* Install CECA
 
 1. add ` export YAFFA=/path/to/yaffa` to your .bashrc and run `bash install.sh`
 
