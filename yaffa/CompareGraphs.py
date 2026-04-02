@@ -10,7 +10,7 @@ import numpy as np
 import numexpr
 
 # pylint: disable=no-name-in-module
-from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1, gROOT
+from ROOT import TFile, TCanvas, TLegend, TLine, TH1, TH2, TF2, TGraph, TGraphErrors, TGraphAsymmErrors, TH1D, TF1, gROOT
 
 from yaffa import logger as log
 from yaffa import utils
@@ -81,6 +81,7 @@ for iPlot, plot in enumerate(cfg):
         ndivx=plot['opt'].get('ndivx', 505),
         ndivy=plot['opt'].get('ndivy', 505),
         maxdigits=plot['opt'].get('maxdigits', 4),
+        rightMargin=0.25,
     )
 
     if 'root' in plot["opt"]["ext"]:
@@ -106,6 +107,9 @@ for iPlot, plot in enumerate(cfg):
     inObjs = []
     legends = []
     drawOpts = []
+
+    integral = 0
+    
     for inputCfg in plot["input"]:
         if not inputCfg['file']:
             drawOpts.append('')
@@ -116,6 +120,14 @@ for iPlot, plot in enumerate(cfg):
         inFile = TFile(inputCfg['file'])
         inObj = utils.io.Load(inFile, inputCfg['name'])
 
+        if isinstance(inObj, TH2):
+            for iBinX in range(inObj.GetNbinsX()):
+                for iBinY in range(inObj.GetNbinsY()):            
+                    integral+= inObj.GetBinContent(iBinX + 1, iBinY + 1)
+
+        integral *= inObj.GetXaxis().GetBinWidth(1)
+        integral *= inObj.GetYaxis().GetBinWidth(1)
+
         if isinstance(inObj, TH1):
             inObj.SetDirectory(0)
             inObj.Rebin(inputCfg['rebin'])
@@ -125,7 +137,9 @@ for iPlot, plot in enumerate(cfg):
                 inObj = CopyHistInSubrange(inObj, fx1, fx2)
 
             if inputCfg['normalize']:
-                inObj.Scale(1./inObj.Integral())
+                # inObj.Scale(1./inObj.Integral())
+                # inObj.Scale(1./inObj.GetEntries())
+                inObj.Scale(1./integral)
             if inputCfg['scale']:
                 inObj.Scale(numexpr.evaluate(str(inputCfg['scale'])))
             if inputCfg['normalizecf']:
@@ -193,6 +207,8 @@ for iPlot, plot in enumerate(cfg):
         if legend:
             leg.AddEntry(inObj, legend, 'lp' if inObj else '')
 
+    inObjs[0].Draw('same' + drawOpts[0])
+
     for line in plot['opt']['lines']:
         x1 = plot['opt']['rangex'][0] if(line['coordinates'][0] == 'min') else line['coordinates'][0]
         y1 = plot['opt']['rangey'][0] if(line['coordinates'][1] == 'min') else line['coordinates'][1]
@@ -205,7 +221,9 @@ for iPlot, plot in enumerate(cfg):
         leg.AddEntry(inputline, utils.style.SmartLabel(line['legendtag']), 'l')
 
     leg.SetHeader(utils.style.SmartLabel(plot['opt']['leg']['header']), 'C')
-    leg.Draw()
+    if plot['opt']['leg'].get('enable', True):
+        leg.Draw()
+    
 
     # Compute ratio wrt the first obj
     while plot['ratio']['enable']: # use if-equivallent while scope to be able to control when to exit
@@ -218,14 +236,34 @@ for iPlot, plot in enumerate(cfg):
         pad.SetLogy(plot['ratio']['logy'])
         y1 = plot['ratio']['rangey'][0]
         y2 = plot['ratio']['rangey'][1]
-        frame = pad.DrawFrame(fx1, y1, fx2, y2, utils.style.SmartLabel(plot['opt']['title']))
-        frame.GetYaxis().SetTitle('Ratio')
         hDen = inObjs[0].Clone()
         if isinstance(hDen, TH1):
             hDen.Rebin(plot['ratio']['rebin'])
             hDen.Sumw2()
 
-        if isinstance(inObj, TH1):
+        if isinstance(hDen, TF2) and isinstance(inObjs[1], TH2):
+            inObj = inObjs[1]
+            frame = pad.DrawFrame(fx1, fy1, fx2, fy2, utils.style.SmartLabel(plot['opt']['title']))
+            hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
+            hRatio.Reset()
+            hRatio.GetZaxis().SetRangeUser(y1, y2)
+            hRatio.GetZaxis().SetTitle('Ratio')
+            for iBinX in range(inObj.GetNbinsX()):
+                for iBinY in range(inObj.GetNbinsY()):
+
+                    x = inObj.GetXaxis().GetBinCenter(iBinX + 1)
+                    y = inObj.GetYaxis().GetBinCenter(iBinY + 1)
+                    bc = inObj.GetBinContent(iBinX + 1, iBinY + 1)
+                    den = hDen.Eval(x, y)
+                    if hDen.Eval(x, y) > 0:
+                        ratio = bc / den
+                    else:
+                        ratio = 0
+                        
+                    hRatio.SetBinContent(iBinX + 1, iBinY + 1,  ratio)
+                
+            hRatio.DrawCopy('same colz')      
+        elif isinstance(inObj, TH1):
             for inObj in inObjs[1:]:
                 hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
                 hRatio.Rebin(plot['ratio']['rebin'])
@@ -242,6 +280,9 @@ for iPlot, plot in enumerate(cfg):
 
         if 'root' in plot["opt"]["ext"]:
             hRatio.Write()
+
+        if isinstance(hDen, TF2) and isinstance(inObj, TH2):
+            break
 
         line = TLine(plot['opt']['rangex'][0], 1, plot['opt']['rangex'][1], 1)
         line.SetLineColor(13)
