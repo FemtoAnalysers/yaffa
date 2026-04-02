@@ -6,7 +6,7 @@ gROOT.SetBatch(True)
 
 if __name__ == '__main__':
     fSourceAAAJC = TF2('fSourceAAAJC', SourceAAAJC, 0, 8, 0, 8, 1)
-    fSourceAAAJC.SetParameter(0, 1.07)
+    fSourceAAAJC.SetParameter(0, 1.0)
     fSourceAAAJC.SetNpx(100)
     fSourceAAAJC.SetNpy(100)
     fSourceAAAJC.SetTitle(';r_{12} (fm);r_{3,12} (fm);(4#pi)^{2} r_{12}^{2} r_{3,12}^{2} S(r_{12}, r_{3,12})')
