@@ -312,13 +312,13 @@ int main(int argc, const char** argv) {
             if (removeBoost) {
                 prt->SetMass(1000000 * 1362. / 0.938);
             } else {
-                prt->SetMass(1362);
+                prt->SetMass(1362); // From PLB 811 (2020) 135849
             }
             if (system == "pp" || system == "pP")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
                 prt->SetAbundance(0);
-            prt->SetWidth(hbarc / 1.65);
+            prt->SetWidth(hbarc / 1.65); // From PLB 811 (2020) 135849
             prt->SetRadius(HadronSize);
             prt->SetRadiusSlope(HadronSlope);
             prt->SetPtEtaPhi(dlm_pT_eta_p);
@@ -408,6 +408,11 @@ int main(int argc, const char** argv) {
     TH2F* hR12R312 = Convert_DlmHisto_TH2F(dlmR12R312, "hR12R312");
     hR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
 
+    auto dlmMtSimpleVs4VectorAverage = ceca.GetMtSimpleVs4VectorAverage();
+    dlmMtSimpleVs4VectorAverage->ComputeError();
+    TH2F* hMtSimpleVs4VectorAverage = Convert_DlmHisto_TH2F(dlmMtSimpleVs4VectorAverage, "hMtSimpleVs4VectorAverage");
+    hMtSimpleVs4VectorAverage->SetTitle(";m_{T}^{4vector} (GeV);m_{T}^{simple} (GeV); Counts");
+
     auto dlmPhiVsRho = ceca.GetPhiVsRho();
     dlmPhiVsRho->ComputeError();
     TH2F* hPhiVsRho = Convert_DlmHisto_TH2F(dlmPhiVsRho, "hPhiVsRho");
@@ -427,6 +432,7 @@ int main(int argc, const char** argv) {
 
     fOutput.cd();
     hR12R312->Write();
+    hMtSimpleVs4VectorAverage->Write();
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
     hRStarInTriplets->Write();
