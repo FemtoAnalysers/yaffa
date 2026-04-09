@@ -18,3 +18,6 @@ time ../build/bin/SimulateSource cfg_test_ceca_3b.yaml || exit 1
 
 time ../build/bin/SimulateSource cfg_test_cecapaper.yaml || exit 1
 ../scripts/rootdiff.py source_cecapaper.root source_cecapaper_ref.root || exit 1
+
+time ../build/bin/SimulateSource cfg_test_cecapaper_3b.yaml || exit 1
+../scripts/rootdiff.py source_cecapaper_3b.root source_cecapaper_3b_ref.root || exit 1
