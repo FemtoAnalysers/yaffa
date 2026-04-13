@@ -9,7 +9,11 @@ import argparse
 import yaml
 import tabulate
 
-from ROOT import TF1
+from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
+gInterpreter.ProcessLine(f'#define DEBUG_LEVEL 0')
+gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
+gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
+from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
 
 from yaffa import utils
 
@@ -84,7 +88,11 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         fitter.SetModel(iFit, fitCfg['model'])
     fitter.Fit('MR+')
 
-    oFile = TFile(f'{cfg["ofile"]}.root', 'recreate')
+    oFileName = cfg["ofile"]
+    if suffix := cfg['suffix']:
+        oFileName = f'{oFileName}_{suffix}'
+
+    oFile = TFile(f'{oFileName}.root', 'recreate')
     panels = utils.style.GetNPanels(len(cfg['fits']))
     cFit = TCanvas('cFit', '', 600 * panels[0], 600 * panels[1])
     cFit.Divide(*panels)
@@ -95,14 +103,17 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         terms[iFit] = fitter.GetTerms()
         fitter.GetFitFunction(iFit).Write()
 
-        # break
-    cFit.SaveAs(f'{cfg["ofile"]}.pdf')
+    cFit.SaveAs(f'{oFileName}.pdf')
 
     # Save fit parameters to file
     fFit = fitter.GetFitFunction()
     colNames = ['Parameter', 'Name', 'Value', 'Error', 'Step size', 'Derivative']
     pars = []
+    result = {
+        'chi2ndf': 999 # fFit.GetChisquare() / fFit.GetNDF(),
+    }
     for iPar in range(fFit.GetNpar()):
+        result[fFit.GetParName(iPar)] = fFit.GetParameter(iPar)
         pars.append([
             iPar,
             fFit.GetParName(iPar),
@@ -122,7 +133,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     gScatLen.Write()
 
     table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
-    with open(f'{cfg["ofile"]}_parameters.txt', "w") as file:
+    with open(f'{oFileName}_parameters.txt', "w") as file:
         file.write(table)
 
     hObs.Write()
@@ -139,20 +150,19 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             t.Write()
     oFile.Close()
 
+    return result
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cfg', default='cfg_fit.yml', nargs='?')
     parser.add_argument('--debug', type=int, default=10)
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
+    
+    gInterpreter.ProcessLine(f'#undef DEBUG_LEVEL')
+    gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
 
     utils.style.SetStyle()
-
-    from ROOT import TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
-    gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
-    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
-    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
-    from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
 
     with open(args.cfg) as file:
         config = yaml.safe_load(file)

@@ -754,11 +754,36 @@ void SuperFitter::Fit(const char* option) {
         }
     }
 
+
+
     fitter.Config().MinimizerOptions().SetPrintLevel(0);
     fitter.Config().SetMinimizer("Minuit2", "Migrad");
     fitter.FitFCN(nPars - nShared, globalChi2, nullptr, data[0].Size() + data[1].Size(), true);
     ROOT::Fit::FitResult result = fitter.Result();
     result.Print(std::cout);
+
+    // Check if fit parameters are AT LIMIT
+    for (int iFit = 0; iFit < fFit.size(); iFit++) {
+        for (int iPar = 0; iPar < this->fFit[iFit]->GetNpar(); iPar++) {
+            auto par = this->fPars[iFit][iPar];
+            std::string name = std::get<0>(par);
+
+            double centr = std::get<1>(par);
+            double min = std::get<2>(par);
+            double max = std::get<3>(par);
+
+            // Set Par Limits
+            bool isFree = min < max;
+            if (isFree && this->fFit[iFit]->GetParameter(iPar) - min < (max - min) / 1000000) {
+                std::cout << "WARN: Parameter " << name.data() << " = " << this->fFit[iFit]->GetParameter(iPar) << " hits lower limit: " << min << std::endl;
+            }
+            if (isFree && max - this->fFit[iFit]->GetParameter(iPar) < (max - min) / 1000000) {
+                std::cout << "WARN: Parameter " << name.data() << " hits upper limit: " << max << std::endl;
+            }
+            // idx++;
+        }
+    }
+
 }
 
 // Add TF1 function // todo: remove units mult here and put in .py
