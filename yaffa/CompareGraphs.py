@@ -74,7 +74,7 @@ with open(args.cfg, "r") as stream:
         log.critical('Yaml file not loaded')
 
 
-for plot in cfg:
+for iPlot, plot in enumerate(cfg):
     plot = plot["plot"]
 
     utils.style.SetStyle(
@@ -152,7 +152,7 @@ for plot in cfg:
 
     # Define the canvas
     nPanelsX, nPanelsY = utils.style.GetNPanels(len(panels))
-    cPlot = TCanvas("cPlot", "cPlot", 600*nPanelsX, 600*nPanelsY)
+    cPlot = TCanvas(f"cPlot{iPlot}", "cPlot", 600*nPanelsX, 600*nPanelsY)
     cPlot.Divide(nPanelsX, nPanelsY)
     pad = cPlot.cd(1)
     pad.SetLogx(plot["opt"]["logx"])
