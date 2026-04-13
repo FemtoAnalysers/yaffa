@@ -8,3 +8,9 @@ build/**
 *_ACLiC_*
 *.d
 *.so
+
+*_dictContent.h
+*_dictUmbrella.h
+*.cxx_tmp_*
+*_rdict.pcm
+

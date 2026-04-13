@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../../an/LPi/sim/pythia/resonances_syst"
+		},
+		{
+			"path": "../../../../../an/LPi/sim/pythia/resonances_blastwave"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"SimLambda1520.C": "cpp"
+		}
+	}
+}
