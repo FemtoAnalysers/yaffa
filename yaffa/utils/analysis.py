@@ -334,7 +334,6 @@ def Divide(num, den): #pylint: disable=inconsistent-return-statements
 
             return hRatio
     log.critical("Division of %s by %s is not implemented.", type(num), type(den))
-    return gSmeared
 
 def Bootstrap(obj):
     '''
