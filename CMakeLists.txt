@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINARY_DESTINATION})
 
 add_executable(
-    SimulateSource ${PROJECT_SOURCE}/scripts/ceca/SimulateSource.cpp
+    SimulateSource ${PROJECT_SOURCE}/scripts/sim/ceca/SimulateSource.cpp
 )
 
 # DO NOT CHANGE THE REST #
