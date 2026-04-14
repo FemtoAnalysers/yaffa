@@ -8,9 +8,12 @@ Set the environment variables: `cp .env.example .env` and modify `.env` accordin
 * `pip3 install [--user] rich, numexpr, pylint`
 * Install docker
 * Install CECA
+* Install yaml-cpp-devel
+* Install python 3.10
 
-1. add ` export YAFFA=/path/to/yaffa` to your .bashrc and run `bash install.sh`
+1. OBSOLETE: add ` export YAFFA=/path/to/yaffa` to your .bashrc
+1. run `bash install.sh`
 
-1. If you use root inside the AliPhysics environment, add to the alienv script the line `export YAFFA=/path/to/yaffa`.
+1. OBSOLETE: If you use root inside the AliPhysics environment, add to the alienv script the line `export YAFFA=/path/to/yaffa`.
 You can find the path to your alienv script with `which alienv`. If you use root outside of AliPhysics add the `YAFFA`
 variable to your `.bashrc` file
