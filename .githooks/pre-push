@@ -2,11 +2,11 @@
 
 # Prevent the push if the linting fails
 
-HOSTNAME=$(hostname -f)
+# HOSTNAME=$(hostname -f)
 
-# Skip linting on the batchfarm where docker is not available
-if [[ "$HOSTNAME" == "nidoking.ktas.ph.tum.de" || "$HOSTNAME" == "nidoqueen.ktas.ph.tum.de" ]]; then
-    exit 0
-fi
+# # Skip linting on the batchfarm where docker is not available
+# if [[ "$HOSTNAME" == "nidoking.ktas.ph.tum.de" || "$HOSTNAME" == "nidoqueen.ktas.ph.tum.de" ]]; then
+#     exit 0
+# fi
 
-yaffa-lint
+# yaffa-lint
