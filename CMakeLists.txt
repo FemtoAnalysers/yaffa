@@ -62,7 +62,7 @@ SET(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
 
 include_directories(${PROJECT_SOURCE})
-include_directories(${PROJECT_SOURCE}/src/)
+include_directories(${PROJECT_SOURCE}/src/cpp)
 include_directories(${CATS_INCLUDE})
 include_directories(${GSL_INCLUDE})
 include_directories(${ROOT_INCLUDE})

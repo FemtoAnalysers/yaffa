@@ -41,7 +41,7 @@ pushd $YAFFA
 pip3 install -e . || pip3 install --user -e .
 popd
 
-if [[ $CATSss != '' ]]; then
+if [[ $CATS != '' ]]; then
     mkdir -p build
     pushd build
     cmake -U LOG_LEVEL .. || exit 1

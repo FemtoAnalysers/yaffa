@@ -5,7 +5,7 @@
 import pytest
 
 from ROOT import TF1, TF2, gInterpreter
-gInterpreter.Declare('#include "../src/RootFunctions.hxx"')
+gInterpreter.Declare('#include "../src/cpp/RootFunctions.hxx"')
 from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC
 
 EPSILON = 1.e-12
