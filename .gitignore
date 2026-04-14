@@ -17,6 +17,7 @@ tests/source.root
 tests/source_3b.root
 tests/source_vs_mT.root
 tests/source_cecapaper.root
+tests/source_cecapaper_3b.root
 
 # python
 *.pyc

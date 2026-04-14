@@ -5,7 +5,7 @@ Yet Another Framework for Femtoscopy Analyses
 Set the environment variables: `cp .env.example .env` and modify `.env` according to your machine.
 
 1. Install the dependencies:
-* `pip3 install [--user] pytest, rich, numexpr, pylint`
+* `pip3 install [--user] pytest, dotenv, rich, numexpr, pylint`
 * Install docker
 * Install CECA
 * Install yaml-cpp-devel

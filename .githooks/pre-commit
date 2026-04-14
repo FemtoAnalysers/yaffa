@@ -9,7 +9,7 @@ fi
 
 echo "Running tests..."
 
-pushd $YAFFA
+pushd $YAFFA/tests
 pytest
 STATUS=$?
 
