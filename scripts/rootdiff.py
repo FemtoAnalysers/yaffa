@@ -131,26 +131,19 @@ def compare_files(f1name, f2name):
         if not o2:
             continue
 
-        print(f"Comparing {name} ", end="")
         if o1.InheritsFrom("TH1"):
-            print("(TH1)... ", end="")
             ok, msg = compare_hist(o1, o2)
         elif o1.InheritsFrom("TF1"):
-            print("(TF1)... ", end="")
             ok, msg = compare_tf1(o1, o2)
         elif o1.InheritsFrom("TGraph"):
-            print("(TGraph)... ", end="")
             ok = compare_graph(o1, o2)
         else:
-            print(f"({cls})... \033[33munsupported\033[0m")
             continue
 
         if not ok:
-            print("\033[31mdifferent!\033[0m")
+            print(f" ! \033[31mObject '{name}' ({o1.ClassName()}) is different!\033[0m")
             print(msg)
             are_same = False
-        else:
-            print("\033[32msame\033[0m")
 
     if are_same:
         print("Files are equivalent")
