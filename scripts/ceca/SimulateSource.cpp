@@ -17,9 +17,6 @@
 #include <string>
 #include <unordered_map>
 
-// Third party headers
-#include <boost/algorithm/string.hpp>
-
 // ROOT headers
 #include "TCanvas.h"
 #include "TF1.h"
