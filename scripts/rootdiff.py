@@ -84,6 +84,7 @@ def compare_graph(g1, g2, tol=1e-12):
     return True
 
 def compare_files(f1name, f2name):
+    print(f"Comparing file '{f1name}' vs '{f2name}'")
     f1 = ROOT.TFile.Open(f1name)
     f2 = ROOT.TFile.Open(f2name)
 
