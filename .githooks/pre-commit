@@ -3,7 +3,7 @@
 # Check if pytest is available
 if ! command -v pytest &> /dev/null
 then
-    echo "pytest not found. Install it with pip install pytest"
+    echo  -e "\033[31mError: pytest not found. Install it with pip install pytest. Commit aborted\033[0m"
     exit 1
 fi
 
@@ -16,7 +16,7 @@ STATUS=$?
 popd
 
 if [ $STATUS -ne 0 ]; then
-  echo "Tests failed. Commit aborted."
+  echo  -e "\033[31mTests failed. Commit aborted.\033[0m"
   exit 1
 fi
 
