@@ -1,13 +1,21 @@
+import os
 import sys
 import ctypes
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if not load_dotenv(dotenv_path=env_path):
+    print("Environment variables in .env not loaded")
+YAFFA_PATH = os.getenv("YAFFA")
 
 from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
-gInterpreter.Declare('#include "../../src/RootFunctions.hxx"')
+gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import SourceAAA, SourceCountsAAA
 
-sys.path.append('../../src')
+sys.path.append(f'{YAFFA_PATH}/src/python')
 
-from utils import SliceVertically
+from yaffa.utils import SliceVertically
 
 class Chain:
     def __init__(self, chain):

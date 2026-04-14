@@ -2,10 +2,19 @@
 # Usage:
 #   pytest
 
+import os
 import pytest
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+print(env_path)
+if not load_dotenv(dotenv_path=env_path):
+    print("Environment variables in .env not loaded")
+YAFFA_PATH = os.getenv("YAFFA")
 
 from ROOT import TF1, TF2, gInterpreter
-gInterpreter.Declare('#include "../src/cpp/RootFunctions.hxx"')
+gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC
 
 EPSILON = 1.e-12
