@@ -12,7 +12,7 @@ YAFFA_PATH = os.getenv("YAFFA")
 
 from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import SourceAAA, SourceCountsAAA
+from ROOT import SourceAAA, SourceCountsAAA, SourceCountsGauss
 
 sys.path.append(f'{YAFFA_PATH}/src/python')
 
@@ -41,6 +41,7 @@ class FitResult():
     def __init__(self, name, result):
         self.name = name
         self.result = result.Get()
+        self.minimizer = None
         self.chi2 = None
         self.ndf = None
         self.pars = None
@@ -49,6 +50,7 @@ class FitResult():
         self.ready = False
         
     def __compile(self):
+        self.minimizer = self.result.MinimizerType()
         if self.result.Status() == 0:
             self.status = '\033[32mOK\033[0m'
         else:
@@ -91,9 +93,9 @@ class FitResult():
         if not self.ready:
             self.__compile()
 
-        output = f"\nFit to {self.name}: status={self.status} ({self.ncalls} calls) chi2/ndf={self.chi2:.0f}/{self.ndf:.0f}\n"
+        output = f"\nFit to {self.name} with {self.minimizer}: status={self.status} ({self.ncalls} calls) chi2/ndf={self.chi2:.0f}/{self.ndf:.0f}\n"
         for iPar, par in enumerate(self.pars):
-            output += f'  {iPar}: {par[0]} = {par[1]:>{8}.2f} +/- {par[2]:<{8}.2f}  limits: [{par[3]:.2f}, {par[4]:.2f}]  {par[5]}\n'
+            output += f'  {iPar}: {par[0]:<{8}} = {par[1]:>{8}.2e} +/- {par[2]:<{8}.2e}  limits: [{par[3]:.2e}, {par[4]:.2e}]  {par[5]}\n'
         return output
 
 
@@ -109,7 +111,7 @@ def Fit(obj, func, range, pars):
         fFit.SetParameter(iPar, (par[1] + par[2]) / 2)
         fFit.SetParLimits(iPar, par[1], par[2])
 
-    result = obj.Fit(fFit, 'QWLLS')
+    result = obj.Fit(fFit, 'QLS')
     return FitResult(obj.GetName(), result)
 
 
@@ -121,16 +123,39 @@ def main(cfg:dict):
     inFile = TFile(cfg['infile'])
     oFile = TFile(cfg['ofile'], 'recreate')
 
+    # Load histograms from CECA simulation
     hRho = inFile.Get('hPhiVsRho').ProjectionX()
-    hRho.SetName('hRho')
-    hRho.Write()
-
     hRStarInTriplets = inFile.Get('hRStarInTriplets')
-    hRStarInTriplets.Write()
+    hFemtoRho = inFile.Get('hFemtoPhiVsRho').ProjectionX()
+    hFemtoRStarInTriplets = inFile.Get('hFemtoRStarInTriplets')
+
+    hRho.SetName('hRho')
+    hFemtoRho.SetName('hFemtoRho')
+
+    norm = hRStarInTriplets.GetEntries() * hRStarInTriplets.GetBinWidth(1)
+    result = Fit(hRStarInTriplets, SourceCountsGauss, [0, 8], [['norm', norm / 2, norm * 2] ,['r0', 0.1, 5]])
+    print(result)
+
+    norm = hRho.GetEntries() * hRho.GetBinWidth(1)
+    result = Fit(hRho, SourceCountsAAA, [0, 8], [['norm', norm / 2, norm * 2] ,['rho0', 0.1, 5]])
+    print(result)
+    
+    norm = hFemtoRStarInTriplets.GetEntries() * hFemtoRStarInTriplets.GetBinWidth(1)
+    result = Fit(hFemtoRStarInTriplets, SourceCountsGauss, [0, 8], [['norm', norm / 2, norm * 2] ,['r0', 0.1, 5]])
+    print(result)
+
+    norm = hFemtoRho.GetEntries() * hFemtoRho.GetBinWidth(1)
+    result = Fit(hFemtoRho, SourceCountsAAA, [0, 8], [['norm', norm / 2, norm * 2] ,['rho0', 0.1, 5]])
+    print(result)
 
     expectedAvgRho = hRStarInTriplets.GetMean() * 15 * np.pi / 32
     deviation = (hRho.GetMean() -  expectedAvgRho) / expectedAvgRho
     print(f"Consistency between 2B/3B radii: (<rho> - <exected rho>) / <exected rho> = {deviation *100:.2f}%")
+
+    expectedAvgRhoFemto = hFemtoRStarInTriplets.GetMean() * 15 * np.pi / 32
+    deviationFemto = (hFemtoRho.GetMean() -  expectedAvgRhoFemto) / expectedAvgRhoFemto
+    print(f"Consistency between 2B/3B radii in Femto region: (<rho> - <exected rho>) / <exected rho> = {deviationFemto *100:.2f}%")
+
     # # mT scaling for 3B
     # hRhoVsMt = inFile.Get('hRhoVsMt')
     # chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
@@ -138,6 +163,11 @@ def main(cfg:dict):
     # chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
     #     .do(lambda h : h.Write())
     # [print(r) for r in chRhos.results['results']]
+
+    hRho.Write()
+    hRStarInTriplets.Write()
+    hFemtoRho.Write()
+    hFemtoRStarInTriplets.Write()
 
     oFile.Close()
     
