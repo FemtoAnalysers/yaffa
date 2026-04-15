@@ -3,6 +3,7 @@ import sys
 import ctypes
 from dotenv import load_dotenv
 from pathlib import Path
+import numpy as np
 
 env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 if not load_dotenv(dotenv_path=env_path):
@@ -17,6 +18,7 @@ sys.path.append(f'{YAFFA_PATH}/src/python')
 
 from yaffa.utils import SliceVertically
 
+# sequence, film/frame, seggiovia, portico
 class Chain:
     def __init__(self, chain):
         self._chain = chain
@@ -119,13 +121,23 @@ def main(cfg:dict):
     inFile = TFile(cfg['infile'])
     oFile = TFile(cfg['ofile'], 'recreate')
 
-    # mT scaling for 3B
-    hRhoVsMt = inFile.Get('hRhoVsMt')
-    chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+    hRho = inFile.Get('hPhiVsRho').ProjectionX()
+    hRho.SetName('hRho')
+    hRho.Write()
+
+    hRStarInTriplets = inFile.Get('hRStarInTriplets')
+    hRStarInTriplets.Write()
+
+    expectedAvgRho = hRStarInTriplets.GetMean() * 15 * np.pi / 32
+    deviation = (hRho.GetMean() -  expectedAvgRho) / expectedAvgRho
+    print(f"Consistency between 2B/3B radii: (<rho> - <exected rho>) / <exected rho> = {deviation *100:.2f}%")
+    # # mT scaling for 3B
+    # hRhoVsMt = inFile.Get('hRhoVsMt')
+    # chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
      
-    chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
-        .do(lambda h : h.Write())
-    [print(r) for r in chRhos.results['results']]
+    # chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
+    #     .do(lambda h : h.Write())
+    # [print(r) for r in chRhos.results['results']]
 
     oFile.Close()
     
