@@ -432,12 +432,19 @@ int main(int argc, const char** argv) {
     hRStarInTriplets->ResetStats();
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
 
+    auto dlmFemtoRStarInTriplets = ceca.GetFemtoRStarInTriplets();
+    dlmFemtoRStarInTriplets->ComputeError();
+    TH1F* hFemtoRStarInTriplets = Convert_DlmHisto_TH1F(dlmFemtoRStarInTriplets, "hFemtoRStarInTriplets");
+    hFemtoRStarInTriplets->ResetStats();
+    hFemtoRStarInTriplets->SetTitle(";r* (fm); Counts");
+
     fOutput.cd();
     hR12R312->Write();
     hMtSimpleVs4VectorAverage->Write();
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
     hRStarInTriplets->Write();
+    hFemtoRStarInTriplets->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
