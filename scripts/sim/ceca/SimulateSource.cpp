@@ -432,6 +432,12 @@ int main(int argc, const char** argv) {
     hRStarInTriplets->ResetStats();
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
 
+    auto dlmFemtoPhiVsRho = ceca.GetFemtoPhiVsRho();
+    dlmFemtoPhiVsRho->ComputeError();
+    TH2F* hFemtoPhiVsRho = Convert_DlmHisto_TH2F(dlmFemtoPhiVsRho, "hFemtoPhiVsRho");
+    hFemtoPhiVsRho->ResetStats();
+    hFemtoPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
+
     auto dlmFemtoRStarInTriplets = ceca.GetFemtoRStarInTriplets();
     dlmFemtoRStarInTriplets->ComputeError();
     TH1F* hFemtoRStarInTriplets = Convert_DlmHisto_TH1F(dlmFemtoRStarInTriplets, "hFemtoRStarInTriplets");
@@ -444,6 +450,7 @@ int main(int argc, const char** argv) {
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
     hRStarInTriplets->Write();
+    hFemtoPhiVsRho->Write();
     hFemtoRStarInTriplets->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
