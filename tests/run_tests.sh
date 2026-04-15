@@ -1,5 +1,9 @@
 #!/bin/bash
 
+pushd ..
+. bin/check_env.sh || exit 1
+popd
+
 # Load environment variables from .env
 source ../.env
 
