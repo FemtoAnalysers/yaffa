@@ -290,7 +290,7 @@ int main(int argc, const char** argv) {
     for (TreParticle* prt : ParticleList) {
         if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
             if (removeBoost) {
-                prt->SetMass(1000000);
+                prt->SetMass(Mass_p * 1000000);
             } else {
                 prt->SetMass(Mass_p);
             }
@@ -307,7 +307,7 @@ int main(int argc, const char** argv) {
             prt->SetPtEtaPhi(dlm_pT_eta_p);
         } else if (prt->GetName() == "ProtonReso") {
             if (removeBoost) {
-                prt->SetMass(1000000 * 1362. / 0.938);
+                prt->SetMass(1000000 * 1362);
             } else {
                 prt->SetMass(1362); // From PLB 811 (2020) 135849
             }
