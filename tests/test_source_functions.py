@@ -8,10 +8,12 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 env_path = Path(__file__).resolve().parent.parent / ".env"
-print(env_path)
-if not load_dotenv(dotenv_path=env_path):
+print(f'Loading env from {env_path}')
+if not load_dotenv(dotenv_path=env_path, verbose=True, override=True):
     print("Environment variables in .env not loaded")
 YAFFA_PATH = os.getenv("YAFFA")
+if not YAFFA_PATH:
+    print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
 
 from ROOT import TF1, TF2, gInterpreter
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
