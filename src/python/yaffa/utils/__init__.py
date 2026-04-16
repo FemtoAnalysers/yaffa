@@ -4,4 +4,4 @@ Init the yaffa module
 from . import io
 from . import style
 from . import analysis
-from .MassFitter import MassFitter
+# from .MassFitter import MassFitter

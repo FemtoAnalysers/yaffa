@@ -9,6 +9,50 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # 
 
 from yaffa import logger as log
 
+
+def CopyHistInSubrange(hist, xMin, xMax):
+    '''
+    Crop a 1-dimentional constant-binning histogram in a specified subrange. Useful to ensure that histograms with
+    different number of bins but same bin widths can still be compared and operations can be performed on them, like
+    divisions.
+
+    Parameters
+    ----------
+    hist : TH1
+        The histogram to be cropped
+    xMin : float
+        lower limit. The histogram is copied from xMin * 1.0001 to avoid problems related to compiler precision which
+        could result in selecting the wrong bin.
+    cMax : float
+        upper limit. The histogram is copied from xMax * 0.9999 to avoid problems related to compiler precision which
+        could result in selecting the wrong bin.
+
+    Returns
+    -------
+    TH1
+        The cropped histogram
+    '''
+    # Check that the binning is consistent
+    N = (xMax - xMin) / hist.GetBinWidth(1)
+    print(f'N: {N:.3f} xmax: {xMax:.3f}  xmin: {xMin:.3f}  width: {hist.GetBinWidth(1):.3f}')
+    if abs(round(N) - N) > 1.e-6:
+        log.critical('Range is not a multiple of bin width')
+    N = round(N)
+
+    hNew = TH1D(f'{hist.GetName()}_new', hist.GetTitle(), N, xMin, xMax)
+    for iBinNew in range(N):
+        iBinOld = hist.FindBin(hNew.GetBinCenter(iBinNew + 1))
+
+        if iBinOld < 1 or iBinOld > hist.GetNbinsX():
+            hNew.SetBinContent(iBinNew + 1, 0)
+            hNew.SetBinError(iBinNew + 1, 0)
+        else:
+            hNew.SetBinContent(iBinNew + 1, hist.GetBinContent(iBinOld))
+            hNew.SetBinError(iBinNew + 1, hist.GetBinError(iBinOld))
+
+    hNew.SetDirectory(0)
+    return hNew
+
 def GetSpread(objects):
     '''
     Given a list of TH1, returns a TH1 where the points are the averages of the bins and the width is the spread
