@@ -10,6 +10,24 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # 
 from yaffa import logger as log
 
 
+def SliceVertically(hist, edges, name=None):
+    '''
+    Slice a TH2 vertically (ProjectionY) and return the list of slices
+    '''
+
+    slices = []
+    lowEdges = edges[:-1]
+    upEdges = edges[1:]
+    if not name:
+        name = hist.GetName()
+
+    for lowEdge, upEdge in zip(lowEdges, upEdges):
+        firstBin = hist.GetXaxis().FindBin(lowEdge * 1.0001)
+        lastBin = hist.GetXaxis().FindBin(upEdge * 0.9999)
+        slices.append(hist.ProjectionY(f'{name}{lowEdge:.0f}_{upEdge:.0f}', firstBin, lastBin))
+    return slices
+
+
 def CopyHistInSubrange(hist, xMin, xMax):
     '''
     Crop a 1-dimentional constant-binning histogram in a specified subrange. Useful to ensure that histograms with

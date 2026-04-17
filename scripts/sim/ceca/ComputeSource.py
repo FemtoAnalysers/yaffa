@@ -16,7 +16,7 @@ from ROOT import SourceAAA, SourceCountsAAA, SourceCountsGauss
 
 sys.path.append(f'{YAFFA_PATH}/src/python')
 
-from yaffa.utils import SliceVertically
+from yaffa import utils
 
 # sequence, film/frame, seggiovia, portico
 class Chain:
@@ -99,7 +99,7 @@ class FitResult():
         return output
 
 
-def Fit(obj, func, range, pars):
+def Fit(obj, func, range, pars, options=''):
     '''
     Create fit function
     '''
@@ -111,9 +111,44 @@ def Fit(obj, func, range, pars):
         fFit.SetParameter(iPar, (par[1] + par[2]) / 2)
         fFit.SetParLimits(iPar, par[1], par[2])
 
-    result = obj.Fit(fFit, 'QLS')
-    return FitResult(obj.GetName(), result)
+    result = FitResult(obj.GetName(), obj.Fit(fFit, 'QLS'))
+    if 'Q' not in options:
+        print(result)
 
+    return result
+
+
+def Test2B3BConsistency(hRStarInTriplets, hRho):
+    # r* of pairs in triplets
+    norm = hRStarInTriplets.GetEntries() * hRStarInTriplets.GetBinWidth(1)
+    resultRStar = Fit(hRStarInTriplets, SourceCountsGauss, [0, 8], [['norm', norm / 2, norm * 2] ,['r0', 0.1, 5]])
+    avgRStar = hRStarInTriplets.GetMean()
+    r0 = resultRStar.pars[1][1]
+    expectedAvgRStar = r0 * 4 / np.sqrt(np.pi)
+    delta = (expectedAvgRStar - avgRStar) / expectedAvgRStar
+    print(f"r0 (fit)   = {r0:.2f} fm")
+    print(f"<r*> (exp) = {expectedAvgRStar:.2f} fm")
+    print(f"<r*>       = {avgRStar:.2f} fm")
+    print(f"delta      = {delta * 100:.2f} %")
+
+    # Hyper-radius of triplets
+    norm = hRho.GetEntries() * hRho.GetBinWidth(1)
+    resultRho = Fit(hRho, SourceCountsAAA, [0, 8], [['norm', norm / 2, norm * 2] ,['rho0', 0.1, 5]])
+    avgRho = hRho.GetMean()
+    rho0 = resultRho.pars[1][1]
+    expectedAvgRho = rho0 * 15 * np.sqrt(np.pi) / 16
+    delta = (expectedAvgRho - avgRho) / expectedAvgRho
+    print(f"rho0 (fit)  = {rho0:.2f} fm")
+    print(f"<rho> (exp) = {expectedAvgRho:.2f} fm")
+    print(f"<rho>       = {avgRho:.2f} fm")
+    print(f"delta       = {delta * 100:.2f} %")
+
+    # Compatibility between 2B and 3B
+    expectedAvgRho = avgRStar * 15 * np.pi / 32
+    deviation = (avgRho - expectedAvgRho) / expectedAvgRho
+    print(f"\n<rho> (exp) = {expectedAvgRho:.2f} fm")
+    print(f"<rho>       = {avgRho:.2f} fm")
+    print(f"delta       = {deviation * 100:.2f} %")
 
 def main(cfg:dict):
     '''
@@ -132,33 +167,12 @@ def main(cfg:dict):
     hRho.SetName('hRho')
     hFemtoRho.SetName('hFemtoRho')
 
-    norm = hRStarInTriplets.GetEntries() * hRStarInTriplets.GetBinWidth(1)
-    result = Fit(hRStarInTriplets, SourceCountsGauss, [0, 8], [['norm', norm / 2, norm * 2] ,['r0', 0.1, 5]])
-    print(result)
-
-    norm = hRho.GetEntries() * hRho.GetBinWidth(1)
-    result = Fit(hRho, SourceCountsAAA, [0, 8], [['norm', norm / 2, norm * 2] ,['rho0', 0.1, 5]])
-    print(result)
-    
-    norm = hFemtoRStarInTriplets.GetEntries() * hFemtoRStarInTriplets.GetBinWidth(1)
-    result = Fit(hFemtoRStarInTriplets, SourceCountsGauss, [0, 8], [['norm', norm / 2, norm * 2] ,['r0', 0.1, 5]])
-    print(result)
-
-    norm = hFemtoRho.GetEntries() * hFemtoRho.GetBinWidth(1)
-    result = Fit(hFemtoRho, SourceCountsAAA, [0, 8], [['norm', norm / 2, norm * 2] ,['rho0', 0.1, 5]])
-    print(result)
-
-    expectedAvgRho = hRStarInTriplets.GetMean() * 15 * np.pi / 32
-    deviation = (hRho.GetMean() -  expectedAvgRho) / expectedAvgRho
-    print(f"Consistency between 2B/3B radii: (<rho> - <exected rho>) / <exected rho> = {deviation *100:.2f}%")
-
-    expectedAvgRhoFemto = hFemtoRStarInTriplets.GetMean() * 15 * np.pi / 32
-    deviationFemto = (hFemtoRho.GetMean() -  expectedAvgRhoFemto) / expectedAvgRhoFemto
-    print(f"Consistency between 2B/3B radii in Femto region: (<rho> - <exected rho>) / <exected rho> = {deviationFemto *100:.2f}%")
+    Test2B3BConsistency(hRStarInTriplets, hRho)
+    Test2B3BConsistency(hFemtoRStarInTriplets, hFemtoRho)
 
     # # mT scaling for 3B
     # hRhoVsMt = inFile.Get('hRhoVsMt')
-    # chRhos = Chain(SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+    # chRhos = Chain(utils.analysis.SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
      
     # chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
     #     .do(lambda h : h.Write())
