@@ -4,6 +4,7 @@ Init script
 
 import logging
 from .Chain import Chain
+from .FitResult import FitResult
 
 print("Welcome to yaffa!")
 

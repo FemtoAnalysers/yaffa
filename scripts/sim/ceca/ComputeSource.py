@@ -1,6 +1,5 @@
 import os
 import sys
-import ctypes
 from dotenv import load_dotenv
 from pathlib import Path
 import numpy as np
@@ -16,71 +15,10 @@ from ROOT import SourceAAA, SourceCountsAAA, SourceCountsGauss
 
 sys.path.append(f'{YAFFA_PATH}/src/python')
 
-from yaffa import utils
-from yaffa import Chain
+from yaffa import utils, Chain, FitResult
 
 # sequence, film/frame, seggiovia, portico
 
-class FitResult():
-    def __init__(self, name, result):
-        self.name = name
-        self.result = result.Get()
-        self.minimizer = None
-        self.chi2 = None
-        self.ndf = None
-        self.pars = None
-        self.ncalls = None
-        
-        self.ready = False
-        
-    def __compile(self):
-        self.minimizer = self.result.MinimizerType()
-        if self.result.Status() == 0:
-            self.status = '\033[32mOK\033[0m'
-        else:
-            self.status = '\033[31mFAIL: UNKNOWN REASON\033[0m'
-
-        self.chi2 = self.result.Chi2()
-        self.ndf = self.result.Ndf()
-        self.ncalls = self.result.NCalls()
-
-        
-        if self.chi2 / self.ndf > 5:
-            self.status = '\033[31mFAIL: LARGE CHI2/NDF\033[0m'
-            
-        self.pars = []
-        for iPar in range(self.result.NPar()):
-            par = self.result.Parameter(iPar)
-            unc = self.result.ParError(iPar)
-            name = self.result.ParName(iPar)
-            
-            # Check if parameter is at limit
-            lower = ctypes.c_double()
-            upper = ctypes.c_double()
-            self.result.ParameterBounds(iPar, lower, upper)
-            lower = lower.value
-            upper = upper.value
-            
-            if par - lower < (upper - lower) * 1.e-5:
-                status = '\033[33m[[AT LOWER LIMIT]]\033[0m'
-                self.status = '\033[31mFAIL: PARAMETERS AT LIMIT\033[0m'
-            elif upper - par < (upper - lower) * 1.e-5:
-                status = '\033[33m[[AT UPPER LIMIT]]\033[0m'
-                self.status = '\033[31mFAIL: PARAMETERS AT LIMIT\033[0m'
-            else:
-                status = ''
-            
-            self.pars.append([name, par, unc, lower, upper, status])
-        self.ready = True
-
-    def __str__(self):
-        if not self.ready:
-            self.__compile()
-
-        output = f"\nFit to {self.name} with {self.minimizer}: status={self.status} ({self.ncalls} calls) chi2/ndf={self.chi2:.0f}/{self.ndf:.0f}\n"
-        for iPar, par in enumerate(self.pars):
-            output += f'  {iPar}: {par[0]:<{8}} = {par[1]:>{8}.2e} +/- {par[2]:<{8}.2e}  limits: [{par[3]:.2e}, {par[4]:.2e}]  {par[5]}\n'
-        return output
 
 
 def Fit(obj, func, range, pars, options=''):
@@ -138,10 +76,11 @@ def Test2B3BConsistency(hRStarInTriplets, hRho):
 def GetMtScaling(hRadiusVsMt, func):
     hists = utils.analysis.SliceVertically(hRadiusVsMt, cfg['mt_bins'], name='hRho_mT')
     chRhos = Chain(hists)
-    chRhos.do(Fit, func, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results') \
-        .do(lambda h : h.GetMean(), id='avgR')
+    # fits = chRhos.apply(Fit, func, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results')
+    # print(fits)
+        # .apply(lambda h : h.GetMean(), id='avgR')
     
-    radii = chRhos.results['avgR']
+    radii = chRhos.collect(lambda h: h.GetMean(), id='avgR')
     gRadiusVsMt = TGraphAsymmErrors()
     for iMt in range(hRadiusVsMt.GetNbinsX()):
         gRadiusVsMt.SetPoint(iMt, hRadiusVsMt.GetXaxis().GetBinCenter(iMt + 1), radii[iMt])
@@ -174,25 +113,28 @@ def main(cfg:dict):
 
     oFile.mkdir('rho_vs_mt')
     oFile.cd('rho_vs_mt')
-    gMtScaling, hists = GetMtScaling(hRhoVsMt, SourceCountsAAA)
-    gMtScaling.Write('gRhoVsMt')
-    hists.do(lambda h : h.Write())
-    oFile.cd('/')
+    hists = Chain(utils.analysis.SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+    hists.apply(Fit, SourceCountsAAA, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results')
 
-    hFemtoRhoVsMt = inFile.Get('hFemtoRhoVsMt')
-    hFemtoRhoVsMt.Write()
+    # gMtScaling, hists = GetMtScaling(hRhoVsMt, SourceCountsAAA)
+    # gMtScaling.Write('gRhoVsMt')
+    # hists.apply(lambda h : h.Write())
+    # oFile.cd('/')
 
-    oFile.mkdir('femto_rho_vs_mt')
-    oFile.cd('femto_rho_vs_mt')
-    gMtScaling, hists = GetMtScaling(hFemtoRhoVsMt, SourceCountsAAA)
-    gMtScaling.Write('gFemtoRhoVsMt')
-    hists.do(lambda h : h.Write())
-    oFile.cd('/')
+    # hFemtoRhoVsMt = inFile.Get('hFemtoRhoVsMt')
+    # hFemtoRhoVsMt.Write()
 
-    hRho.Write()
-    hRStarInTriplets.Write()
-    hFemtoRho.Write()
-    hFemtoRStarInTriplets.Write()
+    # oFile.mkdir('femto_rho_vs_mt')
+    # oFile.cd('femto_rho_vs_mt')
+    # gMtScaling, hists = GetMtScaling(hFemtoRhoVsMt, SourceCountsAAA)
+    # gMtScaling.Write('gFemtoRhoVsMt')
+    # hists.apply(lambda h : h.Write())
+    # oFile.cd('/')
+
+    # hRho.Write()
+    # hRStarInTriplets.Write()
+    # hFemtoRho.Write()
+    # hFemtoRStarInTriplets.Write()
 
     oFile.Close()
     
