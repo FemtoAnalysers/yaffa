@@ -178,6 +178,7 @@ int main(int argc, const char** argv) {
     const bool EQUALIZE_TAU = cfg["equalize_tau"].as<bool>();
     const unsigned Multiplicity = cfg["mult"].as<unsigned>();
     const double femto_region = cfg["femto_region"].as<double>();
+    const double femto_region3B = cfg["femto_region3B"].as<double>(800);
     const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
     const bool removeBoost = cfg["remove_boost"].as<bool>();           // Set particle's masses to 1 TeV
     double rSP_core = cfg["disp"].as<double>();
@@ -374,6 +375,7 @@ int main(int argc, const char** argv) {
     ceca.SetGlobalTimeout(globalTimeout);
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
+    ceca.SetFemtoRegion3B(femto_region3B);
     ceca.GHETTO_EVENT = true;
 
     // ceca paper

@@ -14,6 +14,7 @@ frac_protons: 35.78
 arbitrary_mass: 469.13605 # m_proton / 2. um = MeV
 equalize_tau: true
 femto_region: 1000
+femto_region3B: 1000
 target_yield: 1000
 remove_boost: false
 equalize_tau: true
