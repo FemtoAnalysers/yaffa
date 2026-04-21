@@ -464,6 +464,12 @@ int main(int argc, const char** argv) {
     hFemtoRStarInTriplets->ResetStats();
     hFemtoRStarInTriplets->SetTitle(";r* (fm); Counts");
 
+    auto dlmFemtoRStarFemtoPairsInTripletsVsMt = ceca.GetFemtoRStarFemtoPairsInTripletsVsMt();
+    dlmFemtoRStarFemtoPairsInTripletsVsMt->ComputeError();
+    TH2F* hFemtoRStarFemtoPairsInTripletsVsMt = Convert_DlmHisto_TH2F(dlmFemtoRStarFemtoPairsInTripletsVsMt, "hFemtoRStarFemtoPairsInTripletsVsMt");
+    hFemtoRStarFemtoPairsInTripletsVsMt->ResetStats();
+    hFemtoRStarFemtoPairsInTripletsVsMt->SetTitle(";m_{T}* (MeV); r* (fm); Counts");
+
     fOutput.cd();
     hR12R312->Write();
     hMtSimpleVs4VectorAverage->Write();
@@ -473,6 +479,7 @@ int main(int argc, const char** argv) {
 
     hFemtoPhiVsRho->Write();
     hFemtoRStarInTriplets->Write();
+    hFemtoRStarFemtoPairsInTripletsVsMt->Write();
     hFemtoR12R312->Write();
     hFemtoMtSimpleVs4VectorAverage->Write();
     hFemtoRhoVsMt->Write();
