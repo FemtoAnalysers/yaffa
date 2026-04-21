@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Compule cats
+pushd ../../dlm
+yes | python3 quick_install.py
+popd
+
 pushd ..
 . bin/check_env.sh || exit 1
 popd
@@ -7,6 +12,7 @@ popd
 # Load environment variables from .env
 source ../.env
 
+# Compule yaffa
 mkdir -p ../build || exit 1
 pushd ../build || exit 1
 cmake -DLOG_LEVEL=40 .. || exit 1
