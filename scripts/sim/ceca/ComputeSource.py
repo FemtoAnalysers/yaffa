@@ -73,19 +73,22 @@ def Test2B3BConsistency(hRStarInTriplets, hRho):
     print(f"delta       = {deviation * 100:.2f} %")
 
 
-def GetMtScaling(hRadiusVsMt, func):
-    hists = utils.analysis.SliceVertically(hRadiusVsMt, cfg['mt_bins'], name='hRho_mT')
-    chRhos = Chain(hists)
-    # fits = chRhos.apply(Fit, func, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results')
-    # print(fits)
-        # .apply(lambda h : h.GetMean(), id='avgR')
-    
-    radii = chRhos.collect(lambda h: h.GetMean(), id='avgR')
-    gRadiusVsMt = TGraphAsymmErrors()
-    for iMt in range(hRadiusVsMt.GetNbinsX()):
-        gRadiusVsMt.SetPoint(iMt, hRadiusVsMt.GetXaxis().GetBinCenter(iMt + 1), radii[iMt])
-    return gRadiusVsMt, chRhos
+def GetMtScaling(hist):
+    nPoints = len(cfg['mt_bins']) - 1
 
+    chRStar = Chain(utils.analysis.SliceVertically(hist, cfg['mt_bins'], name='hRStar_mT'))
+    chRStar.collect(lambda h : h.GetMean(), id='avgRStar')
+    chRStar.collect(lambda h : h.GetMeanError(), id='avgRStarUnc')
+
+    # TODO: Now using bin center for mT -> use center of gravity instead
+    x = np.array([(cfg['mt_bins'][i] + cfg['mt_bins'][i + 1]) / 2 for i in range(nPoints)], dtype='double')
+    y = np.array(chRStar.results['avgRStar'], dtype='double')
+    yUnc = np.array(chRStar.results['avgRStarUnc'], dtype='double')
+
+    # TODO: Now using standard mean error (assume gaussianity). Think of a better way (Bootstrap?)
+    gMtScaling = TGraphAsymmErrors(nPoints, x, y, 0, 0, yUnc, yUnc)
+
+    return gMtScaling
 
 def main(cfg:dict):
     '''
@@ -96,25 +99,29 @@ def main(cfg:dict):
     oFile = TFile(cfg['ofile'], 'recreate')
 
     # Load histograms from CECA simulation
+    hRStarVsMt = inFile.Get('hRStarVsMt')
     hRho = inFile.Get('hPhiVsRho').ProjectionX()
     hRStarInTriplets = inFile.Get('hRStarInTriplets')
     hFemtoRho = inFile.Get('hFemtoPhiVsRho').ProjectionX()
     hFemtoRStarInTriplets = inFile.Get('hFemtoRStarInTriplets')
 
-    hRho.SetName('hRho')
-    hFemtoRho.SetName('hFemtoRho')
+    # hRho.SetName('hRho')
+    # hFemtoRho.SetName('hFemtoRho')
 
-    Test2B3BConsistency(hRStarInTriplets, hRho)
-    Test2B3BConsistency(hFemtoRStarInTriplets, hFemtoRho)
+    gMtScaling = GetMtScaling(hRStarVsMt)
+    gMtScaling.SetName('gMtScaling')
+    gMtScaling.Write()
+    # Test2B3BConsistency(hRStarInTriplets, hRho)
+    # Test2B3BConsistency(hFemtoRStarInTriplets, hFemtoRho)
 
     # mT scaling for 3B
-    hRhoVsMt = inFile.Get('hRhoVsMt')
-    hRhoVsMt.Write()
+    # hRhoVsMt = inFile.Get('hRhoVsMt')
+    # hRhoVsMt.Write()
 
-    oFile.mkdir('rho_vs_mt')
-    oFile.cd('rho_vs_mt')
-    hists = Chain(utils.analysis.SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
-    hists.apply(Fit, SourceCountsAAA, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results')
+    # oFile.mkdir('rho_vs_mt')
+    # oFile.cd('rho_vs_mt')
+    # hists = Chain(utils.analysis.SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
+    # hists.apply(Fit, SourceCountsAAA, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results')
 
     # gMtScaling, hists = GetMtScaling(hRhoVsMt, SourceCountsAAA)
     # gMtScaling.Write('gRhoVsMt')
