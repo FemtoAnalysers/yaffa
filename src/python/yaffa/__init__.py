@@ -3,6 +3,7 @@ Init script
 '''
 
 import logging
+from .Chain import Chain
 
 print("Welcome to yaffa!")
 

@@ -10,32 +10,16 @@ if not load_dotenv(dotenv_path=env_path):
     print("Environment variables in .env not loaded")
 YAFFA_PATH = os.getenv("YAFFA")
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors
+from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, TGraphAsymmErrors
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import SourceAAA, SourceCountsAAA, SourceCountsGauss
 
 sys.path.append(f'{YAFFA_PATH}/src/python')
 
 from yaffa import utils
+from yaffa import Chain
 
 # sequence, film/frame, seggiovia, portico
-class Chain:
-    def __init__(self, chain):
-        self._chain = chain
-        self.results = {}
-
-    def do(self, func, *args, id=None):
-        if id and self.results.get(id):
-            raise RuntimeError('results with id="{}" already exists'.format(id))
-        
-        results = []
-        for ring in self._chain:
-            results.append(func(ring, *args))
-
-        if id:
-            self.results[id] = results
-
-        return self
 
 class FitResult():
     def __init__(self, name, result):
@@ -150,6 +134,20 @@ def Test2B3BConsistency(hRStarInTriplets, hRho):
     print(f"<rho>       = {avgRho:.2f} fm")
     print(f"delta       = {deviation * 100:.2f} %")
 
+
+def GetMtScaling(hRadiusVsMt, func):
+    hists = utils.analysis.SliceVertically(hRadiusVsMt, cfg['mt_bins'], name='hRho_mT')
+    chRhos = Chain(hists)
+    chRhos.do(Fit, func, [0, 8], [['norm', 1, 100000], ['rho0', 0.1, 5]], id='results') \
+        .do(lambda h : h.GetMean(), id='avgR')
+    
+    radii = chRhos.results['avgR']
+    gRadiusVsMt = TGraphAsymmErrors()
+    for iMt in range(hRadiusVsMt.GetNbinsX()):
+        gRadiusVsMt.SetPoint(iMt, hRadiusVsMt.GetXaxis().GetBinCenter(iMt + 1), radii[iMt])
+    return gRadiusVsMt, chRhos
+
+
 def main(cfg:dict):
     '''
     Compute the source size as a function of mT
@@ -170,13 +168,26 @@ def main(cfg:dict):
     Test2B3BConsistency(hRStarInTriplets, hRho)
     Test2B3BConsistency(hFemtoRStarInTriplets, hFemtoRho)
 
-    # # mT scaling for 3B
-    # hRhoVsMt = inFile.Get('hRhoVsMt')
-    # chRhos = Chain(utils.analysis.SliceVertically(hRhoVsMt, cfg['mt_bins'], name='hRho_mT'))
-     
-    # chRhos.do(Fit, SourceCountsAAA, [0, 20], [['norm', 1, 100000], ['rho0', 0, 10]], id='results') \
-    #     .do(lambda h : h.Write())
-    # [print(r) for r in chRhos.results['results']]
+    # mT scaling for 3B
+    hRhoVsMt = inFile.Get('hRhoVsMt')
+    hRhoVsMt.Write()
+
+    oFile.mkdir('rho_vs_mt')
+    oFile.cd('rho_vs_mt')
+    gMtScaling, hists = GetMtScaling(hRhoVsMt, SourceCountsAAA)
+    gMtScaling.Write('gRhoVsMt')
+    hists.do(lambda h : h.Write())
+    oFile.cd('/')
+
+    hFemtoRhoVsMt = inFile.Get('hFemtoRhoVsMt')
+    hFemtoRhoVsMt.Write()
+
+    oFile.mkdir('femto_rho_vs_mt')
+    oFile.cd('femto_rho_vs_mt')
+    gMtScaling, hists = GetMtScaling(hFemtoRhoVsMt, SourceCountsAAA)
+    gMtScaling.Write('gFemtoRhoVsMt')
+    hists.do(lambda h : h.Write())
+    oFile.cd('/')
 
     hRho.Write()
     hRStarInTriplets.Write()
