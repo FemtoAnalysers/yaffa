@@ -432,11 +432,29 @@ int main(int argc, const char** argv) {
     hRStarInTriplets->ResetStats();
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
 
+    auto dlmFemtoR12R312 = ceca.GetFemtoR12R312();
+    dlmFemtoR12R312->ComputeError();
+    TH2F* hFemtoR12R312 = Convert_DlmHisto_TH2F(dlmFemtoR12R312, "hFemtoR12R312");
+    hFemtoR12R312->ResetStats();
+    hFemtoR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
+
+    auto dlmFemtoMtSimpleVs4VectorAverage = ceca.GetFemtoMtSimpleVs4VectorAverage();
+    dlmFemtoMtSimpleVs4VectorAverage->ComputeError();
+    TH2F* hFemtoMtSimpleVs4VectorAverage = Convert_DlmHisto_TH2F(dlmFemtoMtSimpleVs4VectorAverage, "hFemtoMtSimpleVs4VectorAverage");
+    hFemtoMtSimpleVs4VectorAverage->ResetStats();
+    hFemtoMtSimpleVs4VectorAverage->SetTitle(";m_{T}^{4vector} (GeV);m_{T}^{simple} (GeV); Counts");
+
     auto dlmFemtoPhiVsRho = ceca.GetFemtoPhiVsRho();
     dlmFemtoPhiVsRho->ComputeError();
     TH2F* hFemtoPhiVsRho = Convert_DlmHisto_TH2F(dlmFemtoPhiVsRho, "hFemtoPhiVsRho");
     hFemtoPhiVsRho->ResetStats();
     hFemtoPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
+
+    auto dlmFemtoRhoVsMt = ceca.GetFemtoRhoVsMt();
+    dlmFemtoRhoVsMt->ComputeError();
+    TH2F* hFemtoRhoVsMt = Convert_DlmHisto_TH2F(dlmFemtoRhoVsMt, "hFemtoRhoVsMt");
+    hFemtoRhoVsMt->ResetStats();
+    hFemtoRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
     auto dlmFemtoRStarInTriplets = ceca.GetFemtoRStarInTriplets();
     dlmFemtoRStarInTriplets->ComputeError();
@@ -450,8 +468,12 @@ int main(int argc, const char** argv) {
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
     hRStarInTriplets->Write();
+
     hFemtoPhiVsRho->Write();
     hFemtoRStarInTriplets->Write();
+    hFemtoR12R312->Write();
+    hFemtoMtSimpleVs4VectorAverage->Write();
+    hFemtoRhoVsMt->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
