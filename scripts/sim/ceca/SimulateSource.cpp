@@ -200,6 +200,8 @@ int main(int argc, const char** argv) {
 
     TREPNI Database(0);
     Database.SetSeed(11);
+    Database.SetTotalYield(100); // This triggers a check on the total abundance (i.e. fractions) of the particles and sends an error if the
+
     std::vector<TreParticle*> ParticleList;
     ParticleList.push_back(Database.NewParticle("Proton"));
     ParticleList.push_back(Database.NewParticle("PrimProton"));
@@ -289,7 +291,7 @@ int main(int argc, const char** argv) {
     fOutput.cd();
 
     for (TreParticle* prt : ParticleList) {
-        if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
+        if (prt->GetName() == "Proton") {
             if (removeBoost) {
                 prt->SetMass(Mass_p * 1000000);
             } else {
@@ -312,7 +314,7 @@ int main(int argc, const char** argv) {
             } else {
                 prt->SetMass(1362); // From PLB 811 (2020) 135849
             }
-            if (system == "pp" || system == "pP")
+            if (system == "pp" || system == "pP" || system == "ppp")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
                 prt->SetAbundance(0);
@@ -400,7 +402,7 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_RadMax = 20;
 
     // Run CECA
-unsigned nParticlesDB = Database.GetNumParticles();
+    unsigned nParticlesDB = Database.GetNumParticles();
     std::cout << "Particle database contains " << nParticlesDB << " particles" << std::endl;
     std::cout << " Fraction (%)    Name" << std::endl;
     for (int iPart = 0; iPart < nParticlesDB; iPart++) {
