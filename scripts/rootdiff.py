@@ -80,15 +80,15 @@ def compare_hist(h1, h2, tol=1e-12):
 
 def compare_graph(g1, g2, tol=1e-12):
     if g1.GetN() != g2.GetN():
-        return False
+        return False, 'different number of data points'
 
     for i in range(g1.GetN()):
         if abs(g1.GetX()[i] - g2.GetX()[i]) > tol:
-            return False
+            return False, 'different values'
         if abs(g1.GetY()[i] - g2.GetY()[i]) > tol:
-            return False
+            return False, 'different uncertainties'
 
-    return True
+    return True, ''
 
 def compare_files(f1name, f2name):
     print(f"Comparing file '{f1name}' vs '{f2name}'")
@@ -144,7 +144,7 @@ def compare_files(f1name, f2name):
         elif o1.InheritsFrom("TF1"):
             ok, msg = compare_tf1(o1, o2)
         elif o1.InheritsFrom("TGraph"):
-            ok = compare_graph(o1, o2)
+            ok, msg = compare_graph(o1, o2)
         else:
             continue
 
