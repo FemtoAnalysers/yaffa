@@ -103,14 +103,28 @@ def main(cfg:dict):
     hRho = inFile.Get('hPhiVsRho').ProjectionX()
     hRStarInTriplets = inFile.Get('hRStarInTriplets')
     hFemtoRho = inFile.Get('hFemtoPhiVsRho').ProjectionX()
-    hFemtoRStarInTriplets = inFile.Get('hFemtoRStarInTriplets')
+    hFemtoRStarFemtoPairsInTripletsVsMt = inFile.Get('hFemtoRStarFemtoPairsInTripletsVsMt')
 
     # hRho.SetName('hRho')
     # hFemtoRho.SetName('hFemtoRho')
 
     gMtScaling = GetMtScaling(hRStarVsMt)
     gMtScaling.SetName('gMtScaling')
+    gMtScaling.SetTitle(';m_{T} (MeV); <r*> (fm)')
+    utils.style.SetObjectStyle(gMtScaling)
     gMtScaling.Write()
+
+    gMtScaling3BExpectedFrom2B = utils.analysis.ScaleGraph(gMtScaling, 15 * np.pi / 16, name='gMtScaling3BExpectedFrom2B')
+    gMtScaling3BExpectedFrom2B.Write()
+
+    if (hFemtoRStarFemtoPairsInTripletsVsMt):
+        gMtScalingInTriplets = GetMtScaling(hFemtoRStarFemtoPairsInTripletsVsMt)
+        gMtScalingInTriplets.SetName('gMtScalingInTriplets')
+        gMtScalingInTriplets.SetTitle(';m_{T} (MeV); <r*> (fm)')
+        utils.style.SetObjectStyle(gMtScalingInTriplets)
+        gMtScalingInTriplets.Write()
+
+
     # Test2B3BConsistency(hRStarInTriplets, hRho)
     # Test2B3BConsistency(hFemtoRStarInTriplets, hFemtoRho)
 
@@ -144,6 +158,8 @@ def main(cfg:dict):
     # hFemtoRStarInTriplets.Write()
 
     oFile.Close()
+
+    print(f'Output saved to {cfg["ofile"]}')
     
 if __name__ == '__main__':
     import argparse

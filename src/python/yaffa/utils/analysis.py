@@ -9,6 +9,35 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # 
 
 from yaffa import logger as log
 
+def ScaleGraph(graph, value, name=None):
+    '''
+    Scales a TGraphAsymmErrors by the specified value
+    '''
+
+    if not name:
+        name = f'{graph.GetName()}_scaled'
+
+    gScaled = graph.Clone(name)
+
+    for i in range(gScaled.GetN()):
+        x = gScaled.GetPointX(i)
+        y = gScaled.GetPointY(i)
+
+        eyLow  = gScaled.GetErrorYlow(i)
+        eyHigh = gScaled.GetErrorYhigh(i)
+
+        # scale Y and errors
+        gScaled.SetPoint(i, x, y * value)
+
+        if value >= 0:
+            gScaled.SetPointEYlow(i,  eyLow  * value)
+            gScaled.SetPointEYhigh(i, eyHigh * value)
+        else:
+            # swap if scaling by negative
+            gScaled.SetPointEYlow(i,  eyHigh * value)
+            gScaled.SetPointEYhigh(i, eyLow  * value)
+
+    return gScaled
 
 def SliceVertically(hist, edges, name=None):
     '''
