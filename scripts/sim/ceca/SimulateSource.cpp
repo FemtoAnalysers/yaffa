@@ -400,6 +400,14 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_RadMax = 20;
 
     // Run CECA
+unsigned nParticlesDB = Database.GetNumParticles();
+    std::cout << "Particle database contains " << nParticlesDB << " particles" << std::endl;
+    std::cout << " Fraction (%)    Name" << std::endl;
+    for (int iPart = 0; iPart < nParticlesDB; iPart++) {
+        const auto part = Database.GetParticle(iPart);
+        std::cout << " - " <<  std::setw(6) << std::fixed << std::setprecision(2) << part->GetAbundance() << "      " << part->GetName() << std::endl;
+    }
+
     ceca.GoBabyGo(NUM_CPU);
 
     auto dlmR12R312 = ceca.GetR12R312();
@@ -504,6 +512,18 @@ int main(int argc, const char** argv) {
     printf("PR%6.2f%% %6.2f\n", TotPR * 100., FemtoPR * 100.);
     printf("RP%6.2f%% %6.2f\n", TotRP * 100., FemtoRP * 100.);
     printf("RR%6.2f%% %6.2f\n", TotRR * 100., FemtoRR * 100.);
+
+    // Print information about the origin of the femto pairs/triplets
+    const auto femtoParticleOrigin = ceca.GetFemtoParticleOrigin();
+    unsigned nParticles = 0;
+    for (const auto& [_, value] : femtoParticleOrigin) {
+        nParticles += value;
+    }
+    std::cout << "Total number of multiplets in the femto region: " << nParticles << ", of which:" << std::endl;
+    for (const auto& [key, value] : femtoParticleOrigin) {
+        std::cout << " - " << key << ": " << std::fixed << setw(6) << std::setprecision(2) 
+            << double(value) / nParticles * 100 << " % (" << value << ")" << std::endl;
+    }
 
     ceca.GhettoFemto_rstar->ComputeError();
     ceca.GhettoFemto_rstar->ScaleToIntegral();
