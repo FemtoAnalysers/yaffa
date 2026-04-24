@@ -64,7 +64,14 @@ def compare_hist(h1, h2, tol=1e-12):
             x = h2.GetXaxis().GetBinCenter(ix)
             y = h2.GetYaxis().GetBinCenter(iy)
 
-            msg = f"  --> Different bin content for bin {i}: x: {ix}({x}), y: {iy}({y}) bc1 = {h1.GetBinContent(i)}, bc2 = {h2.GetBinContent(i)}"
+            msg = f"  --> Different bin content for bin {i}: x: {ix}({x}), y: {iy}({y}) bc1 = {h1.GetBinContent(i):.3f}, bc2 = {h2.GetBinContent(i):.3f}"
+
+            kolmogorov = h1.KolmogorovTest(h2)
+            if kolmogorov > 0.05:
+                msg += f'\n      Histograms are compatible according to Kolmogorov-Smirnov test: p = {kolmogorov:.2f}'
+            else:
+                msg += f'\n      Histograms are NOT COMPATIBLE according to Kolmogorov-Smirnov test: p = {kolmogorov:.2f}'
+
             return False, msg
         if abs(h1.GetBinError(i) - h2.GetBinError(i)) > tol:
             msg = f"  --> Different bin error for bin {i}"
