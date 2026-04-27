@@ -9,17 +9,15 @@ if not load_dotenv(dotenv_path=env_path):
     print("Environment variables in .env not loaded")
 YAFFA_PATH = os.getenv("YAFFA")
 
-from ROOT import TFile, gInterpreter, TF1, gROOT, TGraphErrors, TGraphAsymmErrors
+from ROOT import TFile, gDirectory, gInterpreter, TF1, gROOT, TGraphErrors, TGraphAsymmErrors
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import SourceAAA, SourceCountsAAA, SourceCountsGauss
+
+from yaffa import logger as log
 
 sys.path.append(f'{YAFFA_PATH}/src/python')
 
 from yaffa import utils, Chain, FitResult
-
-# sequence, film/frame, seggiovia, portico
-
-
 
 def Fit(obj, func, range, pars, options=''):
     '''
@@ -73,10 +71,26 @@ def Test2B3BConsistency(hRStarInTriplets, hRho):
     print(f"delta       = {deviation * 100:.2f} %")
 
 
-def GetMtScaling(hist):
+def GetMtScaling(hist, dirName):
+    file = gDirectory.GetFile()
+    if not file:
+        log.error('No file is currently opened: output of mT scaling processing will not be saved!')
+
+    if not file.IsWritable():
+        log.error('Current file is not writable: output of mT scaling processing will not be saved!')
+
+
     nPoints = len(cfg['mt_bins']) - 1
 
+    file.mkdir(dirName)
+    file.cd(dirName)
+
     chRStar = Chain(utils.analysis.SliceVertically(hist, cfg['mt_bins'], name='hRStar_mT'))
+    chRStar.Scale(1. / chRStar.Integral('width'))
+
+    chRStar.Write()
+    file.cd('../')
+
     chRStar.collect(lambda h : h.GetMean(), id='avgRStar')
     chRStar.collect(lambda h : h.GetMeanError(), id='avgRStarUnc')
 
@@ -107,18 +121,18 @@ def main(cfg:dict):
 
     # hRho.SetName('hRho')
     # hFemtoRho.SetName('hFemtoRho')
+    if hRStarVsMt and hRStarVsMt.GetEntries():
+        gMtScaling = GetMtScaling(hRStarVsMt, 'rStar_slices')
+        gMtScaling.SetName('gMtScaling')
+        gMtScaling.SetTitle(';m_{T} (MeV); <r*> (fm)')
+        utils.style.SetObjectStyle(gMtScaling)
+        gMtScaling.Write()
 
-    gMtScaling = GetMtScaling(hRStarVsMt)
-    gMtScaling.SetName('gMtScaling')
-    gMtScaling.SetTitle(';m_{T} (MeV); <r*> (fm)')
-    utils.style.SetObjectStyle(gMtScaling)
-    gMtScaling.Write()
+        gMtScaling3BExpectedFrom2B = utils.analysis.ScaleGraph(gMtScaling, 15 * np.pi / 16, name='gMtScaling3BExpectedFrom2B')
+        gMtScaling3BExpectedFrom2B.Write()
 
-    gMtScaling3BExpectedFrom2B = utils.analysis.ScaleGraph(gMtScaling, 15 * np.pi / 16, name='gMtScaling3BExpectedFrom2B')
-    gMtScaling3BExpectedFrom2B.Write()
-
-    if (hFemtoRStarFemtoPairsInTripletsVsMt):
-        gMtScalingInTriplets = GetMtScaling(hFemtoRStarFemtoPairsInTripletsVsMt)
+    if hFemtoRStarFemtoPairsInTripletsVsMt and hFemtoRStarFemtoPairsInTripletsVsMt.GetEntries():
+        gMtScalingInTriplets = GetMtScaling(hFemtoRStarFemtoPairsInTripletsVsMt, 'rStarInTriplets_slices')
         gMtScalingInTriplets.SetName('gMtScalingInTriplets')
         gMtScalingInTriplets.SetTitle(';m_{T} (MeV); <r*> (fm)')
         utils.style.SetObjectStyle(gMtScalingInTriplets)
