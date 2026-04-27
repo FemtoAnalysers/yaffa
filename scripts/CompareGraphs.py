@@ -169,8 +169,9 @@ def main(cfg):
             inputline = TLine(x1, y1, x2, y2)
             inputline.SetLineColor(utils.style.GetColor(line['color']))
             inputline.SetLineWidth(line['thickness'])
-            inputline.Draw("same")
-            leg.AddEntry(inputline, line['legendtag'], 'l')
+            inputline.DrawClone("same")
+            if line['legendtag']:
+                leg.AddEntry(inputline, line['legendtag'], 'l')
 
         leg.SetHeader(plot['opt']['leg']['header'], 'C')
         if plot['opt']['leg'].get('enable', True):
