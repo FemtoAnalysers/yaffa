@@ -33,6 +33,7 @@
 #include "TROOT.h"
 #include "TRandom3.h"
 #include "TSystem.h"
+#include "TList.h"
 
 // DLM headers
 #include "CATS.h"
@@ -412,6 +413,8 @@ int main(int argc, const char** argv) {
 
     ceca.GoBabyGo(NUM_CPU);
 
+    TList *l3B = new TList();
+
     auto dlmR12R312 = ceca.GetR12R312();
     dlmR12R312->ComputeError();
     TH2F* hR12R312 = Convert_DlmHisto_TH2F(dlmR12R312, "hR12R312");
@@ -480,6 +483,15 @@ int main(int argc, const char** argv) {
     hFemtoRStarFemtoPairsInTripletsVsMt->ResetStats();
     hFemtoRStarFemtoPairsInTripletsVsMt->SetTitle(";m_{T}* (MeV); r* (fm); Counts");
 
+    auto dlmFemtoPairsMt = ceca.GetFemtoPairsMt();
+    for (auto& [pairIndex, dlmMt] : dlmFemtoPairsMt) {
+        dlmMt->ComputeError();
+        TH1F* hFemtoPairMt = Convert_DlmHisto_TH1F(dlmMt, Form("hFemtoPairMt%d", pairIndex));
+        hFemtoPairMt->ResetStats();
+        hFemtoPairMt->SetTitle(Form(";m_{T}^{(%d,%d)} (MeV); Counts", pairIndex / 10, pairIndex % 10));
+        l3B->Add(hFemtoPairMt);
+    }
+
     fOutput.cd();
     hR12R312->Write();
     hMtSimpleVs4VectorAverage->Write();
@@ -493,6 +505,7 @@ int main(int argc, const char** argv) {
     hFemtoR12R312->Write();
     hFemtoMtSimpleVs4VectorAverage->Write();
     hFemtoRhoVsMt->Write();
+    l3B->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
