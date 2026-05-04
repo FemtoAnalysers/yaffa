@@ -41,7 +41,7 @@ def compare_tf1(f1, f2, tol=1e-12):
             print_error(f1, f'Different parameter name: {f1.GetParName(i)} vs {f2.GetParName(i)}')
             return False
 
-    return True, None
+    return True
 
 def compare_hist(h1, h2, tol=1e-12):
     if h1.GetNbinsX() != h2.GetNbinsX():
