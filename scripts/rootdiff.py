@@ -5,49 +5,54 @@ import math
 import sys
 import ctypes
 
+def print_error(object, message):
+    print(f'\033[31mERROR {object.ClassName()} {object.GetName()} {message}\033[0m')
+
+def print_warning(object, message):
+    print(f'\033[33mWARNING {object.ClassName()} {object.GetName()} {message}\033[0m')
 
 def compare_tf1(f1, f2, tol=1e-12):
     if not f1 or not f2:
-        msg = f'  --> f1={f1} and f2={f2}'
-        return False, msg
+        print_error(f1, f'Invalid objects: f1={f1} and f2={f2}')
+        return False
 
     # Formula
     if f1.GetExpFormula("p") != f2.GetExpFormula("p"):
-        msg = f'  --> Different formula: {f1.GetExpFormula("p")} vs {f2.GetExpFormula("p")}'
-        return False, msg
+        print_error(f1, f'Different formula: {f1.GetExpFormula("p")} vs {f2.GetExpFormula("p")}')
+        return False
 
     # Range
     xmin1, xmax1 = f1.GetXmin(), f1.GetXmax()
     xmin2, xmax2 = f2.GetXmin(), f2.GetXmax()
     if abs(xmin1 - xmin2) > tol or abs(xmax1 - xmax2) > tol:
-        msg = f'  --> Different range: {xmin1}, {xmax1} vs {xmin2}, {xmax2}'
-        return False, msg
+        print_error(f1, f'Different range: {xmin1}, {xmax1} vs {xmin2}, {xmax2}')
+        return False
 
     # Parameters
     if f1.GetNpar() != f2.GetNpar():
-        msg = f'  --> Different number of parameters: {f1.GetNpar()} vs {f2.GetNpar()}'
-        return False, msg
+        print_error(f1, f'Different number of parameters: {f1.GetNpar()} vs {f2.GetNpar()}')
+        return False
 
     for i in range(f1.GetNpar()):
         if abs(f1.GetParameter(i) - f2.GetParameter(i)) > tol:
-            msg = f'  --> Different parameter value: {f1.GetParameter(i)} vs {f2.GetParameter(i)}'
-            return False, msg
+            print_error(f1, f'Different parameter value: {f1.GetParameter(i)} vs {f2.GetParameter(i)}')
+            return False
         if f1.GetParName(i) != f2.GetParName(i):
-            msg = f'  --> Different parameter name: {f1.GetParName(i)} vs {f2.GetParName(i)}'
-            return False, msg
+            print_error(f1, f'Different parameter name: {f1.GetParName(i)} vs {f2.GetParName(i)}')
+            return False
 
     return True, None
 
 def compare_hist(h1, h2, tol=1e-12):
     if h1.GetNbinsX() != h2.GetNbinsX():
-        print("  --> Different number of bins X")
-        return False, None
+        print_error(h1, "Different number of bins X")
+        return False
     if h1.GetNbinsY() != h2.GetNbinsY():
-        print("  --> Different number of bins Y")
-        return False, None
+        print_error(h1, "Different number of bins Y")
+        return False
     if h1.GetNbinsZ() != h2.GetNbinsZ():
-        print("  --> Different number of bins Z")
-        return False, None
+        print_error(h1, "Different number of bins Z")
+        return False
 
     for i in range(0, h1.GetNcells()):
         if abs(h1.GetBinContent(i) - h2.GetBinContent(i)) > tol:
@@ -64,31 +69,40 @@ def compare_hist(h1, h2, tol=1e-12):
             x = h2.GetXaxis().GetBinCenter(ix)
             y = h2.GetYaxis().GetBinCenter(iy)
 
-            msg = f"  --> Different bin content for bin {i}: x: {ix}({x}), y: {iy}({y}) bc1 = {h1.GetBinContent(i):.3f}, bc2 = {h2.GetBinContent(i):.3f}"
+            # Recompute errors in case they are zero
+            kolmogorov = h1.KolmogorovTest(h2, "")
+            if kolmogorov > 0.05:
+                print_warning(h1, f"Different bin content, but accodring to Kolmogorov test, histograms are compatible")
+                return True
+            
+            print_error(h1, f"Different bin content, histograms are NOT compatible according to  KolmogorovTest: p={kolmogorov}")
+            return False
 
+        if abs(h1.GetBinError(i) - h2.GetBinError(i)) > tol:
             kolmogorov = h1.KolmogorovTest(h2)
             if kolmogorov > 0.05:
-                msg += f'\n      Histograms are compatible according to Kolmogorov-Smirnov test: p = {kolmogorov:.2f}'
-            else:
-                msg += f'\n      Histograms are NOT COMPATIBLE according to Kolmogorov-Smirnov test: p = {kolmogorov:.2f}'
+                print_warning(h1, f"Different bin error, but accodring to Kolmogorov test, histograms are compatible")
+                return True
+            
+            print_error(h1, f"Different bin error, histograms are NOT compatible according to  KolmogorovTest")
+            return False
 
-            return False, msg
-        if abs(h1.GetBinError(i) - h2.GetBinError(i)) > tol:
-            msg = f"  --> Different bin error for bin {i}"
-            return False, msg
-    return True, None
+    return True
 
 def compare_graph(g1, g2, tol=1e-12):
     if g1.GetN() != g2.GetN():
-        return False, 'different number of data points'
+        print_error(g1, 'Different number of data points')
+        return False
 
     for i in range(g1.GetN()):
         if abs(g1.GetX()[i] - g2.GetX()[i]) > tol:
-            return False, 'different values'
+            print_error(g1, 'different values')
+            return False 
         if abs(g1.GetY()[i] - g2.GetY()[i]) > tol:
-            return False, 'different uncertainties'
+            print_error(g1, 'Different uncertainties')
+            return False 
 
-    return True, ''
+    return True
 
 def compare_files(f1name, f2name):
     print(f"Comparing file '{f1name}' vs '{f2name}'")
@@ -98,7 +112,9 @@ def compare_files(f1name, f2name):
     keys1 = {k.GetName(): k.GetClassName() for k in f1.GetListOfKeys()}
     keys2 = {k.GetName(): k.GetClassName() for k in f2.GetListOfKeys()}
 
-    if keys1 != keys2:
+    are_same = keys1 != keys2
+
+    if not are_same:
         only1 = set(keys1) - set(keys2)
         only2 = set(keys2) - set(keys1)
 
@@ -131,8 +147,7 @@ def compare_files(f1name, f2name):
         if only2:
             print("\033[33mOnly in file2:\033[0m", only2)
 
-    are_same = True
-    for name, cls in keys1.items():
+    for name in keys1:
         o1 = f1.Get(name)
         o2 = f2.Get(name)
         
@@ -140,18 +155,14 @@ def compare_files(f1name, f2name):
             continue
 
         if o1.InheritsFrom("TH1"):
-            ok, msg = compare_hist(o1, o2)
+            are_same &= compare_hist(o1, o2)
         elif o1.InheritsFrom("TF1"):
-            ok, msg = compare_tf1(o1, o2)
+            are_same &= compare_tf1(o1, o2)
         elif o1.InheritsFrom("TGraph"):
-            ok, msg = compare_graph(o1, o2)
+            are_same &= compare_graph(o1, o2)
         else:
+            print_warning(o1, 'Comparison not implemented for this class')
             continue
-
-        if not ok:
-            print(f" ! \033[31mObject '{name}' ({o1.ClassName()}) is different!\033[0m")
-            print(msg)
-            are_same = False
 
     if are_same:
         print("Files are equivalent")
