@@ -96,11 +96,31 @@ def compare_graph(g1, g2, tol=1e-12):
 
     for i in range(g1.GetN()):
         if abs(g1.GetX()[i] - g2.GetX()[i]) > tol:
-            print_error(g1, 'different values')
-            return False 
+            print_error(g1, 'different X values')
+            return False
         if abs(g1.GetY()[i] - g2.GetY()[i]) > tol:
-            print_error(g1, 'Different uncertainties')
-            return False 
+            print_error(g1, 'Different Y values')
+            return False
+        if g1.ClassName() == 'TGraphErrors':
+            if abs(g1.GetErrorX()[i] - g2.GetErrorX()[i]) > tol:
+                    print_error(g1, 'Different X errors')
+                    return False
+            if abs(g1.GetErrorY()[i] - g2.GetErrorY()[i]) > tol:
+                    print_error(g1, 'Different Y errors')
+                    return False
+        if g1.ClassName() == 'TGraphAsymmErrors':
+            if abs(g1.GetErrorXhigh()[i] - g2.GetErrorXhigh()[i]) > tol:
+                    print_error(g1, 'Different Xhigh errors')
+                    return False
+            if abs(g1.GetErrorXlow()[i] - g2.GetErrorXlow()[i]) > tol:
+                    print_error(g1, 'Different Xlow errors')
+                    return False
+            if abs(g1.GetErrorYhigh()[i] - g2.GetErrorYhigh()[i]) > tol:
+                    print_error(g1, 'Different Yhigh errors')
+                    return False
+            if abs(g1.GetErrorYlow()[i] - g2.GetErrorYlow()[i]) > tol:
+                    print_error(g1, 'Different Ylow errors')
+                    return False
 
     return True
 
