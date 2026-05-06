@@ -101,26 +101,26 @@ def compare_graph(g1, g2, tol=1e-12):
         if abs(g1.GetY()[i] - g2.GetY()[i]) > tol:
             print_error(g1, 'Different Y values')
             return False
-        if g1.ClassName() == 'TGraphErrors':
-            if abs(g1.GetErrorX()[i] - g2.GetErrorX()[i]) > tol:
-                    print_error(g1, 'Different X errors')
-                    return False
-            if abs(g1.GetErrorY()[i] - g2.GetErrorY()[i]) > tol:
-                    print_error(g1, 'Different Y errors')
-                    return False
+        if g1.ClassName() in ['TGraphErrors', 'TGraphAsymmErrors']:
+            if abs(g1.GetErrorX(i) - g2.GetErrorX(i)) > tol:
+                print_error(g1, 'Different X errors')
+                return False
+            if abs(g1.GetErrorY(i) - g2.GetErrorY(i)) > tol:
+                print_error(g1, 'Different Y errors')
+                return False
         if g1.ClassName() == 'TGraphAsymmErrors':
-            if abs(g1.GetErrorXhigh()[i] - g2.GetErrorXhigh()[i]) > tol:
-                    print_error(g1, 'Different Xhigh errors')
-                    return False
-            if abs(g1.GetErrorXlow()[i] - g2.GetErrorXlow()[i]) > tol:
-                    print_error(g1, 'Different Xlow errors')
-                    return False
-            if abs(g1.GetErrorYhigh()[i] - g2.GetErrorYhigh()[i]) > tol:
-                    print_error(g1, 'Different Yhigh errors')
-                    return False
-            if abs(g1.GetErrorYlow()[i] - g2.GetErrorYlow()[i]) > tol:
-                    print_error(g1, 'Different Ylow errors')
-                    return False
+            if abs(g1.GetErrorXhigh(i) - g2.GetErrorXhigh(i)) > tol:
+                print_error(g1, 'Different Xhigh errors')
+                return False
+            if abs(g1.GetErrorXlow(i) - g2.GetErrorXlow(i)) > tol:
+                print_error(g1, 'Different Xlow errors')
+                return False
+            if abs(g1.GetErrorYhigh(i) - g2.GetErrorYhigh(i)) > tol:
+                print_error(g1, 'Different Yhigh errors')
+                return False
+            if abs(g1.GetErrorYlow(i) - g2.GetErrorYlow(i)) > tol:
+                print_error(g1, 'Different Ylow errors')
+                return False
 
     return True
 
@@ -132,11 +132,12 @@ def compare_files(f1name, f2name):
     keys1 = {k.GetName(): k.GetClassName() for k in f1.GetListOfKeys()}
     keys2 = {k.GetName(): k.GetClassName() for k in f2.GetListOfKeys()}
 
-    are_same = keys1 != keys2
+    are_same = keys1 == keys2
 
     if not are_same:
         only1 = set(keys1) - set(keys2)
         only2 = set(keys2) - set(keys1)
+        print_error('Different keys: only in file1: ', only1, 'only in file2:', only2)
 
 
         # Try to detect renames
@@ -155,7 +156,7 @@ def compare_files(f1name, f2name):
                     same = compare_graph(o1, o2)
 
                 if same:
-                    print(f"Object renamed: {n1} -> {n2}")
+                    print_warning(f"Object renamed: {n1} -> {n2}")
                     only1.remove(n1)
                     only2.remove(n2)
                     keys1.pop(n1)
@@ -163,9 +164,9 @@ def compare_files(f1name, f2name):
                     break
 
         if only1:
-            print("\033[33mOnly in file1:\033[0m", only1)
+            print_warning("Only in file1:", only1)
         if only2:
-            print("\033[33mOnly in file2:\033[0m", only2)
+            print_warning("Only in file2:", only2)
 
     for name in keys1:
         o1 = f1.Get(name)
@@ -188,7 +189,7 @@ def compare_files(f1name, f2name):
         print("Files are equivalent")
         return True
 
-    print("Files are different")
+    print_error("Files are different")
     return False
 
 
