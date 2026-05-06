@@ -413,6 +413,10 @@ int main(int argc, const char** argv) {
 
     ceca.GoBabyGo(NUM_CPU);
 
+    fOutput.cd();
+    ceca.GetEvents()->Write();
+
+
     TList *l3B = new TList();
 
     auto dlmR12R312 = ceca.GetR12R312();
@@ -622,6 +626,7 @@ int main(int argc, const char** argv) {
     TH2F* h_Ghetto_kstar_rstar_RR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RR, "Ghetto_kstar_rstar_RR");
     h_Ghetto_kstar_rstar_RR->ResetStats();
 
+    ceca.Ghetto_mT_rstar->ComputeError();
     TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_rstar, "Ghetto_mT_rstar");
     h_Ghetto_mT_rstar->ResetStats();
     auto dlmRhoVsMt = ceca.GetRhoVsMt();
@@ -639,14 +644,20 @@ int main(int argc, const char** argv) {
     ceca.GhettoFemto_mT_rcore->ComputeError();
     TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
     h_GhettoFemto_mT_rcore->ResetStats();
+    ceca.GhettoFemto_mT_kstar->ComputeError();
     TH2F* h_GhettoFemto_mT_kstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_kstar, "GhettoFemto_mT_kstar");
     h_GhettoFemto_mT_kstar->ResetStats();
+    ceca.Ghetto_mT_costh->ComputeError();
     TH2F* h_Ghetto_mT_costh = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_costh, "Ghetto_mT_costh");
     h_Ghetto_mT_costh->ResetStats();
+
+    ceca.GhettoSP_pT_th->ComputeError();
     TH2F* h_GhettoSP_pT_th = Convert_DlmHisto_TH2F(ceca.GhettoSP_pT_th, "GhettoSP_pT_th");
     h_GhettoSP_pT_th->ResetStats();
+    ceca.GhettoSP_pT_1->ComputeError();
     TH1F* h_GhettoSP_pT_1 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_1, "GhettoSP_pT_1");
     h_GhettoSP_pT_1->ResetStats();
+    ceca.GhettoSP_pT_2->ComputeError();
     TH1F* h_GhettoSP_pT_2 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_2, "GhettoSP_pT_2");
     h_GhettoSP_pT_2->ResetStats();
     // ceca.GhettoFemto_rstar->ComputeError();
