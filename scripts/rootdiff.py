@@ -137,7 +137,7 @@ def compare_files(f1name, f2name):
     if not are_same:
         only1 = set(keys1) - set(keys2)
         only2 = set(keys2) - set(keys1)
-        print_error('Different keys: only in file1: ', only1, 'only in file2:', only2)
+        print_error(f1, f'Different keys: only in file1: {only1}, only in file2: {only2}')
 
 
         # Try to detect renames
@@ -156,7 +156,7 @@ def compare_files(f1name, f2name):
                     same = compare_graph(o1, o2)
 
                 if same:
-                    print_warning(f"Object renamed: {n1} -> {n2}")
+                    print_warning(o1, f"Object renamed: {n1} -> {n2}")
                     only1.remove(n1)
                     only2.remove(n2)
                     keys1.pop(n1)
@@ -164,9 +164,9 @@ def compare_files(f1name, f2name):
                     break
 
         if only1:
-            print_warning("Only in file1:", only1)
+            print_warning(o1, f'Only in file1: {n1}')
         if only2:
-            print_warning("Only in file2:", only2)
+            print_warning(o2, f'Only in file2: {n2}')
 
     for name in keys1:
         o1 = f1.Get(name)
@@ -189,7 +189,7 @@ def compare_files(f1name, f2name):
         print("Files are equivalent")
         return True
 
-    print_error("Files are different")
+    print("\033[31mFiles are different\033[0m")
     return False
 
 
