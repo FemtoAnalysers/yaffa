@@ -2,7 +2,7 @@
     output: CompareGaus
 
     input:
-    -   file:  toy/Gaus.root
+    -   file:  Gaus.root
         name: fGaus
         legend: 'function'
         color: kRed
@@ -13,7 +13,7 @@
         markerstyle: 1
         normalize: false
         normalizecf: false  # false or numerical factor for rescaling
-    -   file:  toy/Gaus.root
+    -   file:  Gaus.root
         name: hGaus
         legend: 'histogram'
         color: kBlue
