@@ -63,8 +63,11 @@ def process_combination(directory):
 
 def main(in_file : str):
     os.makedirs('qa', exist_ok=True)
-    inFile = TFile(in_file)
-    
+    try:
+        inFile = TFile.Open(in_file)
+    except OSError:
+        log.critical('Cannot open the input file')
+
     for key in [k.GetName() for k in inFile.GetListOfKeys()]:
         process_combination(inFile.Get(key))
 
