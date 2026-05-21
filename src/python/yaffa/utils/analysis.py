@@ -320,7 +320,7 @@ def SmearGraph(graph, matrix, name=None, title=''): # pylint: disable=inconsiste
         return hSmeared
     log.critical("Smearing for type %s is not implemented", type(graph))
 
-def Divide(num, den): #pylint: disable=inconsistent-return-statements
+def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
     '''
     Divide two quantities.
     Implemented types:
@@ -346,16 +346,19 @@ def Divide(num, den): #pylint: disable=inconsistent-return-statements
         the division between num and den.
     '''
 
-    if isinstance(num, TGraphErrors):
-        if isinstance(den, TH1):
+    if not name:
+        name = f'{num.GetName()}_ratio'
+
+    if isinstance(den, TH1):
+        if isinstance(num, TGraphErrors):
             nBins = den.GetNbinsX()
             if nBins != num.GetN():
                 log.critical("You you are trying to divide two objects with different number of bins/points.")
             if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
                 log.critical("The binnings are not aligned.")
 
-            hRatio = den.Clone(f'{den.GetName()}_ratio')
-            hRatio.Reset()
+            ratio = den.Clone(name)
+            ratio.Reset()
 
             for iBin in range(nBins):
                 x = num.GetPointX(iBin)
@@ -370,14 +373,45 @@ def Divide(num, den): #pylint: disable=inconsistent-return-statements
                     ratio = y / binContent
                     ratioUnc = ratio * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
 
-                    hRatio.SetBinContent(iBin + 1, ratio)
-                    hRatio.SetBinError(iBin + 1, ratioUnc)
+                    ratio.SetBinContent(iBin + 1, ratio)
+                    ratio.SetBinError(iBin + 1, ratioUnc)
                 else:
-                    hRatio.SetBinContent(iBin + 1, 0)
-                    hRatio.SetBinError(iBin + 1, 0)
+                    ratio.SetBinContent(iBin + 1, 0)
+                    ratio.SetBinError(iBin + 1, 0)
 
-            return hRatio
-    log.critical("Division of %s by %s is not implemented.", type(num), type(den))
+            return ratio
+    elif isinstance(den, TF1):
+        if isinstance(num, TH1):
+            ratio = num.Clone(name)
+            ratio.Reset()
+
+            for iBin in range(num.GetNbinsX()):
+                ratio.SetBinContent(iBin + 1, num.GetBinContent(iBin + 1) / den.Eval(num.GetBinCenter(iBin + 1)))
+                ratio.SetBinError(iBin + 1, num.GetBinError(iBin + 1) / den.Eval(num.GetBinCenter(iBin + 1)))
+            
+            return ratio
+
+    elif isinstance(den, TH2):
+        if isinstance(num, TH2):
+            ratio = num.Clone(name)
+            ratio.Reset()
+            ratio.GetZaxis().SetTitle('Ratio')
+            for iBinX in range(num.GetNbinsX()):
+                for iBinY in range(num.GetNbinsY()):
+                    x = num.GetXaxis().GetBinCenter(iBinX + 1)
+                    y = num.GetYaxis().GetBinCenter(iBinY + 1)
+                    bc = num.GetBinContent(iBinX + 1, iBinY + 1)
+                    den = den.Eval(x, y)
+                    if den.Eval(x, y) > 0:
+                        ratio = bc / den
+                    else:
+                        ratio = 0
+                        
+                    ratio.SetBinContent(iBinX + 1, iBinY + 1,  ratio)
+            return ratio
+
+    log.error("Division of %s by %s is not implemented aaaa.", num.ClassName(), den.ClassName())
+    return None
 
 def Bootstrap(obj):
     '''
