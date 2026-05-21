@@ -181,12 +181,12 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     # TAttLine
     gStyle.SetLineColor(1)
     gStyle.SetLineColorAlpha(1, 1)
-    gStyle.SetLineWidth(2)
+    gStyle.SetLineWidth(1)
 
     # TAttMarker
     gStyle.SetMarkerColor(1)
     gStyle.SetMarkerColorAlpha(1, 1)
-    gStyle.SetMarkerSize(1.5)
+    gStyle.SetMarkerSize(1)
     gStyle.SetMarkerStyle(1)
 
     # TAttText
@@ -210,7 +210,7 @@ def SetObjectStyle(obj, **kwargs):
     obj.SetLineColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetMarkerColor(GetColor(kwargs.get('color', 'kBlack')))
     obj.SetFillColor(GetColor(kwargs.get('color', 'kBlack')))
-    obj.SetLineWidth(kwargs.get('width', 2))
+    obj.SetLineWidth(kwargs.get('width', 1))
     obj.SetMarkerStyle(kwargs.get('marker', 1))
 
 def Format(text):
