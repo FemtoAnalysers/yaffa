@@ -4,320 +4,76 @@ Script to produce the QA plots.
 
 import os
 import argparse
-import yaml
 
-from ROOT import TFile, TCanvas, EColor, TLegend, gROOT  # pylint: disable=import-error
+from ROOT import TFile, TCanvas, gPad, gROOT
 
+from yaffa import utils
 from yaffa import logger as log
-from yaffa.utils.io import Load
 
-parser = argparse.ArgumentParser()
-parser.add_argument('cfg', help='Config file')
-parser.add_argument('-b', action='store_true', default=False, help='Set batch mode')
-args = parser.parse_args()
+utils.style.SetStyle()
 
-gROOT.SetBatch(args.b)
+def draw_objects(name, objects, drawopt='pe', normalize=False):
+    c = TCanvas('c', '', 600, 600)
 
-# Load yaml file
-with open(args.cfg, "r") as stream:
-    try:
-        cfg = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        log.critical('Yaml configuration could not be loaded. Is it properly formatted?')
+    for i, (leg, obj) in enumerate(objects.items()):
+        obj.SetTitle(leg)
+        obj.SetLineColor(i + 1)
+        obj.SetLineWidth(2)
+        
+        obj.SetMarkerColor(i + 1)
+        if normalize:
+            obj.Scale(1./obj.Integral())
 
-suffix = cfg['suffix']
-inFile = TFile(cfg['infile'])
+        obj.Draw(drawopt)
+        
+        if 'same' not in drawopt:
+            drawopt += ' same'
 
-if cfg['pair'] == 'dPi':
-    part1 = 'Pi'
-    part2 = 'd'
-    fdnames = {
-        0: 'PosPions',
-        1: 'NegPions',
-        2: 'DeuteronDCA',
-        3: 'AntiDeuteronDCA',
-    }
-    labels = {
-        0: '#pi^{+}',
-        1: '#pi^{#minus}',
-        2: 'd',
-        3: '#bar{d}',
-    }
-else:
-    log.error('pair not implemented')
+    gPad.BuildLegend()
 
+    c.SaveAs(f'qa/c{name}.pdf')
 
-# Event quality
-oFileBaseName = 'QA_Evt'
-if cfg['suffix'] != '' and cfg['suffix'] is not None:
-    oFileBaseName += f'_{cfg["suffix"]}'
+def do_triplet_qa(directory):
+    se = directory.Get('SE/Analysis/hQ3VsMtVsMultVsCent')
+    me = directory.Get('ME/Analysis/hQ3VsMtVsMultVsCent')
 
-oFileName = os.path.join(cfg['odir'], oFileBaseName + '.root')
-oFile = TFile(oFileName, 'recreate')
+    if not se or not me:
+        log.error('SE or ME THnSparse are not properly defined. Skipping triplet QA')
+        return
+    
+    # Use a helper function to project THnSparse with name to avoid replacing existing histograms
+    def proj(thn, axis, name):
+        hist = thn.Projection(axis)
+        hist.SetName(name)
+        return hist
 
-cEvt = TCanvas('cEvt', '', 600, 600)
-cEvt.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf['))
+    draw_objects('Q3', {'SE': proj(se, 0, 'SE'), 'ME': proj(me, 0, 'ME')}, normalize=True)
+    draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, normalize=True)
+    draw_objects('Cent', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, normalize=True)
+    draw_objects('Mult', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True)
 
-# Multiplicity
-hMult = Load(inFile, f'HMEvtCuts{suffix}/HMEvtCuts{suffix}/after/MultiplicityRef08_after')
-hMult.Draw()
-cEvt.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+def process_combination(directory):
+    for key in [k.GetName() for k in directory.GetListOfKeys()]:
+        if key == 'TrackTrackTrack':
+            do_triplet_qa(directory.Get(key))
+            pass
+        else:
+            log.warning(f'QA not implemented for directory {key}')
+            pass
 
-# Sphericity
-hSphercity = Load(inFile, f'HMEvtCuts{suffix}/HMEvtCuts{suffix}/after/Sphericity_after')
-hSphercity.Draw()
-cEvt.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
+def main(in_file : str):
+    os.makedirs('qa', exist_ok=True)
+    inFile = TFile(in_file)
+    
+    for key in [k.GetName() for k in inFile.GetListOfKeys()]:
+        process_combination(inFile.Get(key))
 
-cEvt.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf]'))
-# End of event quality plots
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('in_file', nargs='?', default='AnalysisResults.root', help='Input file (AnalysisResults.root)')
+    parser.add_argument('-b', action='store_true', default=False, help='Set batch mode')
+    args = parser.parse_args()
 
+    gROOT.SetBatch(args.b)
 
-# Part1 quality
-oFileBaseName = f'QA_{part1}'
-if cfg['suffix'] != '' and cfg['suffix'] is not None:
-    oFileBaseName += f'_{cfg["suffix"]}'
-
-oFileName = os.path.join(cfg['odir'], oFileBaseName + '.root')
-oFile = TFile(oFileName, 'recreate')
-cPart = TCanvas('cPart1', '', 600, 600)
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf['))
-
-# Pt of Part1
-hPt0 = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/pTDist_after')
-hPt0.Draw()
-hPt1 = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/pTDist_after')
-hPt1.SetLineColor(EColor.kRed)
-hPt1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hPt0, labels[0])
-leg.AddEntry(hPt1, labels[1])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# Eta of Part1
-hEta0 = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/EtaDist_after')
-hEta0.Draw()
-hEta1 = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/EtaDist_after')
-hEta1.SetLineColor(EColor.kRed)
-hEta1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hEta0, labels[0])
-leg.AddEntry(hEta1, labels[1])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# Phi of Part1
-hPhi0 = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/phiDist_after')
-hPhi0.Draw()
-hPhi1 = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/phiDist_after')
-hPhi1.SetLineColor(EColor.kRed)
-hPhi1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hPhi0, labels[0])
-leg.AddEntry(hPhi1, labels[1])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# CrossedRows of Part1
-hCrossedRows0 = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/CrossedRows_after')
-hCrossedRows0.Draw('')
-hCrossedRows1 = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/CrossedRows_after')
-hCrossedRows1.SetLineColor(EColor.kRed)
-hCrossedRows1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hCrossedRows0, labels[0])
-leg.AddEntry(hCrossedRows1, labels[1])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# ClusterOverFindable of Part1
-hClusterOverFindable0 = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/TPCRatio_after')
-hClusterOverFindable0.Draw('')
-hClusterOverFindable1 = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/TPCRatio_after')
-hClusterOverFindable1.SetLineColor(EColor.kRed)
-hClusterOverFindable1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hClusterOverFindable0, labels[0])
-leg.AddEntry(hClusterOverFindable1, labels[1])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TPC dE/dx of Part1+
-hTPCdedx = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/TPCdedx_after')
-hTPCdedx.SetTitle(f'TPCdedx_after {labels[0]}')
-hTPCdedx.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TPC dE/dx of Part1-
-hTPCdedx = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/TPCdedx_after')
-hTPCdedx.SetTitle(f'TPCdedx_after {labels[1]}')
-hTPCdedx.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part1+
-hTOFbeta = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/TOFbeta_after')
-hTOFbeta.SetTitle(f'TOFbeta_after {labels[0]}')
-hTOFbeta.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part1-
-hTOFbeta = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/TOFbeta_after')
-hTOFbeta.SetTitle(f'TOFbeta_after {labels[1]}')
-hTOFbeta.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# nSigmaTPC of Part1+
-hNSigmaTPC = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/NSigTPC_after')
-hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[0]}')
-hNSigmaTPC.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# nSigmaTPC of Part1-
-hNSigmaTPC = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/NSigTPC_after')
-hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[1]}')
-hNSigmaTPC.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part1+
-hNSigTOF = Load(inFile, f'HM{fdnames[0]}{suffix}/HM{fdnames[0]}{suffix}/after/NSigTOF_after')
-hNSigTOF.SetTitle(f'NSigTOF_after {labels[0]}')
-hNSigTOF.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part1-
-hNSigTOF = Load(inFile, f'HM{fdnames[1]}{suffix}/HM{fdnames[1]}{suffix}/after/NSigTOF_after')
-hNSigTOF.SetTitle(f'NSigTOF_after {labels[1]}')
-hNSigTOF.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf]'))
-# End of part 1 quality
-
-
-# Part2 quality
-oFileBaseName = f'QA_{part2}'
-if cfg['suffix'] != '' and cfg['suffix'] is not None:
-    oFileBaseName += f'_{cfg["suffix"]}'
-
-oFileName = os.path.join(cfg['odir'], oFileBaseName + '.root')
-oFile = TFile(oFileName, 'recreate')
-cPart = TCanvas('cPart2', '', 600, 600)
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf['))
-
-# Pt of Part2
-hPt2 = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/pTDist_after')
-hPt2.Draw()
-hPt3 = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/pTDist_after')
-hPt3.SetLineColor(EColor.kRed)
-hPt3.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hPt2, labels[2])
-leg.AddEntry(hPt3, labels[3])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# Eta of Part2
-hEta2 = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/EtaDist_after')
-hEta2.Draw()
-hEta1 = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/EtaDist_after')
-hEta1.SetLineColor(EColor.kRed)
-hEta1.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hEta2, labels[2])
-leg.AddEntry(hEta1, labels[3])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# Phi of Part2
-hPhi2 = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/phiDist_after')
-hPhi2.Draw()
-hPhi3 = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/phiDist_after')
-hPhi3.SetLineColor(EColor.kRed)
-hPhi3.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hPhi2, labels[2])
-leg.AddEntry(hPhi3, labels[3])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# CrossedRows of Part2
-hCrossedRows2 = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/CrossedRows_after')
-hCrossedRows2.Draw('')
-hCrossedRows3 = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/CrossedRows_after')
-hCrossedRows3.SetLineColor(EColor.kRed)
-hCrossedRows3.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hCrossedRows2, labels[2])
-leg.AddEntry(hCrossedRows3, labels[3])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# ClusterOverFindable of Part2
-hClusterOverFindable2 = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/TPCRatio_after')
-hClusterOverFindable2.Draw('')
-hClusterOverFindable3 = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/TPCRatio_after')
-hClusterOverFindable3.SetLineColor(EColor.kRed)
-hClusterOverFindable3.Draw('same')
-leg = TLegend(0.6, 0.7, 0.9, 0.9)
-leg.AddEntry(hClusterOverFindable2, labels[2])
-leg.AddEntry(hClusterOverFindable3, labels[3])
-leg.Draw('same')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TPC dE/dx of Part2+
-hTPCdedx = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/TPCdedx_after')
-hTPCdedx.SetTitle(f'TPCdedx_after {labels[2]}')
-hTPCdedx.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TPC dE/dx of Part2-
-hTPCdedx = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/TPCdedx_after')
-hTPCdedx.SetTitle(f'TPCdedx_after {labels[3]}')
-hTPCdedx.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part2+
-hTOFbeta = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/TOFbeta_after')
-hTOFbeta.SetTitle(f'TOFbeta_after {labels[2]}')
-hTOFbeta.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part2-
-hTOFbeta = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/TOFbeta_after')
-hTOFbeta.SetTitle(f'TOFbeta_after {labels[3]}')
-hTOFbeta.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# nSigmaTPC of Part2+
-hNSigmaTPC = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/NSigTPC_after')
-hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[2]}')
-hNSigmaTPC.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# nSigmaTPC of Part2-
-hNSigmaTPC = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/NSigTPC_after')
-hNSigmaTPC.SetTitle(f'NSigTPC_after {labels[3]}')
-hNSigmaTPC.Draw('colz')
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part2+
-hNSigTOF = Load(inFile, f'HM{fdnames[2]}{suffix}/HM{fdnames[2]}{suffix}/after/NSigTOF_after')
-hNSigTOF.SetTitle(f'NSigTOF_after {labels[2]}')
-hNSigTOF.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-# TOF beta of Part2-
-hNSigTOF = Load(inFile, f'HM{fdnames[3]}{suffix}/HM{fdnames[3]}{suffix}/after/NSigTOF_after')
-hNSigTOF.SetTitle(f'NSigTOF_after {labels[3]}')
-hNSigTOF.Draw('colz')
-cPart.SetLogz()
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf'))
-
-cPart.SaveAs(os.path.join(cfg['odir'], oFileBaseName + '.pdf]'))
+    main(args.in_file)
