@@ -16,7 +16,7 @@ def draw_objects(name, objects, drawopt='pe', normalize=False):
     c = TCanvas('c', '', 600, 600)
 
     for i, (leg, obj) in enumerate(objects.items()):
-        obj.SetTitle(leg)
+        obj.SetTitle(leg if leg else '')
         obj.SetLineColor(i + 1)
         obj.SetLineWidth(2)
         
@@ -43,7 +43,10 @@ def do_triplet_qa(directory):
     
     # Use a helper function to project THnSparse with name to avoid replacing existing histograms
     def proj(thn, axis, name):
-        hist = thn.Projection(axis)
+        if not isinstance(axis, tuple):
+            axis = (axis,)
+
+        hist = thn.Projection(*axis)
         hist.SetName(name)
         return hist
 
@@ -51,6 +54,7 @@ def do_triplet_qa(directory):
     draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, normalize=True)
     draw_objects('Mult', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, normalize=True)
     draw_objects('Cent', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True)
+    draw_objects('Q3VsMult', {None: proj(se, (0, 2), 'SE')}, drawopt='colz', normalize=True)
 
 def process_combination(directory):
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
