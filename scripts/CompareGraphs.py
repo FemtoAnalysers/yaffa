@@ -27,20 +27,14 @@ def make_plot(plot):
         oFile = TFile(f'{os.path.splitext(plot["output"])[0]}.root', 'recreate')
 
     panels = {'default': 1}
-    if plot['ratio']['enable']:
+    if plot.get('ratio', {}).get('enable'):
         panels['ratio'] = len(panels)+1
-    if plot['spread']['enable']:
+    if plot.get('spread', {}).get('enable'):
         panels['spread'] = len(panels)+1
-    if plot['relunc']['enable']:
+    if plot.get('relunc', {}).get('enable'):
         panels['relunc'] = len(panels)+1
-    if plot.get('pulls').get('enable'):
-        panels['pulls'] = len(panels)+1
-
-    # Frame Coordinates
-    fx1 = plot['opt']['rangex'][0]
-    fy1 = plot['opt']['rangey'][0]
-    fx2 = plot['opt']['rangex'][1]
-    fy2 = plot['opt']['rangey'][1]
+    if plot.get('pulls', {}).get('enable'):
+        panels['pulls'] = len(panels)+1  
 
     # Load the objects to draw
     inObjs = []
@@ -50,14 +44,21 @@ def make_plot(plot):
     integral = 0
     
     for inputCfg in plot["input"]:
-        if not inputCfg['file']:
+        if obj := inputCfg.get('obj'):
+            inObj = obj
+
+        elif inputCfg.get('file') and inputCfg.get('name'):
+            inFile = TFile(inputCfg['file'])
+            inObj = utils.io.Load(inFile, inputCfg['name'])
+            if isinstance(inObj, TH1):
+                inObj.SetDirectory(0)
+            inFile.Close()
+
+        elif not inputCfg['file']:
             drawOpts.append('')
             inObjs.append(0)
             legends.append(inputCfg['legend'])
             continue
-
-        inFile = TFile(inputCfg['file'])
-        inObj = utils.io.Load(inFile, inputCfg['name'])
 
         if isinstance(inObj, TH2):
             for iBinX in range(inObj.GetNbinsX()):
@@ -68,25 +69,25 @@ def make_plot(plot):
         integral *= inObj.GetYaxis().GetBinWidth(1)
 
         if isinstance(inObj, TH1):
-            inObj.SetDirectory(0)
-            inObj.Rebin(inputCfg['rebin'])
+            inObj.Rebin(inputCfg.get('rebin', 1))
 
             # Check for type since TH2 inherits from TH1 so isinstance would return true
-            if type(inObj) is TH1:  # pylint: disable=unidiomatic-typecheck
-                inObj = utils.analysis.CopyHistInSubrang(inObj, fx1, fx2)
+            if type(inObj) is TH1 and plot['opt']['rangex']:  # pylint: disable=unidiomatic-typecheck
+                inObj = utils.analysis.CopyHistInSubrang(inObj, *plot['opt']['rangex'])
 
             if inputCfg['normalize']:
                 # inObj.Scale(1./inObj.Integral())
                 # inObj.Scale(1./inObj.GetEntries())
                 inObj.Scale(1./integral)
-            if inputCfg['scale']:
-                inObj.Scale(numexpr.evaluate(str(inputCfg['scale'])))
-            if inputCfg['normalizecf']:
-                inObj.Scale(inputCfg['normalizecf'])
+            if scale := inputCfg.get('scale', 1):
+                inObj.Scale(numexpr.evaluate(str(scale)))
+            if scale := inputCfg.get('normalizecf', 1):
+                inObj.Scale(scale)
 
-        inObj.SetLineColor(utils.style.GetColor(inputCfg['color']))
-        inObj.SetFillColorAlpha(utils.style.GetColor(inputCfg['color']), inputCfg['fillalpha'])
-        inObj.SetMarkerColor(utils.style.GetColor(inputCfg['color']))
+        color = utils.style.GetColor(inputCfg.get('color', 'kBlack'))
+        inObj.SetLineColor(color)
+        inObj.SetFillColorAlpha(color, inputCfg.get('fillalpha', 1))
+        inObj.SetMarkerColor(color)
         inObj.SetLineWidth(inputCfg.get('thickness', 1))
         if isinstance(inObj, TH1):
             default = 'pe'
@@ -95,7 +96,7 @@ def make_plot(plot):
             functions = inObj.GetListOfFunctions()
             for iFunc in range(functions.GetEntries()):
                 function = functions.At(iFunc)
-                function.SetLineColor(utils.style.GetColor(inputCfg['color']))
+                function.SetLineColor(color)
                 function.SetLineWidth(inputCfg.get('thickness', 1))
         
         elif isinstance(inObj, TGraph):
@@ -107,7 +108,7 @@ def make_plot(plot):
         else:
             default = ''
         drawOpts.append(inputCfg.get('drawopt', default))
-        inObj.SetMarkerStyle(inputCfg['markerstyle'])
+        inObj.SetMarkerStyle(inputCfg.get('markerstyle', 20))
         inObjs.append(inObj)
         legends.append(inputCfg['legend'])
 
@@ -116,8 +117,23 @@ def make_plot(plot):
     cPlot = TCanvas("cPlot", "cPlot", 600*nPanelsX, 600*nPanelsY)
     cPlot.Divide(nPanelsX, nPanelsY)
     pad = cPlot.cd(1)
-    pad.SetLogx(plot["opt"]["logx"])
-    pad.SetLogy(plot["opt"]["logy"])
+    pad.SetLogx(plot["opt"].get("logx", False))
+    pad.SetLogy(plot["opt"].get("logy", False))
+
+    # Frame Coordinates
+    if plot['opt'].get('rangex'):
+        fx1 = fx1
+        fx2 = fx2
+    else:
+        fx1 = min((obj.GetXaxis().GetXmin() for obj in inObjs))
+        fx2 = max((obj.GetXaxis().GetXmax() for obj in inObjs))
+
+    if plot['opt'].get('rangey'):
+        fy1 = plot['opt']['rangey'][0]
+        fy2 = plot['opt']['rangey'][1]
+    else:
+        fy1 = min((obj.GetMinimum() for obj in inObjs))
+        fy2 = 1.3 * max((obj.GetMaximum() for obj in inObjs))
     pad.DrawFrame(fx1, fy1, fx2, fy2, plot['opt']['title'])
 
     legx1 = plot['opt']['leg']['posx'][0]
@@ -139,27 +155,27 @@ def make_plot(plot):
 
         # Compute statistics for hist in the displayed range
         if isinstance(inObj, TH1):
-            firstBin = inObj.FindBin(plot['opt']['rangex'][0]*1.0001)
-            lastBin = inObj.FindBin(plot['opt']['rangex'][1]*0.9999)
+            firstBin = inObj.FindBin(fx1*1.0001)
+            lastBin = inObj.FindBin(fx2*0.9999)
             inObj.GetXaxis().SetRange(firstBin, lastBin)
             print(f'{legend}: mean = {inObj.GetMean()} sigma = {inObj.GetStdDev()}')
-            if plot['opt']['leg']['yield']:
+            if plot['opt']['leg'].get('yield'):
                 legend += f';  Y={inObj.GetEntries():.1e}'
-            if plot['opt']['leg']['relyield']:
+            if plot['opt']['leg'].get('relyield'):
                 legend += f';  ({inObj.GetEntries() / inObjs[0].GetEntries() * 100:.1f}%)'
-            if plot['opt']['leg']['mean']:
+            if plot['opt']['leg'].get('mean'):
                 legend += f';  #mu={inObj.GetMean():.3f}'
-            if plot['opt']['leg']['sigma']:
+            if plot['opt']['leg'].get('sigma'):
                 legend += f';  #sigma={inObj.GetStdDev():.3f}'
         if legend:
             leg.AddEntry(inObj, legend, 'lp' if inObj else '')
 
     inObjs[0].Draw('same' + drawOpts[0])
 
-    for line in plot['opt']['lines']:
-        x1 = plot['opt']['rangex'][0] if(line['coordinates'][0] == 'min') else line['coordinates'][0]
+    for line in plot['opt'].get('lines', []):
+        x1 = fx1 if(line['coordinates'][0] == 'min') else line['coordinates'][0]
         y1 = plot['opt']['rangey'][0] if(line['coordinates'][1] == 'min') else line['coordinates'][1]
-        x2 = plot['opt']['rangex'][1] if(line['coordinates'][2] == 'max') else line['coordinates'][2]
+        x2 = fx2 if(line['coordinates'][2] == 'max') else line['coordinates'][2]
         y2 = plot['opt']['rangey'][1] if(line['coordinates'][3] == 'max') else line['coordinates'][3]
         inputline = TLine(x1, y1, x2, y2)
         inputline.SetLineColor(utils.style.GetColor(line['color']))
@@ -173,7 +189,7 @@ def make_plot(plot):
         leg.Draw()
     
     # Compute ratio wrt the first obj
-    while plot['ratio']['enable']: # use if-equivallent while scope to be able to control when to exit
+    while plot.get('ratio', {}).get('enable'): # use if-equivallent while scope to be able to control when to exit
         if len(inObjs) < 2:
             log.error("Not enough objects for making a ratio. Skipping ratio plot")
             break
@@ -213,15 +229,14 @@ def make_plot(plot):
         if 'root' in plot["opt"]["ext"]:
             hRatio.Write()
 
-        line = TLine(plot['opt']['rangex'][0], 1, plot['opt']['rangex'][1], 1)
+        line = TLine(fx1, 1, fx2, 1)
         line.SetLineColor(13)
         line.SetLineStyle(7)
         line.Draw('same pe')
 
         break
-        
 
-    while plot['spread']['enable']:
+    while plot.get('spread', {}).get('enable'):
         # Calcualate the spread around the first oject
         if not isinstance(inObj, TH1):
             log.error('Spread for type %s is not implemented. Skipping this object', type(inObj))
@@ -246,8 +261,8 @@ def make_plot(plot):
         hSpread = next((obj for obj in inObjs if isinstance(obj, TH1))).Clone("hSpread")
         hSpread.Reset()
 
-        x1 = plot['opt']['rangex'][0]
-        x2 = plot['opt']['rangex'][1]
+        x1 = fx1
+        x2 = fx2
 
         for iBin in range(hSpread.GetXaxis().FindBin(x1 * 1.0001), hSpread.GetXaxis().FindBin(x2 * 0.9999)):
             yValues = np.array([obj.GetBinContent(iBin + 1) for obj in inObjs[1:] if isinstance(obj, TH1)])
@@ -269,7 +284,7 @@ def make_plot(plot):
         break
 
     # Compute the relative uncertainties
-    while plot['relunc']['enable']:
+    while plot.get('relunc', {}).get('enable'):
         pad = cPlot.cd(panels['relunc'])
         pad.SetGridx(plot['relunc']['gridx'])
         pad.SetGridy(plot['relunc']['gridy'])
@@ -330,7 +345,7 @@ def make_plot(plot):
         break
 
     # Compute the pulls
-    while plot.get('pulls').get('enable'):
+    while plot.get('pulls', {}).get('enable'):
         pad = cPlot.cd(panels['pulls'])
         pad.SetGridx(plot['pulls']['gridx'])
         pad.SetGridy(plot['pulls']['gridy'])
