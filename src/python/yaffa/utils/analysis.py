@@ -53,7 +53,13 @@ def SliceVertically(hist, edges, name=None):
     for lowEdge, upEdge in zip(lowEdges, upEdges):
         firstBin = hist.GetXaxis().FindBin(lowEdge * 1.0001)
         lastBin = hist.GetXaxis().FindBin(upEdge * 0.9999)
+
         slices.append(hist.ProjectionY(f'{name}{lowEdge:.0f}_{upEdge:.0f}', firstBin, lastBin))
+
+        # Exclude underflow and overflow
+        if lastBin <= 0 or firstBin >= hist.GetNbinsX():
+            slices[-1].Reset()
+
     return slices
 
 
