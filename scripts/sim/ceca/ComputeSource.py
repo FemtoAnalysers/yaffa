@@ -17,9 +17,6 @@ sys.path.append(f'{YAFFA_PATH}/src/python')
 from yaffa import logger as log
 from yaffa import utils
 
-# Fill histograms lazily by booking them in this dict and launching the filling later with RDF.RunGraphs
-lazy_hists = {}
-
 def ComputeSliceMeans(gRadiusVsMt):
     mTbins = range(0, 4001, 100)
     slices = utils.analysis.SliceVertically(gRadiusVsMt, mTbins, name='hRStar_mT')
@@ -113,11 +110,7 @@ def DefineVariables(df, m1, m2, m3, arbitraryMass, ):
     return df
 
 def BookParticleHistograms(df, idx):
-    if lazy_hists.get(f'part{idx}'):
-        log.warning(f'Histograms for particle {idx} have already been booked. Skipping')
-        return
-    
-    lazy_hists[f'part{idx}'] = {
+    return {
         f'hT{idx}' : df.Histo1D((f'hT{idx}', f";t_{idx} (fm/c);Counts", 200, 0, 20), f't{idx}'),
         f'hX{idx}' : df.Histo1D((f'hX{idx}', f";x_{idx} (fm);Counts", 200, 0, 20), f'x{idx}_x'),
         f'hY{idx}' : df.Histo1D((f'hY{idx}', f";y_{idx} (fm);Counts", 200, 0, 20), f'x{idx}_y'),
@@ -125,14 +118,10 @@ def BookParticleHistograms(df, idx):
     }
     
 def BookPairHistograms(df, idx1, idx2, max_kstar):
-    if lazy_hists.get(f'pair{idx1}{idx2}'):
-        log.warning(f'Histograms for pair ({idx1}, {idx2}) have already been booked. Skipping')
-        return
-
     # If the column contains nan it was not supposed to be used. Use then an empty dataframe and ensure empty but properly defined histograms
     df = df.Filter(f"!std::isnan(x{idx1}.X())").Filter(f"!std::isnan(x{idx2}.X())")
 
-    lazy_hists[f'pair{idx1}{idx2}'] = {
+    return {
         f"hTMax{idx1}{idx2}" : df.Histo1D((f"hTMax{idx1}{idx2}", f";t_{max}^{({idx1}, {idx2})}", 200, 0, 20), f'tmax{idx1}{idx2}'),
         f"hRStar{idx1}{idx2}" : df.Filter(f'kstar{idx1}{idx2} < {max_kstar}').Histo1D((f"hRStar{idx1}{idx2}", f";r*_{({idx1}, {idx2})}", 200, 0, 20), f'rstar{idx1}{idx2}'),
         f"hKStar{idx1}{idx2}" : df.Histo1D((f"hKStar{idx1}{idx2}", f";k*_{({idx1}, {idx2})}", 200, 0, 2000), f'kstar{idx1}{idx2}'),
@@ -140,16 +129,12 @@ def BookPairHistograms(df, idx1, idx2, max_kstar):
     }
 
 def BookTripletHistograms(df, max_Q3):
-    if lazy_hists.get('triplet'):
-        log.warning(f'Histograms for triplet have already been booked. Skipping')
-        return
-
     # If the column contains nan it was not supposed to be used. Use then an empty dataframe and ensure empty but properly defined histograms
     df = df.Filter("!std::isnan(x2.X())").Filter("!std::isnan(x3.X())")
 
     df_femto = df.Filter(f'Q3 < {max_Q3}')
 
-    lazy_hists['triplet'] = {
+    return {
         'hQ' : df.Histo1D((f'hQ', f';Q (GeV/#it{{c}});Counts', 2000, 0, 2000), 'Q'),
         'hQ3' : df.Histo1D((f'hQ3', f';Q_{3} (GeV/#it{{c}});Counts', 2000, 0, 2000), 'Q3'),
         'hHypRad' : df_femto.Histo1D((f'hHypRad', f';#rho (fm);Counts', 200, 0, 20), 'hyp_rad'),
@@ -163,55 +148,55 @@ def BookTripletHistograms(df, max_Q3):
         'hPair23MtVsTripletMt' : df_femto.Histo2D((f'hPair23MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{{(2,3)}} (GeV/#it{c});Counts', 1600, 900, 2500, 1600, 900, 2500), 'mT', 'mT23'),
     }
 
-def ProcessParticle(idx, dir):
+def ProcessParticle(hists, idx, dir):
     log.info(f'Processing particle {idx}...')
 
     subdir = dir.mkdir(f'part{idx}')
     subdir.cd()
     
-    for hist in lazy_hists[f'part{idx}'].values():
+    for hist in hists[f'part{idx}'].values():
         hist.Write()
 
     dir.cd()
 
-def ProcessPair(idx1, idx2, dir):
+def ProcessPair(hists, idx1, idx2, dir):
     log.info(f'Processing pair ({idx1}, {idx2})...')
 
     subdir = dir.mkdir(f'pair{idx1}{idx2}')
     subdir.cd()
 
-    for hist in lazy_hists[f'pair{idx1}{idx2}'].values():
+    for hist in hists[f'pair{idx1}{idx2}'].values():
         hist.Write()
 
-    hRStarVsMt = lazy_hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"]
+    hRStarVsMt = hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"]
     gMt = ComputeSliceMeans(hRStarVsMt)
     gMt.Write(f'gMt{idx1}{idx2}')
 
     dir.cd()
 
-def ProcessTriplet(dir):
+def ProcessTriplet(hists, dir):
     log.info(f'Processing triplet...')
 
     dir.mkdir('triplet').cd()
 
-    for key, hist in lazy_hists['triplet'].items():
+    for key, hist in hists['triplet'].items():
         if key in ['hPair12MtVsTripletMt', 'hPair13MtVsTripletMt','hPair23MtVsTripletMt', 'hRStar12VsMt', 'hRStar13VsMt', 'hRStar23VsMt']:
             continue
         hist.Write()
 
-    gHypRadVsMt = ComputeSliceMeans(lazy_hists['triplet']['hHypRadVsMt'])
+    gHypRadVsMt = ComputeSliceMeans(hists['triplet']['hHypRadVsMt'])
     gHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT (fm)')
     gHypRadVsMt.Write(f'gHypRadVsMt')
   
-    hRStarVsMt = lazy_hists['triplet']['hRStar12VsMt'].GetValue().Clone("hRStarVsMt")
-    hRStarVsMt.Add(lazy_hists['triplet']['hRStar13VsMt'].GetValue())
-    hRStarVsMt.Add(lazy_hists['triplet']['hRStar23VsMt'].GetValue())
+    hRStarVsMt = hists['triplet']['hRStar12VsMt'].GetValue().Clone("hRStarVsMt")
+    hRStarVsMt.Add(hists['triplet']['hRStar13VsMt'].GetValue())
+    hRStarVsMt.Add(hists['triplet']['hRStar23VsMt'].GetValue())
     hRStarVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});r* (fm)')
     hRStarVsMt.Write()
 
-    hPairMtVsTripletMt = lazy_hists['triplet']['hPair12MtVsTripletMt'].GetValue().Clone("hPairMtVsTripletMt")
-    hPairMtVsTripletMt.Add(lazy_hists['triplet']['hPair13MtVsTripletMt'].GetValue())
-    hPairMtVsTripletMt.Add(lazy_hists['triplet']['hPair23MtVsTripletMt'].GetValue())
+    hPairMtVsTripletMt = hists['triplet']['hPair12MtVsTripletMt'].GetValue().Clone("hPairMtVsTripletMt")
+    hPairMtVsTripletMt.Add(hists['triplet']['hPair13MtVsTripletMt'].GetValue())
+    hPairMtVsTripletMt.Add(hists['triplet']['hPair23MtVsTripletMt'].GetValue())
     hPairMtVsTripletMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});m_{T}^{2B} (GeV/#it{c});Counts')
     hPairMtVsTripletMt.Write()
 
@@ -254,25 +239,26 @@ if __name__ == '__main__':
     oFile = TFile(args.ofile, 'recreate')
     oFile.cd()
 
-    BookParticleHistograms(df, 1)
-    BookParticleHistograms(df, 2)
-    BookParticleHistograms(df, 3)
-    BookPairHistograms(df, 1, 2, 100)
-    BookPairHistograms(df, 1, 3, 100)
-    BookPairHistograms(df, 2, 3, 100)
-    BookTripletHistograms(df, 800)
+    hists = {}
+    hists['part1'] = BookParticleHistograms(df, 1)
+    hists['part2'] = BookParticleHistograms(df, 2)
+    hists['part3'] = BookParticleHistograms(df, 3)
+    hists['pair12'] = BookPairHistograms(df, 1, 2, 100)
+    hists['pair13'] = BookPairHistograms(df, 1, 3, 100)
+    hists['pair23'] = BookPairHistograms(df, 2, 3, 100)
+    hists['triplet'] = BookTripletHistograms(df, 800)
 
     log.info('The loop over the dataset has begun. This might take some time...')
-    RDF.RunGraphs([g for group in lazy_hists.values() for g in group.values()])
+    RDF.RunGraphs([g for group in hists.values() for g in group.values()])
 
-    ProcessParticle(1, oFile)
-    ProcessParticle(2, oFile)
-    ProcessParticle(3, oFile)
+    ProcessParticle(hists, 1, oFile)
+    ProcessParticle(hists, 2, oFile)
+    ProcessParticle(hists, 3, oFile)
 
-    ProcessPair(1, 2, oFile)
-    ProcessPair(1, 3, oFile)
-    ProcessPair(2, 3, oFile)
+    ProcessPair(hists, 1, 2, oFile)
+    ProcessPair(hists, 1, 3, oFile)
+    ProcessPair(hists, 2, 3, oFile)
 
-    ProcessTriplet(oFile, )
+    ProcessTriplet(hists, oFile)
 
     oFile.Close()
