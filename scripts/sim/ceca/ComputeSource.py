@@ -17,7 +17,7 @@ sys.path.append(f'{YAFFA_PATH}/src/python')
 from yaffa import logger as log
 from yaffa import utils
 
-BINING_MT = (30, 1000, 2500) # um = MeV
+BINNING_MT = (30, 1000, 2500) # um = MeV
 BINNING_SOURCE = (200, 0, 20) # um = fm
 BINNING_MOMENTUM = (2000, 0, 2000) # um = MeV/c
 
@@ -113,7 +113,7 @@ def BookPairHistograms(df, idx1, idx2, max_kstar):
         f"hKStar{idx1}{idx2}" : df.Histo1D((f"hKStar{idx1}{idx2}", f";k*_{{({idx1}, {idx2})}};Counts", *BINNING_MOMENTUM), f'kstar{idx1}{idx2}'),
         f"hTMax{idx1}{idx2}" : df_femto.Histo1D((f"hTMax{idx1}{idx2}", f";t_{{max}}^{{({idx1}, {idx2})}};Counts", *BINNING_SOURCE), f'tmax{idx1}{idx2}'),
         f"hRStar{idx1}{idx2}" : df_femto.Histo1D((f"hRStar{idx1}{idx2}", f";r*_{{({idx1}, {idx2})}};Counts", *BINNING_SOURCE), f'rstar{idx1}{idx2}'),
-        f"hRStarVsMt{idx1}{idx2}" : df_femto.Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{{({idx1}, {idx2})}} (GeV/#it{{c}});r*_{{({idx1}, {idx2})}};Counts",*BINING_MT, *BINNING_SOURCE), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
+        f"hRStarVsMt{idx1}{idx2}" : df_femto.Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{{({idx1}, {idx2})}} (GeV/#it{{c}});r*_{{({idx1}, {idx2})}};Counts",*BINNING_MT, *BINNING_SOURCE), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
     }
 
 def BookTripletHistograms(df, max_Q3):
@@ -127,13 +127,13 @@ def BookTripletHistograms(df, max_Q3):
         'hQ3' : df.Histo1D((f'hQ3', ';Q_{3} (GeV/#it{c});Counts', *BINNING_MOMENTUM), 'Q3'),
         'hHypRad' : df_femto.Histo1D((f'hHypRad', ';#rho (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypAngle' : df_femto.Histo1D((f'hHypAngle', ';#varphi (rad);Counts', 200, 0, np.pi / 2), 'hyp_angle'),
-        'hHypRadVsMt' : df_femto.Histo2D(('hHypRadVsMt', ';m_{T}^{3B} (GeV/#it{c});#rho (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'hyp_rad'),
-        'hRStar12VsMt' : df_femto.Histo2D((f'hRStar12VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,2)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar12'),
-        'hRStar13VsMt' : df_femto.Histo2D((f'hRStar13VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,3)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar13'),
-        'hRStar23VsMt' : df_femto.Histo2D((f'hRStar23VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(2,3)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar23'),
-        'hPair12MtVsTripletMt' : df_femto.Histo2D((f'hPair12MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,2)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT12'),
-        'hPair13MtVsTripletMt' : df_femto.Histo2D((f'hPair13MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,3)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT13'),
-        'hPair23MtVsTripletMt' : df_femto.Histo2D((f'hPair23MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(2,3)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT23'),
+        'hHypRadVsMt' : df_femto.Histo2D(('hHypRadVsMt', ';m_{T}^{3B} (GeV/#it{c});#rho (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'hyp_rad'),
+        'hRStar12VsMt' : df_femto.Histo2D((f'hRStar12VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,2)} (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'rstar12'),
+        'hRStar13VsMt' : df_femto.Histo2D((f'hRStar13VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,3)} (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'rstar13'),
+        'hRStar23VsMt' : df_femto.Histo2D((f'hRStar23VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(2,3)} (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'rstar23'),
+        'hPair12MtVsTripletMt' : df_femto.Histo2D((f'hPair12MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,2)} (GeV/#it{c});Counts', *BINNING_MT, *BINNING_MT), 'mT', 'mT12'),
+        'hPair13MtVsTripletMt' : df_femto.Histo2D((f'hPair13MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,3)} (GeV/#it{c});Counts', *BINNING_MT, *BINNING_MT), 'mT', 'mT13'),
+        'hPair23MtVsTripletMt' : df_femto.Histo2D((f'hPair23MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(2,3)} (GeV/#it{c});Counts', *BINNING_MT, *BINNING_MT), 'mT', 'mT23'),
     }
 
 def ProcessParticle(hists, idx, dir):
