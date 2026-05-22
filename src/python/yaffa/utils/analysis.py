@@ -13,29 +13,21 @@ def ScaleGraph(graph, value, name=None):
     '''
     Scales a TGraphAsymmErrors by the specified value
     '''
-
-    if not name:
+    if name is None:
         name = f'{graph.GetName()}_scaled'
 
     gScaled = graph.Clone(name)
+
+    scale = abs(value)
 
     for i in range(gScaled.GetN()):
         x = gScaled.GetPointX(i)
         y = gScaled.GetPointY(i)
 
-        eyLow  = gScaled.GetErrorYlow(i)
-        eyHigh = gScaled.GetErrorYhigh(i)
-
-        # scale Y and errors
         gScaled.SetPoint(i, x, y * value)
 
-        if value >= 0:
-            gScaled.SetPointEYlow(i,  eyLow  * value)
-            gScaled.SetPointEYhigh(i, eyHigh * value)
-        else:
-            # swap if scaling by negative
-            gScaled.SetPointEYlow(i,  eyHigh * value)
-            gScaled.SetPointEYhigh(i, eyLow  * value)
+        gScaled.SetPointEYlow(i, gScaled.GetErrorYlow(i)  * scale)
+        gScaled.SetPointEYhigh(i, gScaled.GetErrorYhigh(i) * scale)
 
     return gScaled
 
