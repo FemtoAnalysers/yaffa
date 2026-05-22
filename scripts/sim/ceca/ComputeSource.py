@@ -120,12 +120,13 @@ def BookParticleHistograms(df, idx):
 def BookPairHistograms(df, idx1, idx2, max_kstar):
     # If the column contains nan it was not supposed to be used. Use then an empty dataframe and ensure empty but properly defined histograms
     df = df.Filter(f"!std::isnan(x{idx1}.X())").Filter(f"!std::isnan(x{idx2}.X())")
+    df_femto = df.Filter(f'kstar{idx1}{idx2} < {max_kstar}')
 
     return {
-        f"hTMax{idx1}{idx2}" : df.Histo1D((f"hTMax{idx1}{idx2}", f";t_{max}^{({idx1}, {idx2})}", 200, 0, 20), f'tmax{idx1}{idx2}'),
-        f"hRStar{idx1}{idx2}" : df.Filter(f'kstar{idx1}{idx2} < {max_kstar}').Histo1D((f"hRStar{idx1}{idx2}", f";r*_{({idx1}, {idx2})}", 200, 0, 20), f'rstar{idx1}{idx2}'),
         f"hKStar{idx1}{idx2}" : df.Histo1D((f"hKStar{idx1}{idx2}", f";k*_{({idx1}, {idx2})}", 200, 0, 2000), f'kstar{idx1}{idx2}'),
-        f"hRStarVsMt{idx1}{idx2}" : df.Filter(f'kstar{idx1}{idx2} < {max_kstar}').Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{({idx1}, {idx2})}", 82, 950, 5050, 200, 0, 20), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
+        f"hTMax{idx1}{idx2}" : df_femto.Histo1D((f"hTMax{idx1}{idx2}", f";t_{max}^{({idx1}, {idx2})}", 200, 0, 20), f'tmax{idx1}{idx2}'),
+        f"hRStar{idx1}{idx2}" : df_femto.Histo1D((f"hRStar{idx1}{idx2}", f";r*_{({idx1}, {idx2})}", 200, 0, 20), f'rstar{idx1}{idx2}'),
+        f"hRStarVsMt{idx1}{idx2}" : df_femto.Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{({idx1}, {idx2})}", 82, 950, 5050, 200, 0, 20), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
     }
 
 def BookTripletHistograms(df, max_Q3):
