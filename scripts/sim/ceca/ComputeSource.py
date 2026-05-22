@@ -17,24 +17,11 @@ sys.path.append(f'{YAFFA_PATH}/src/python')
 from yaffa import logger as log
 from yaffa import utils
 
-def ComputeSliceMeans(gRadiusVsMt):
-    mTbins = range(0, 4001, 100)
-    slices = utils.analysis.SliceVertically(gRadiusVsMt, mTbins, name='hRStar_mT')
-    mask = np.array([s.Integral() > 0 for s in slices] , dtype='bool')
+BINING_MT = (30, 1000, 2500) # um = MeV
+BINNING_SOURCE = (200, 0, 20) # um = fm
+BINNING_MOMENTUM = (2000, 0, 2000) # um = MeV/c
 
-    means = [hist.GetMean() for hist in slices]
-    errors = [hist.GetMeanError() for hist in slices]
-    
-    x = np.array([(mTbins[i] + mTbins[i + 1]) / 2 for i in range(len(mTbins) - 1)], dtype='double')
-    y = np.array(means, dtype='double')
-    yUnc = np.array(errors, dtype='double')
-
-    # TODO: Now using standard mean error (assume gaussianity). Think of a better way (Bootstrap?)
-    gMtScaling = TGraphAsymmErrors(len(x[mask]), x[mask], y[mask], 0, 0, yUnc[mask], yUnc[mask])
-
-    return gMtScaling
-
-def DefineVariables(df, m1, m2, m3, arbitraryMass, ):
+def DefineVariables(df, m1, m2, m3, arbitraryMass):
     # Define variables for single particles
     for idx in [1, 2, 3]:
         df = df \
@@ -111,10 +98,10 @@ def DefineVariables(df, m1, m2, m3, arbitraryMass, ):
 
 def BookParticleHistograms(df, idx):
     return {
-        f'hT{idx}' : df.Histo1D((f'hT{idx}', f";t_{idx} (fm/c);Counts", 200, 0, 20), f't{idx}'),
-        f'hX{idx}' : df.Histo1D((f'hX{idx}', f";x_{idx} (fm);Counts", 200, 0, 20), f'x{idx}_x'),
-        f'hY{idx}' : df.Histo1D((f'hY{idx}', f";y_{idx} (fm);Counts", 200, 0, 20), f'x{idx}_y'),
-        f'hZ{idx}' : df.Histo1D((f'hZ{idx}', f";z_{idx} (fm);Counts", 200, 0, 20), f'x{idx}_z'),
+        f'hT{idx}' : df.Histo1D((f'hT{idx}', f";t_{{idx}} (fm/c);Counts", *BINNING_SOURCE), f't{idx}'),
+        f'hX{idx}' : df.Histo1D((f'hX{idx}', f";x_{{idx}} (fm);Counts", *BINNING_SOURCE), f'x{idx}_x'),
+        f'hY{idx}' : df.Histo1D((f'hY{idx}', f";y_{{idx}} (fm);Counts", *BINNING_SOURCE), f'x{idx}_y'),
+        f'hZ{idx}' : df.Histo1D((f'hZ{idx}', f";z_{{idx}} (fm);Counts", *BINNING_SOURCE), f'x{idx}_z'),
     }
     
 def BookPairHistograms(df, idx1, idx2, max_kstar):
@@ -123,10 +110,10 @@ def BookPairHistograms(df, idx1, idx2, max_kstar):
     df_femto = df.Filter(f'kstar{idx1}{idx2} < {max_kstar}')
 
     return {
-        f"hKStar{idx1}{idx2}" : df.Histo1D((f"hKStar{idx1}{idx2}", f";k*_{({idx1}, {idx2})}", 200, 0, 2000), f'kstar{idx1}{idx2}'),
-        f"hTMax{idx1}{idx2}" : df_femto.Histo1D((f"hTMax{idx1}{idx2}", f";t_{max}^{({idx1}, {idx2})}", 200, 0, 20), f'tmax{idx1}{idx2}'),
-        f"hRStar{idx1}{idx2}" : df_femto.Histo1D((f"hRStar{idx1}{idx2}", f";r*_{({idx1}, {idx2})}", 200, 0, 20), f'rstar{idx1}{idx2}'),
-        f"hRStarVsMt{idx1}{idx2}" : df_femto.Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{({idx1}, {idx2})}", 82, 950, 5050, 200, 0, 20), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
+        f"hKStar{idx1}{idx2}" : df.Histo1D((f"hKStar{idx1}{idx2}", f";k*_{{({idx1}, {idx2})}};Counts", *BINNING_MOMENTUM), f'kstar{idx1}{idx2}'),
+        f"hTMax{idx1}{idx2}" : df_femto.Histo1D((f"hTMax{idx1}{idx2}", f";t_{{max}}^{{({idx1}, {idx2})}};Counts", *BINNING_SOURCE), f'tmax{idx1}{idx2}'),
+        f"hRStar{idx1}{idx2}" : df_femto.Histo1D((f"hRStar{idx1}{idx2}", f";r*_{{({idx1}, {idx2})}};Counts", *BINNING_SOURCE), f'rstar{idx1}{idx2}'),
+        f"hRStarVsMt{idx1}{idx2}" : df_femto.Histo2D((f"hRStarVsMt{idx1}{idx2}", f";m_{{T}}^{{({idx1}, {idx2})}} (GeV/#it{{c}});r*_{{({idx1}, {idx2})}};Counts",*BINING_MT, *BINNING_SOURCE), f'mT{idx1}{idx2}', f'rstar{idx1}{idx2}'),
     }
 
 def BookTripletHistograms(df, max_Q3):
@@ -136,17 +123,17 @@ def BookTripletHistograms(df, max_Q3):
     df_femto = df.Filter(f'Q3 < {max_Q3}')
 
     return {
-        'hQ' : df.Histo1D((f'hQ', f';Q (GeV/#it{{c}});Counts', 2000, 0, 2000), 'Q'),
-        'hQ3' : df.Histo1D((f'hQ3', f';Q_{3} (GeV/#it{{c}});Counts', 2000, 0, 2000), 'Q3'),
-        'hHypRad' : df_femto.Histo1D((f'hHypRad', f';#rho (fm);Counts', 200, 0, 20), 'hyp_rad'),
-        'hHypAngle' : df_femto.Histo1D((f'hHypAngle', f';#varphi (rad);Counts', 200, 0, np.pi / 2), 'hyp_angle'),
-        'hHypRadVsMt' : df_femto.Histo2D(('hHypRadVsMt', ';m_{T}^{3B} (GeV/#it{c});#rho (fm)', 82, 950, 5050, 200, 0, 20), 'mT', 'hyp_rad'),
-        'hRStar12VsMt' : df_femto.Histo2D((f'hRStar12VsMt', ';m_{T}^{3B};r*_{(1,2)} (fm)', 82, 950, 5050, 200, 0, 20), 'mT', 'rstar12'),
-        'hRStar13VsMt' : df_femto.Histo2D((f'hRStar13VsMt', ';m_{T}^{3B};r*_{(1,3)} (fm)', 82, 950, 5050, 200, 0, 20), 'mT', 'rstar13'),
-        'hRStar23VsMt' : df_femto.Histo2D((f'hRStar23VsMt', ';m_{T}^{3B};r*_{(2,3)} (fm)', 82, 950, 5050, 200, 0, 20), 'mT', 'rstar23'),
-        'hPair12MtVsTripletMt' : df_femto.Histo2D((f'hPair12MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{{(1,2)}} (GeV/#it{c});Counts', 1600, 900, 2500, 1600, 900, 2500), 'mT', 'mT12'),
-        'hPair13MtVsTripletMt' : df_femto.Histo2D((f'hPair13MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{{(1,3)}} (GeV/#it{c});Counts', 1600, 900, 2500, 1600, 900, 2500), 'mT', 'mT13'),
-        'hPair23MtVsTripletMt' : df_femto.Histo2D((f'hPair23MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{{(2,3)}} (GeV/#it{c});Counts', 1600, 900, 2500, 1600, 900, 2500), 'mT', 'mT23'),
+        'hQ' : df.Histo1D((f'hQ', ';Q (GeV/#it{c});Counts', *BINNING_MOMENTUM), 'Q'),
+        'hQ3' : df.Histo1D((f'hQ3', ';Q_{3} (GeV/#it{c});Counts', *BINNING_MOMENTUM), 'Q3'),
+        'hHypRad' : df_femto.Histo1D((f'hHypRad', ';#rho (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
+        'hHypAngle' : df_femto.Histo1D((f'hHypAngle', ';#varphi (rad);Counts', 200, 0, np.pi / 2), 'hyp_angle'),
+        'hHypRadVsMt' : df_femto.Histo2D(('hHypRadVsMt', ';m_{T}^{3B} (GeV/#it{c});#rho (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'hyp_rad'),
+        'hRStar12VsMt' : df_femto.Histo2D((f'hRStar12VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,2)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar12'),
+        'hRStar13VsMt' : df_femto.Histo2D((f'hRStar13VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,3)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar13'),
+        'hRStar23VsMt' : df_femto.Histo2D((f'hRStar23VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(2,3)} (fm)', *BINING_MT, *BINNING_SOURCE), 'mT', 'rstar23'),
+        'hPair12MtVsTripletMt' : df_femto.Histo2D((f'hPair12MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,2)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT12'),
+        'hPair13MtVsTripletMt' : df_femto.Histo2D((f'hPair13MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(1,3)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT13'),
+        'hPair23MtVsTripletMt' : df_femto.Histo2D((f'hPair23MtVsTripletMt', ';m_{T}^{3B} (GeV/#it{c});m_{T}^{(2,3)} (GeV/#it{c});Counts', *BINING_MT, *BINING_MT), 'mT', 'mT23'),
     }
 
 def ProcessParticle(hists, idx, dir):
@@ -169,9 +156,9 @@ def ProcessPair(hists, idx1, idx2, dir):
     for hist in hists[f'pair{idx1}{idx2}'].values():
         hist.Write()
 
-    hRStarVsMt = hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"]
-    gMt = ComputeSliceMeans(hRStarVsMt)
-    gMt.Write(f'gMt{idx1}{idx2}')
+    pRStarVsMt = hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"].ProfileX()
+    pRStarVsMt.SetTitle(';m_{T} (GeV/#it{c});r* (fm)')
+    pRStarVsMt.Write(f'pRStarVsMt{idx1}{idx2}')
 
     dir.cd()
 
@@ -185,9 +172,9 @@ def ProcessTriplet(hists, dir):
             continue
         hist.Write()
 
-    gHypRadVsMt = ComputeSliceMeans(hists['triplet']['hHypRadVsMt'])
-    gHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT (fm)')
-    gHypRadVsMt.Write(f'gHypRadVsMt')
+    pHypRadVsMt = hists['triplet']['hHypRadVsMt'].ProfileX('pHypRadVsMt')
+    pHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT (fm)')
+    pHypRadVsMt.Write(f'gHypRadVsMt')
   
     hRStarVsMt = hists['triplet']['hRStar12VsMt'].GetValue().Clone("hRStarVsMt")
     hRStarVsMt.Add(hists['triplet']['hRStar13VsMt'].GetValue())
@@ -201,18 +188,18 @@ def ProcessTriplet(hists, dir):
     hPairMtVsTripletMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});m_{T}^{2B} (GeV/#it{c});Counts')
     hPairMtVsTripletMt.Write()
 
-    gPairMtVsTripletMt = ComputeSliceMeans(hPairMtVsTripletMt)
-    gPairMtVsTripletMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});m_{T}^{2B} (GeV/#it{c})')
-    gPairMtVsTripletMt.Write('gPairMtVsTripletMt')
+    pPairMtVsTripletMt = hPairMtVsTripletMt.ProfileX('pPairMtVsTripletMt')
+    pPairMtVsTripletMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});m_{T}^{2B} (GeV/#it{c})')
+    pPairMtVsTripletMt.Write('gPairMtVsTripletMt')
 
-    gRStarVsMt = ComputeSliceMeans(hRStarVsMt)
-    gRStarVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT r*#GT (fm)')
-    gRStarVsMt.Write(f'gRStarVsMt123')
+    pRStarVsMt = hRStarVsMt.ProfileX('pRStarVsMt')
+    pRStarVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT r*#GT (fm)')
+    pRStarVsMt.Write(f'gRStarVsMt123')
 
-    gExpectedHypRadVsMt = gRStarVsMt.Clone('gExpectedHypRadVsMt')
-    gExpectedHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT_{exp} (fm)')
-    gExpectedHypRadVsMt.Scale(15 * np.pi / 32)
-    gExpectedHypRadVsMt.Write()
+    pExpectedHypRadVsMt = pRStarVsMt.Clone('gExpectedHypRadVsMt')
+    pExpectedHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT_{exp} (fm)')
+    pExpectedHypRadVsMt.Scale(15 * np.pi / 32)
+    pExpectedHypRadVsMt.Write()
 
     dir.cd()
 
