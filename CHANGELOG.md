@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Next:
+### Added
+- Code to generate the ppp source with CECA
+- Wave function for ppp from E. Garrido et al., PLB 868 (2025) 139731'
+
 ### Changed
 - Massive refactoring of the code: merging several branches and renaming many files
 - Started consistent use of tests in pre-commit hooks

@@ -33,6 +33,7 @@
 #include "TROOT.h"
 #include "TRandom3.h"
 #include "TSystem.h"
+#include "TList.h"
 
 // DLM headers
 #include "CATS.h"
@@ -178,6 +179,7 @@ int main(int argc, const char** argv) {
     const bool EQUALIZE_TAU = cfg["equalize_tau"].as<bool>();
     const unsigned Multiplicity = cfg["mult"].as<unsigned>();
     const double femto_region = cfg["femto_region"].as<double>();
+    const double femto_region3B = cfg["femto_region3B"].as<double>(800);
     const unsigned target_yield = cfg["target_yield"].as<unsigned>();  // originally 4M
     const bool removeBoost = cfg["remove_boost"].as<bool>();           // Set particle's masses to 1 TeV
     double rSP_core = cfg["disp"].as<double>();
@@ -199,6 +201,8 @@ int main(int argc, const char** argv) {
 
     TREPNI Database(0);
     Database.SetSeed(11);
+    Database.SetTotalYield(100); // This triggers a check on the total abundance (i.e. fractions) of the particles and sends an error if the
+
     std::vector<TreParticle*> ParticleList;
     ParticleList.push_back(Database.NewParticle("Proton"));
     ParticleList.push_back(Database.NewParticle("PrimProton"));
@@ -288,9 +292,9 @@ int main(int argc, const char** argv) {
     fOutput.cd();
 
     for (TreParticle* prt : ParticleList) {
-        if (prt->GetName() == "Proton" || prt->GetName() == "PrimProton") {
+        if (prt->GetName() == "Proton") {
             if (removeBoost) {
-                prt->SetMass(1000000);
+                prt->SetMass(Mass_p * 1000000);
             } else {
                 prt->SetMass(Mass_p);
             }
@@ -307,11 +311,11 @@ int main(int argc, const char** argv) {
             prt->SetPtEtaPhi(dlm_pT_eta_p);
         } else if (prt->GetName() == "ProtonReso") {
             if (removeBoost) {
-                prt->SetMass(1000000 * 1362. / 0.938);
+                prt->SetMass(1000000 * 1362);
             } else {
                 prt->SetMass(1362); // From PLB 811 (2020) 135849
             }
-            if (system == "pp" || system == "pP")
+            if (system == "pp" || system == "pP" || system == "ppp")
                 prt->SetAbundance((100. - frac_protons) * PROTON_RESO);
             else
                 prt->SetAbundance(0);
@@ -374,6 +378,7 @@ int main(int argc, const char** argv) {
     ceca.SetGlobalTimeout(globalTimeout);
     ceca.EqualizeFsiTime(EQUALIZE_TAU);
     ceca.SetFemtoRegion(femto_region);
+    ceca.SetFemtoRegion3B(femto_region3B);
     ceca.GHETTO_EVENT = true;
 
     // ceca paper
@@ -398,34 +403,98 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_RadMax = 20;
 
     // Run CECA
+    unsigned nParticlesDB = Database.GetNumParticles();
+    std::cout << "Particle database contains " << nParticlesDB << " particles" << std::endl;
+    std::cout << " Fraction (%)    Name" << std::endl;
+    for (int iPart = 0; iPart < nParticlesDB; iPart++) {
+        const auto part = Database.GetParticle(iPart);
+        std::cout << " - " <<  std::setw(6) << std::fixed << std::setprecision(2) << part->GetAbundance() << "      " << part->GetName() << std::endl;
+    }
+
     ceca.GoBabyGo(NUM_CPU);
+
+    fOutput.cd();
+    ceca.GetEvents()->Write();
+
+
+    TList *l3B = new TList();
 
     auto dlmR12R312 = ceca.GetR12R312();
     dlmR12R312->ComputeError();
     TH2F* hR12R312 = Convert_DlmHisto_TH2F(dlmR12R312, "hR12R312");
+    hR12R312->ResetStats();
     hR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
 
     auto dlmMtSimpleVs4VectorAverage = ceca.GetMtSimpleVs4VectorAverage();
     dlmMtSimpleVs4VectorAverage->ComputeError();
     TH2F* hMtSimpleVs4VectorAverage = Convert_DlmHisto_TH2F(dlmMtSimpleVs4VectorAverage, "hMtSimpleVs4VectorAverage");
+    hMtSimpleVs4VectorAverage->ResetStats();
     hMtSimpleVs4VectorAverage->SetTitle(";m_{T}^{4vector} (GeV);m_{T}^{simple} (GeV); Counts");
 
     auto dlmPhiVsRho = ceca.GetPhiVsRho();
     dlmPhiVsRho->ComputeError();
     TH2F* hPhiVsRho = Convert_DlmHisto_TH2F(dlmPhiVsRho, "hPhiVsRho");
+    hPhiVsRho->ResetStats();
     hPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
 
     // TODO genralize to AAB and ABC systems
     auto dlmKStarInTriplets = ceca.GetKStarInTriplets();
     dlmKStarInTriplets->ComputeError();
     TH1F* hKStarInTriplets = Convert_DlmHisto_TH1F(dlmKStarInTriplets, "hKStarInTriplets");
+    hKStarInTriplets->ResetStats();
     hKStarInTriplets->SetTitle(";k* (MeV/c); Counts");
 
     // TODO genralize to AAB and ABC systems
     auto dlmRStarInTriplets = ceca.GetRStarInTriplets();
     dlmRStarInTriplets->ComputeError();
     TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(dlmRStarInTriplets, "hRStarInTriplets");
+    hRStarInTriplets->ResetStats();
     hRStarInTriplets->SetTitle(";r* (fm); Counts");
+
+    auto dlmFemtoR12R312 = ceca.GetFemtoR12R312();
+    dlmFemtoR12R312->ComputeError();
+    TH2F* hFemtoR12R312 = Convert_DlmHisto_TH2F(dlmFemtoR12R312, "hFemtoR12R312");
+    hFemtoR12R312->ResetStats();
+    hFemtoR12R312->SetTitle(";r_{12} (fm);r_{3,12} (fm); Counts");
+
+    auto dlmFemtoMtSimpleVs4VectorAverage = ceca.GetFemtoMtSimpleVs4VectorAverage();
+    dlmFemtoMtSimpleVs4VectorAverage->ComputeError();
+    TH2F* hFemtoMtSimpleVs4VectorAverage = Convert_DlmHisto_TH2F(dlmFemtoMtSimpleVs4VectorAverage, "hFemtoMtSimpleVs4VectorAverage");
+    hFemtoMtSimpleVs4VectorAverage->ResetStats();
+    hFemtoMtSimpleVs4VectorAverage->SetTitle(";m_{T}^{4vector} (GeV);m_{T}^{simple} (GeV); Counts");
+
+    auto dlmFemtoPhiVsRho = ceca.GetFemtoPhiVsRho();
+    dlmFemtoPhiVsRho->ComputeError();
+    TH2F* hFemtoPhiVsRho = Convert_DlmHisto_TH2F(dlmFemtoPhiVsRho, "hFemtoPhiVsRho");
+    hFemtoPhiVsRho->ResetStats();
+    hFemtoPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
+
+    auto dlmFemtoRhoVsMt = ceca.GetFemtoRhoVsMt();
+    dlmFemtoRhoVsMt->ComputeError();
+    TH2F* hFemtoRhoVsMt = Convert_DlmHisto_TH2F(dlmFemtoRhoVsMt, "hFemtoRhoVsMt");
+    hFemtoRhoVsMt->ResetStats();
+    hFemtoRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
+
+    auto dlmFemtoRStarInTriplets = ceca.GetFemtoRStarInTriplets();
+    dlmFemtoRStarInTriplets->ComputeError();
+    TH1F* hFemtoRStarInTriplets = Convert_DlmHisto_TH1F(dlmFemtoRStarInTriplets, "hFemtoRStarInTriplets");
+    hFemtoRStarInTriplets->ResetStats();
+    hFemtoRStarInTriplets->SetTitle(";r* (fm); Counts");
+
+    auto dlmFemtoRStarFemtoPairsInTripletsVsMt = ceca.GetFemtoRStarFemtoPairsInTripletsVsMt();
+    dlmFemtoRStarFemtoPairsInTripletsVsMt->ComputeError();
+    TH2F* hFemtoRStarFemtoPairsInTripletsVsMt = Convert_DlmHisto_TH2F(dlmFemtoRStarFemtoPairsInTripletsVsMt, "hFemtoRStarFemtoPairsInTripletsVsMt");
+    hFemtoRStarFemtoPairsInTripletsVsMt->ResetStats();
+    hFemtoRStarFemtoPairsInTripletsVsMt->SetTitle(";m_{T}* (MeV); r* (fm); Counts");
+
+    auto dlmFemtoPairsMt = ceca.GetFemtoPairsMt();
+    for (auto& [pairIndex, dlmMt] : dlmFemtoPairsMt) {
+        dlmMt->ComputeError();
+        TH1F* hFemtoPairMt = Convert_DlmHisto_TH1F(dlmMt, Form("hFemtoPairMt%d", pairIndex));
+        hFemtoPairMt->ResetStats();
+        hFemtoPairMt->SetTitle(Form(";m_{T}^{(%d,%d)} (MeV); Counts", pairIndex / 10, pairIndex % 10));
+        l3B->Add(hFemtoPairMt);
+    }
 
     fOutput.cd();
     hR12R312->Write();
@@ -433,6 +502,14 @@ int main(int argc, const char** argv) {
     hPhiVsRho->Write();
     hKStarInTriplets->Write();
     hRStarInTriplets->Write();
+
+    hFemtoPhiVsRho->Write();
+    hFemtoRStarInTriplets->Write();
+    hFemtoRStarFemtoPairsInTripletsVsMt->Write();
+    hFemtoR12R312->Write();
+    hFemtoMtSimpleVs4VectorAverage->Write();
+    hFemtoRhoVsMt->Write();
+    l3B->Write();
 
     // ceca.Ghetto_kstar_rstar_mT->QuickWrite(BaseFileName + ".Ghetto_kstar_rstar_mT", true);
 
@@ -454,6 +531,18 @@ int main(int argc, const char** argv) {
     printf("PR%6.2f%% %6.2f\n", TotPR * 100., FemtoPR * 100.);
     printf("RP%6.2f%% %6.2f\n", TotRP * 100., FemtoRP * 100.);
     printf("RR%6.2f%% %6.2f\n", TotRR * 100., FemtoRR * 100.);
+
+    // Print information about the origin of the femto pairs/triplets
+    const auto femtoParticleOrigin = ceca.GetFemtoParticleOrigin();
+    unsigned nParticles = 0;
+    for (const auto& [_, value] : femtoParticleOrigin) {
+        nParticles += value;
+    }
+    std::cout << "Total number of multiplets in the femto region: " << nParticles << ", of which:" << std::endl;
+    for (const auto& [key, value] : femtoParticleOrigin) {
+        std::cout << " - " << key << ": " << std::fixed << setw(6) << std::setprecision(2) 
+            << double(value) / nParticles * 100 << " % (" << value << ")" << std::endl;
+    }
 
     ceca.GhettoFemto_rstar->ComputeError();
     ceca.GhettoFemto_rstar->ScaleToIntegral();
@@ -481,6 +570,7 @@ int main(int argc, const char** argv) {
     fOutput.cd();
 
     TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rstar, "GhettoFemto_rstar");
+    h_GhettoFemto_rstar->ResetStats();
     fOutput.cd();
     h_GhettoFemto_rstar->SetLineWidth(3);
     h_GhettoFemto_rstar->SetLineColor(kAzure);
@@ -500,6 +590,7 @@ int main(int argc, const char** argv) {
     ceca.GhettoFemto_rcore->ScaleToIntegral();
     ceca.GhettoFemto_rcore->ScaleToBinSize();
     TH1F* h_GhettoFemto_rcore = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rcore, "GhettoFemto_rcore");
+    h_GhettoFemto_rcore->ResetStats();
     fOutput.cd();
     h_GhettoFemto_rcore->SetLineWidth(3);
     h_GhettoFemto_rcore->SetLineColor(kBlack);
@@ -517,38 +608,61 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_kstar->ScaleToIntegral();
     ceca.Ghetto_kstar->ScaleToBinSize();
     TH1F* h_Ghetto_kstar = Convert_DlmHisto_TH1F(ceca.Ghetto_kstar, "Ghetto_kstar");
+    h_Ghetto_kstar->ResetStats();
     ceca.Ghetto_kstar_rstar->ComputeError();
     TH2F* h_Ghetto_kstar_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar, "Ghetto_kstar_rstar");
+    h_Ghetto_kstar_rstar->ResetStats();
 
     ceca.Ghetto_kstar_rstar_PP->ComputeError();
     TH2F* h_Ghetto_kstar_rstar_PP = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_PP, "Ghetto_kstar_rstar_PP");
+    h_Ghetto_kstar_rstar_PP->ResetStats();
     ceca.Ghetto_kstar_rstar_PR->ComputeError();
     TH2F* h_Ghetto_kstar_rstar_PR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_PR, "Ghetto_kstar_rstar_PR");
+    h_Ghetto_kstar_rstar_PR->ResetStats();
     ceca.Ghetto_kstar_rstar_RP->ComputeError();
     TH2F* h_Ghetto_kstar_rstar_RP = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RP, "Ghetto_kstar_rstar_RP");
+    h_Ghetto_kstar_rstar_RP->ResetStats();
     ceca.Ghetto_kstar_rstar_RR->ComputeError();
     TH2F* h_Ghetto_kstar_rstar_RR = Convert_DlmHisto_TH2F(ceca.Ghetto_kstar_rstar_RR, "Ghetto_kstar_rstar_RR");
+    h_Ghetto_kstar_rstar_RR->ResetStats();
 
+    ceca.Ghetto_mT_rstar->ComputeError();
     TH2F* h_Ghetto_mT_rstar = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_rstar, "Ghetto_mT_rstar");
+    h_Ghetto_mT_rstar->ResetStats();
     auto dlmRhoVsMt = ceca.GetRhoVsMt();
     dlmRhoVsMt->ComputeError();
     TH2F* hRhoVsMt = Convert_DlmHisto_TH2F(dlmRhoVsMt, "hRhoVsMt");
+    hRhoVsMt->ResetStats();
     hRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
     ceca.GhettoFemto_mT_rstar->ComputeError();
     TH2F* hRStarVsMt = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rstar, "hRStarVsMt");
+    hRStarVsMt->ResetStats();
     hRStarVsMt->SetTitle(";m_{T} (GeV);r* (fm)");
 
     // fOutput.cd();
     ceca.GhettoFemto_mT_rcore->ComputeError();
     TH2F* h_GhettoFemto_mT_rcore = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_rcore, "GhettoFemto_mT_rcore");
+    h_GhettoFemto_mT_rcore->ResetStats();
+    ceca.GhettoFemto_mT_kstar->ComputeError();
     TH2F* h_GhettoFemto_mT_kstar = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_kstar, "GhettoFemto_mT_kstar");
+    h_GhettoFemto_mT_kstar->ResetStats();
+    ceca.Ghetto_mT_costh->ComputeError();
     TH2F* h_Ghetto_mT_costh = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_costh, "Ghetto_mT_costh");
+    h_Ghetto_mT_costh->ResetStats();
+
+    ceca.GhettoSP_pT_th->ComputeError();
     TH2F* h_GhettoSP_pT_th = Convert_DlmHisto_TH2F(ceca.GhettoSP_pT_th, "GhettoSP_pT_th");
+    h_GhettoSP_pT_th->ResetStats();
+    ceca.GhettoSP_pT_1->ComputeError();
     TH1F* h_GhettoSP_pT_1 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_1, "GhettoSP_pT_1");
+    h_GhettoSP_pT_1->ResetStats();
+    ceca.GhettoSP_pT_2->ComputeError();
     TH1F* h_GhettoSP_pT_2 = Convert_DlmHisto_TH1F(ceca.GhettoSP_pT_2, "GhettoSP_pT_2");
+    h_GhettoSP_pT_2->ResetStats();
     // ceca.GhettoFemto_rstar->ComputeError();
     // TH1F* h_GhettoFemto_rstar = Convert_DlmHisto_TH1F(ceca.GhettoFemto_rstar,"GhettoFemto_rstar");
+    h_GhettoFemto_rstar->ResetStats();
     ceca.Ghetto_PP_AngleRcP1->ComputeError();
     ceca.Ghetto_PP_AngleRcP2->ComputeError();
     ceca.Ghetto_PP_AngleP1P2->ComputeError();
@@ -558,75 +672,97 @@ int main(int argc, const char** argv) {
     ceca.Ghetto_RR_AngleRcP2->ComputeError();
     ceca.Ghetto_RR_AngleP1P2->ComputeError();
     TH1F* h_Ghetto_PP_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleRcP1, "Ghetto_PP_AngleRcP1");
+    h_Ghetto_PP_AngleRcP1->ResetStats();
     TH1F* h_Ghetto_PP_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleRcP2, "Ghetto_PP_AngleRcP2");
+    h_Ghetto_PP_AngleRcP2->ResetStats();
     TH1F* h_Ghetto_PP_AngleP1P2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PP_AngleP1P2, "Ghetto_PP_AngleP1P2");
+    h_Ghetto_PP_AngleP1P2->ResetStats();
     TH1F* h_Ghetto_RP_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_RP_AngleRcP1, "Ghetto_RP_AngleRcP1");
+    h_Ghetto_RP_AngleRcP1->ResetStats();
     TH1F* h_Ghetto_PR_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_PR_AngleRcP2, "Ghetto_PR_AngleRcP2");
+    h_Ghetto_PR_AngleRcP2->ResetStats();
     TH1F* h_Ghetto_RR_AngleRcP1 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleRcP1, "Ghetto_RR_AngleRcP1");
+    h_Ghetto_RR_AngleRcP1->ResetStats();
     TH1F* h_Ghetto_RR_AngleRcP2 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleRcP2, "Ghetto_RR_AngleRcP2");
+    h_Ghetto_RR_AngleRcP2->ResetStats();
     TH1F* h_Ghetto_RR_AngleP1P2 = Convert_DlmHisto_TH1F(ceca.Ghetto_RR_AngleP1P2, "Ghetto_RR_AngleP1P2");
+    h_Ghetto_RR_AngleP1P2->ResetStats();
 
     ceca.GhettoSPr_X->ComputeError();
     ceca.GhettoSPr_X->ScaleToIntegral();
     ceca.GhettoSPr_X->ScaleToBinSize();
     TH1F* h_GhettoSPr_X = Convert_DlmHisto_TH1F(ceca.GhettoSPr_X, "GhettoSPr_X");
+    h_GhettoSPr_X->ResetStats();
 
     ceca.GhettoSPr_Y->ComputeError();
     ceca.GhettoSPr_Y->ScaleToIntegral();
     ceca.GhettoSPr_Y->ScaleToBinSize();
     TH1F* h_GhettoSPr_Y = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Y, "GhettoSPr_Y");
+    h_GhettoSPr_Y->ResetStats();
 
     ceca.GhettoSPr_Z->ComputeError();
     ceca.GhettoSPr_Z->ScaleToIntegral();
     ceca.GhettoSPr_Z->ScaleToBinSize();
     TH1F* h_GhettoSPr_Z = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Z, "GhettoSPr_Z");
+    h_GhettoSPr_Z->ResetStats();
 
     ceca.GhettoSPr_Rho->ComputeError();
     ceca.GhettoSPr_Rho->ScaleToIntegral();
     ceca.GhettoSPr_Rho->ScaleToBinSize();
     TH1F* h_GhettoSPr_Rho = Convert_DlmHisto_TH1F(ceca.GhettoSPr_Rho, "GhettoSPr_Rho");
+    h_GhettoSPr_Rho->ResetStats();
 
     ceca.GhettoSPr_R->ComputeError();
     ceca.GhettoSPr_R->ScaleToIntegral();
     ceca.GhettoSPr_R->ScaleToBinSize();
     TH1F* h_GhettoSPr_R = Convert_DlmHisto_TH1F(ceca.GhettoSPr_R, "GhettoSPr_R");
+    h_GhettoSPr_R->ResetStats();
 
     ceca.GhettoSP_X->ComputeError();
     ceca.GhettoSP_X->ScaleToIntegral();
     ceca.GhettoSP_X->ScaleToBinSize();
     TH1F* h_GhettoSP_X = Convert_DlmHisto_TH1F(ceca.GhettoSP_X, "GhettoSP_X");
+    h_GhettoSP_X->ResetStats();
 
     ceca.GhettoSP_Y->ComputeError();
     ceca.GhettoSP_Y->ScaleToIntegral();
     ceca.GhettoSP_Y->ScaleToBinSize();
     TH1F* h_GhettoSP_Y = Convert_DlmHisto_TH1F(ceca.GhettoSP_Y, "GhettoSP_Y");
+    h_GhettoSP_Y->ResetStats();
 
     ceca.GhettoSP_Z->ComputeError();
     ceca.GhettoSP_Z->ScaleToIntegral();
     ceca.GhettoSP_Z->ScaleToBinSize();
     TH1F* h_GhettoSP_Z = Convert_DlmHisto_TH1F(ceca.GhettoSP_Z, "GhettoSP_Z");
+    h_GhettoSP_Z->ResetStats();
 
     ceca.GhettoSP_Rho->ComputeError();
     ceca.GhettoSP_Rho->ScaleToIntegral();
     ceca.GhettoSP_Rho->ScaleToBinSize();
     TH1F* h_GhettoSP_Rho = Convert_DlmHisto_TH1F(ceca.GhettoSP_Rho, "GhettoSP_Rho");
+    h_GhettoSP_Rho->ResetStats();
 
     ceca.GhettoSP_R->ComputeError();
     ceca.GhettoSP_R->ScaleToIntegral();
     ceca.GhettoSP_R->ScaleToBinSize();
     TH1F* h_GhettoSP_R = Convert_DlmHisto_TH1F(ceca.GhettoSP_R, "GhettoSP_R");
+    h_GhettoSP_R->ResetStats();
 
     ceca.GhettoFemto_mT_mTwrong->ComputeError();
     TH2F* h_GhettoFemto_mT_mTwrong = Convert_DlmHisto_TH2F(ceca.GhettoFemto_mT_mTwrong, "GhettoFemto_mT_mTwrong");
+    h_GhettoFemto_mT_mTwrong->ResetStats();
 
     ceca.Ghetto_mT_mTwrong->ComputeError();
     TH2F* h_Ghetto_mT_mTwrong = Convert_DlmHisto_TH2F(ceca.Ghetto_mT_mTwrong, "Ghetto_mT_mTwrong");
+    h_Ghetto_mT_mTwrong->ResetStats();
 
     ceca.GhettoFemto_pT1_pT2->ComputeError();
     TH2F* h_GhettoFemto_pT1_pT2 = Convert_DlmHisto_TH2F(ceca.GhettoFemto_pT1_pT2, "GhettoFemto_pT1_pT2");
+    h_GhettoFemto_pT1_pT2->ResetStats();
 
     ceca.GhettoFemto_pT1_div_pT->ComputeError();
     TH1F* h_GhettoFemto_pT1_div_pT = Convert_DlmHisto_TH1F(ceca.GhettoFemto_pT1_div_pT, "GhettoFemto_pT1_div_pT");
+    h_GhettoFemto_pT1_div_pT->ResetStats();
 
     TGraphErrors g_GhettoFemto_mT_rstar;
     g_GhettoFemto_mT_rstar.SetName("g_GhettoFemto_mT_rstar");

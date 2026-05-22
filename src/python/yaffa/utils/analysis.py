@@ -9,6 +9,51 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # 
 
 from yaffa import logger as log
 
+def ScaleGraph(graph, value, name=None):
+    '''
+    Scales a TGraphAsymmErrors by the specified value
+    '''
+    if name is None:
+        name = f'{graph.GetName()}_scaled'
+
+    gScaled = graph.Clone(name)
+
+    scale = abs(value)
+
+    for i in range(gScaled.GetN()):
+        x = gScaled.GetPointX(i)
+        y = gScaled.GetPointY(i)
+
+        gScaled.SetPoint(i, x, y * value)
+
+        gScaled.SetPointEYlow(i, gScaled.GetErrorYlow(i)  * scale)
+        gScaled.SetPointEYhigh(i, gScaled.GetErrorYhigh(i) * scale)
+
+    return gScaled
+
+def SliceVertically(hist, edges, name=None):
+    '''
+    Slice a TH2 vertically (ProjectionY) and return the list of slices
+    '''
+
+    slices = []
+    lowEdges = edges[:-1]
+    upEdges = edges[1:]
+    if not name:
+        name = hist.GetName()
+
+    for lowEdge, upEdge in zip(lowEdges, upEdges):
+        firstBin = hist.GetXaxis().FindBin(lowEdge * 1.0001)
+        lastBin = hist.GetXaxis().FindBin(upEdge * 0.9999)
+
+        slices.append(hist.ProjectionY(f'{name}{lowEdge:.0f}_{upEdge:.0f}', firstBin, lastBin))
+
+        # Exclude underflow and overflow
+        if lastBin <= 0 or firstBin >= hist.GetNbinsX():
+            slices[-1].Reset()
+
+    return slices
+
 
 def CopyHistInSubrange(hist, xMin, xMax):
     '''
