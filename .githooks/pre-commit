@@ -1,4 +1,18 @@
 #!/bin/bash
+#!/bin/bash
+
+# Check that files to be committed are smaller than 50 M
+limit=$((50 * 1024 * 1024))
+git diff --cached --name-only -z |
+while IFS= read -r -d '' file; do
+    if [ -f "$file" ]; then
+        size=$(stat -c%s "$file")
+        if [ "$size" -gt "$limit" ]; then
+            echo "File $file exceeds 50 MB"
+            exit 1
+        fi
+    fi
+done
 
 # Check if pytest is available
 if ! command -v pytest &> /dev/null
