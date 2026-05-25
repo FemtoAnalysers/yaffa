@@ -12,6 +12,9 @@ build/**
 *.d
 *.so
 
+# Root files that are not supposed to be tracked by git. e.g. large datasets (> 50 M)
+*.local.root
+
 # Root files
 tests/source.root
 tests/source_3b.root
