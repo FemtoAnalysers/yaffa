@@ -222,13 +222,13 @@ def ProcessTriplet(hists, dir):
 
     pPairMtVsTripletMt = hPairMtVsTripletMt.ProfileX('pPairMtVsTripletMt')
     pPairMtVsTripletMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});m_{T}^{2B} (GeV/#it{c})')
-    pPairMtVsTripletMt.Write('gPairMtVsTripletMt')
+    pPairMtVsTripletMt.Write('pPairMtVsTripletMt')
 
     pRStarVsMt = hRStarVsMt.ProfileX('pRStarVsMt')
     pRStarVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT r*#GT (fm)')
     pRStarVsMt.Write(f'gRStarVsMt123')
 
-    pExpectedHypRadVsMt = pRStarVsMt.Clone('gExpectedHypRadVsMt')
+    pExpectedHypRadVsMt = pRStarVsMt.Clone('pExpectedHypRadVsMt')
     pExpectedHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT_{exp} (fm)')
     pExpectedHypRadVsMt.Scale(15 * np.pi / 32)
     pExpectedHypRadVsMt.Write()
