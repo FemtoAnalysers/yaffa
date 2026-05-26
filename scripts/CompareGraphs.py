@@ -1,3 +1,4 @@
+#!/bin/env python
 '''
 Compare histograms, graphs and functions.
 '''
@@ -76,6 +77,8 @@ def make_plot(plot):
             for iBinX in range(inObj.GetNbinsX()):
                 for iBinY in range(inObj.GetNbinsY()):            
                     integral+= inObj.GetBinContent(iBinX + 1, iBinY + 1)
+        elif isinstance(inObj, TH1):
+            integral = inObj.Integral()
 
         integral *= inObj.GetXaxis().GetBinWidth(1)
         integral *= inObj.GetYaxis().GetBinWidth(1)
@@ -88,7 +91,11 @@ def make_plot(plot):
             if inputCfg['normalize']:
                 # inObj.Scale(1./inObj.Integral())
                 # inObj.Scale(1./inObj.GetEntries())
-                inObj.Scale(1./integral)
+                if integral == 0:
+                    log.error(f'Requested normalization for {inputCfg["file"]}:{inputCfg["name"]} but the integral is 0. Skipping')
+                else:
+                    inObj.Scale(1. / integral)
+
             if scale := inputCfg.get('scale', 1):
                 inObj.Scale(numexpr.evaluate(str(scale)))
             if scale := inputCfg.get('normalizecf', 1):
@@ -131,9 +138,9 @@ def make_plot(plot):
     pad.SetLogy(plot["opt"].get("logy", False))
 
     # Frame Coordinates
-    if plot['opt'].get('rangex'):
-        fx1 = fx1
-        fx2 = fx2
+    if rangex := plot['opt'].get('rangex'):
+        fx1 = rangex[0]
+        fx2 = rangex[1]
     else:
         fx1 = min((obj.GetXaxis().GetXmin() for obj in inObjs))
         fx2 = max((obj.GetXaxis().GetXmax() for obj in inObjs))
