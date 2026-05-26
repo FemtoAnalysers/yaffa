@@ -47,10 +47,13 @@ def ScaleGraph(graph, value, name=None):
 
     return gScaled
 
-def SliceVertically(hist, edges, name=None):
+def SliceVertically(hist, edges=None, name=None):
     '''
     Slice a TH2 vertically (ProjectionY) and return the list of slices
     '''
+
+    if edges == None:
+        edges = [hist.GetXaxis().GetBinLowEdge(iBin + 1) for iBin in range(hist.GetNbinsX() + 1)]
 
     slices = []
     lowEdges = edges[:-1]
