@@ -65,7 +65,6 @@ def DefineVariables(df, m1, m2, m3, arbitraryMass):
             .Define(f'rstar{idx1}{idx2}', f'(x{idx2}_com{idx1}{idx2}_prop - x{idx1}_com{idx1}{idx2}_prop).P()') \
             .Define(f"mT{idx1}{idx2}", f"(p{idx1}+p{idx2}).Mt()/2") \
 
-
     mtot = m1 + m2 + m3;
     mu12 = m1 * m2 / (m1 + m2); # Reduced mass of particles 1 and 2
     mu3_12 = m3 * (m1 + m2) / mtot; # Reduced mass of particle 3 wrt 1 and 2
@@ -190,7 +189,8 @@ def ProcessPair(hists, idx1, idx2, dir):
 def ProcessTriplet(hists, dir):
     log.info(f'Processing triplet...')
 
-    dir.mkdir('triplet').cd()
+    subdir = dir.mkdir('triplet')
+    subdir.cd()
 
     for key, hist in hists['triplet'].items():
         if key in ['hPair12MtVsTripletMt', 'hPair13MtVsTripletMt','hPair23MtVsTripletMt', 'hRStar12VsMt', 'hRStar13VsMt', 'hRStar23VsMt']:
@@ -200,7 +200,14 @@ def ProcessTriplet(hists, dir):
     pHypRadVsMt = hists['triplet']['hHypRadVsMt'].ProfileX('pHypRadVsMt')
     pHypRadVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});#LT#rho#GT (fm)')
     pHypRadVsMt.Write(f'gHypRadVsMt')
-  
+
+    subsubdir = dir.mkdir('triplet/slices_mT')
+    subsubdir.cd()
+    hHypRadVsMt = utils.analysis.SliceVertically(hists['triplet']['hHypRadVsMt'], name='hHypRad_mT')
+    for hist in hHypRadVsMt:
+        hist.Write()
+    subdir.cd()
+
     hRStarVsMt = hists['triplet']['hRStar12VsMt'].GetValue().Clone("hRStarVsMt")
     hRStarVsMt.Add(hists['triplet']['hRStar13VsMt'].GetValue())
     hRStarVsMt.Add(hists['triplet']['hRStar23VsMt'].GetValue())
