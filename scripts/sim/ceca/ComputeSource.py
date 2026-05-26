@@ -233,6 +233,34 @@ def ProcessTriplet(hists, dir):
     pExpectedHypRadVsMt.Scale(15 * np.pi / 32)
     pExpectedHypRadVsMt.Write()
 
+    # Compute expected mT scaling of 3B via mT sclaing of 2B 
+    hRStarVsPairMt = hists['pair12']['hRStarVsMt12'].GetValue().Clone("hRStarVsPairMt")
+    hRStarVsPairMt.Add(hists['pair13']['hRStarVsMt13'].GetValue())
+    hRStarVsPairMt.Add(hists['pair23']['hRStarVsMt23'].GetValue())
+    pRStarVsPairMt = hRStarVsPairMt.ProfileX('pRStarVsPairMt')
+    pRStarVsPairMt.Write()
+    avgPairMts = []
+    for iBin in range(pPairMtVsTripletMt.GetNbinsX()):
+        entries = pPairMtVsTripletMt.GetBinEntries(iBin + 1) > 0
+        if entries > 0:
+            avgPairMts.append(pPairMtVsTripletMt.GetBinContent(iBin + 1))
+            if entries < 30:
+                log.warning('Less than 30 entries found: unstable! Consider rebinning or running more statistics')
+        else:
+            log.warning('Not enough statistics for profiling')
+            avgPairMts.append(None)
+    rStars = [pRStarVsPairMt.GetBinContent(pRStarVsPairMt.FindBin(mT)) if mT is not None else None for mT in avgPairMts]
+    rStarUncs = [pRStarVsPairMt.GetBinError(pRStarVsPairMt.FindBin(mT)) if mT is not None else None for mT in avgPairMts]
+    hExpHypRadFrom2BVsMt = pHypRadVsMt.ProjectionX().Clone('hExpHypRadFrom2BVsMt')
+    hExpHypRadFrom2BVsMt.Reset()
+    for iBin, (rStar, rStarUnc) in enumerate(zip(rStars, rStarUncs)):
+        if rStar is None or rStarUnc is None:
+            continue
+        hExpHypRadFrom2BVsMt.SetBinContent(iBin + 1, rStar)
+        hExpHypRadFrom2BVsMt.SetBinError(iBin + 1, rStarUnc)
+    hExpHypRadFrom2BVsMt.Scale(15 * np.pi / 32)
+    hExpHypRadFrom2BVsMt.Write()
+
     dir.cd()
 
 if __name__ == '__main__':
