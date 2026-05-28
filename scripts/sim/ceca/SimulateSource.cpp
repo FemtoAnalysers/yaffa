@@ -154,20 +154,30 @@ int main(int argc, const char** argv) {
         LOG(FATAL, "Environment variable 'YAFFA' is not set. It must point to the main directory of the yaffa repo.");
     }
 
+    int seed = 1;
+
     // Parse arguments form command line
     std::string cfg_file;
     if (argc == 1) {
         cfg_file = "config.yaml";
-    } else {
+    } else if (argc == 2) {
         cfg_file = argv[1];
+    } else if (argc == 3) {
+        cfg_file = argv[1];
+        seed = atoi(argv[2]);
     }
-
+    
+    
+    
     // Load configuration from file
     YAML::Node cfg = YAML::LoadFile(cfg_file);
-
+    
     // CECA configuration
     unsigned NUM_CPU = cfg["ncpu"].as<unsigned>() ? cfg["ncpu"].as<unsigned>() : omp_get_max_threads();
     std::string oFileName = cfg["ofile"].as<std::string>();
+    if (argc == 3) {
+        oFileName += "_" + std::string(argv[2]) + ".root";
+    }
     std::string system = cfg["system"].as<std::string>();
     const unsigned globalTimeout = cfg["glob_timeout"].as<unsigned>();
     const unsigned threadTimeout = cfg["thread_timeout"].as<unsigned>();
@@ -200,7 +210,7 @@ int main(int argc, const char** argv) {
     }
 
     TREPNI Database(0);
-    Database.SetSeed(11);
+    Database.SetSeed(seed);
     Database.SetTotalYield(100); // This triggers a check on the total abundance (i.e. fractions) of the particles and sends an error if the
 
     std::vector<TreParticle*> ParticleList;
@@ -345,7 +355,7 @@ int main(int argc, const char** argv) {
 
     CECA ceca(Database, ListOfParticles);
     for (int iThread = 0; iThread < NUM_CPU; iThread++) {
-        ceca.SetSeed(iThread, iThread + 1);
+        ceca.SetSeed(iThread, seed + iThread);
     }
 
     printf("d %.3f %.3f\n", rSP_core, rSP_dispZ);
