@@ -24,6 +24,22 @@ colors = {
     'kPink': EColor.kPink,
 }
 
+# Accessible color palette
+PETROFF_COLORS = [
+    EColor.kP10Red,
+    EColor.kP10Blue,
+    EColor.kP10Yellow,
+    EColor.kP10Violet,
+    EColor.kP10Orange,
+    EColor.kP10Brown,
+    EColor.kP10Green,
+    EColor.kP10Gray,
+    EColor.kP10Ash,
+    EColor.kP10Cyan,
+    EColor.kBlack,
+]
+
+petroffColorCounter = 0
 
 def GetColor(color: str):
     '''
@@ -44,6 +60,17 @@ def GetColor(color: str):
     >>> GetColor('kRed-3')
     629
     '''
+
+    global petroffColorCounter
+
+    if color == 'auto':
+        if petroffColorCounter == len(PETROFF_COLORS):
+            raise ValueError('Not enough colors in the palette. Choose manually')
+
+        petroffColor = PETROFF_COLORS[petroffColorCounter]
+        petroffColorCounter += 1
+        return petroffColor
+
     found = False
     name, value = None, None
     for name, value in colors.items():
@@ -72,6 +99,10 @@ def SetStyle(**kwargs):  # pylint: disable=too-many-statements
     '''
     Sets the general style
     '''
+
+    global petroffColorCounter
+    petroffColorCounter = 0
+
     gStyle.SetAxisColor(1, 'xy')
     gStyle.SetCanvasBorderMode(0)
     gStyle.SetCanvasBorderSize(0)

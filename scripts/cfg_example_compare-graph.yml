@@ -5,7 +5,7 @@
     -   file:  Gaus.root
         name: fGaus
         legend: 'function'
-        color: kRed
+        color: auto # kRed, kBlue + 2, etc. If auto, a colorblind and printing-friendly color palette is used
         rebin: 1
         scale: 1
         fillalpha: 1
@@ -16,7 +16,7 @@
     -   file:  Gaus.root
         name: hGaus
         legend: 'histogram'
-        color: kBlue
+        color: auto # kRed, kBlue + 2, etc. If auto, a colorblind and printing-friendly color palette is used
         rebin: 1
         scale: 1
         fillalpha: 1
