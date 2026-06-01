@@ -19,7 +19,7 @@ YAFFA_PATH = os.getenv("YAFFA")
 if not YAFFA_PATH:
     print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
 
-from ROOT import gInterpreter
+from ROOT import gInterpreter, TFile
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import _SourceAAA
 
@@ -53,7 +53,7 @@ idx2Q3 = {
     24 : round(821.9220792688319, 1),
 }
 
-def main():
+def main(ofile, source=None, radius=2.6):
     file = "../secrets/theory/wf/ppp.dat"
     path = Path(file)
 
@@ -71,7 +71,12 @@ def main():
     gWF = []
     hyp_rad = np.ascontiguousarray(data[:, 0], dtype='double')
     print(hyp_rad)
-    source = [_SourceAAA(rho, 2.6) for rho in hyp_rad]    
+    if source:
+        inFile = TFile(source.split(':')[0])
+        hRadius = inFile.Get(source.split(':')[1])
+        source = [hRadius.GetBinContent(hRadius.FindBin(rho, radius)) for rho in hyp_rad]    
+    else:
+        source = [_SourceAAA(rho, radius) for rho in hyp_rad]    
 
     cf = []
     color = 1
@@ -98,7 +103,15 @@ def main():
     leg.AddEntry(gCF, 'E. Garrido et al., PLB 868 (2025) 139731')
     leg.Draw('same')
 
-    cCF.SaveAs('CorrelationFunctionsPPP.pdf')
+    cCF.SaveAs(ofile)
 
 if __name__ == '__main__':
-    main()
+    from ROOT import gROOT
+    
+    gROOT.SetBatch(True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('ofile', nargs='?', default='CorrelationFunctionsPPP.pdf')
+    parser.add_argument('--source')
+    args = parser.parse_args()
+    main(args.ofile, args.source)
