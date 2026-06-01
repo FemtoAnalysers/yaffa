@@ -5,6 +5,7 @@ import sys
 from dotenv import load_dotenv
 import numpy as np
 import os
+import glob
 
 from ROOT import RDataFrame, TChain, TFile, gROOT, TGraphAsymmErrors, EnableImplicitMT, RDF
 
@@ -141,6 +142,12 @@ def BookTripletHistograms(df, max_Q3):
     return {
         'hQ' : df.Histo1D((f'hQ', ';Q (GeV/#it{c});Counts', *BINNING_MOMENTUM), 'Q'),
         'hQ3' : df.Histo1D((f'hQ3', ';Q_{3} (GeV/#it{c});Counts', *BINNING_MOMENTUM), 'Q3'),
+        'hKStar12VsQ3' : df.Histo2D((f'hKStar12VsQ3', ';Q_{3} (GeV/#it{c});k*_{(1,2)} (MeV/#it{c})', *BINNING_MOMENTUM, *BINNING_MOMENTUM), 'Q3', 'kstar12'),
+        'hKStar13VsQ3' : df.Histo2D((f'hKStar13VsQ3', ';Q_{3} (GeV/#it{c});k*_{(1,3)} (MeV/#it{c})', *BINNING_MOMENTUM, *BINNING_MOMENTUM), 'Q3', 'kstar13'),
+        'hKStar23VsQ3' : df.Histo2D((f'hKStar23VsQ3', ';Q_{3} (GeV/#it{c});k*_{(2,3)} (MeV/#it{c})', *BINNING_MOMENTUM, *BINNING_MOMENTUM), 'Q3', 'kstar23'),
+        'hMt12' : df_femto.Histo1D((f'hMt12', ';m_{T}^{(1,2)} (GeV);Counts', *BINNING_MT), 'mT12'),
+        'hMt13' : df_femto.Histo1D((f'hMt13', ';m_{T}^{(1,3)} (GeV);Counts', *BINNING_MT), 'mT13'),
+        'hMt23' : df_femto.Histo1D((f'hMt23', ';m_{T}^{(2,3)} (GeV);Counts', *BINNING_MT), 'mT23'),
         'hHypRad' : df_femto.Histo1D((f'hHypRad', ';#rho (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypRad_ppp' : df_femto.Filter(f'origin == 0b111').Histo1D((f'hHypRad_ppp', ';#rho_{{ppp}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypRad_pps' : df_femto.Filter(f'origin == 0b110').Histo1D((f'hHypRad_pps', ';#rho_{{pps}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
@@ -180,9 +187,19 @@ def ProcessPair(hists, idx1, idx2, dir):
     for hist in hists[f'pair{idx1}{idx2}'].values():
         hist.Write()
 
-    pRStarVsMt = hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"].ProfileX()
+    hRstarVsMt = hists[f'pair{idx1}{idx2}'][f"hRStarVsMt{idx1}{idx2}"]
+    pRStarVsMt = hRstarVsMt.ProfileX()
     pRStarVsMt.SetTitle(';m_{T} (GeV/#it{c});r* (fm)')
     pRStarVsMt.Write(f'pRStarVsMt{idx1}{idx2}')
+
+    subsubdir = dir.mkdir(f'pair{idx1}{idx2}/slices_mT')
+    subsubdir.cd()
+    subsubdir.cd()
+
+    hRStarInMtBins = utils.analysis.SliceVertically(hRstarVsMt, name=f'hRStar{idx1}{idx2}_mT')
+    for hist in hRStarInMtBins:
+        hist.Write()
+    subdir.cd()
 
     dir.cd()
 
@@ -193,7 +210,7 @@ def ProcessTriplet(hists, dir):
     subdir.cd()
 
     for key, hist in hists['triplet'].items():
-        if key in ['hPair12MtVsTripletMt', 'hPair13MtVsTripletMt','hPair23MtVsTripletMt', 'hRStar12VsMt', 'hRStar13VsMt', 'hRStar23VsMt']:
+        if key in ['hPair12MtVsTripletMt', 'hPair13MtVsTripletMt','hPair23MtVsTripletMt', 'hRStar12VsMt', 'hRStar13VsMt', 'hRStar23VsMt', 'hKStar12VsQ3', 'hKStar13VsQ3', 'hKStar23VsQ3']:
             continue
         hist.Write()
 
@@ -208,11 +225,23 @@ def ProcessTriplet(hists, dir):
         hist.Write()
     subdir.cd()
 
+    hKStarVsQ3 = hists['triplet']['hKStar12VsQ3'].GetValue().Clone("hKStarVsQ3")
+    hKStarVsQ3.Add(hists['triplet']['hKStar13VsQ3'].GetValue())
+    hKStarVsQ3.Add(hists['triplet']['hKStar23VsQ3'].GetValue())
+    hKStarVsQ3.SetTitle(';Q_{3} (GeV/#it{c});k* (MeV/#it{c})')
+    hKStarVsQ3.Write()
+
     hRStarVsMt = hists['triplet']['hRStar12VsMt'].GetValue().Clone("hRStarVsMt")
     hRStarVsMt.Add(hists['triplet']['hRStar13VsMt'].GetValue())
     hRStarVsMt.Add(hists['triplet']['hRStar23VsMt'].GetValue())
     hRStarVsMt.SetTitle(';m_{T}^{3B} (GeV/#it{c});r* (fm)')
     hRStarVsMt.Write()
+    hRStarVsMt.ProjectionY('hRStar').Write()
+    subsubdir.cd()
+    hRStarInMtBins = utils.analysis.SliceVertically(hRStarVsMt, name='hRStar_mT')
+    for hist in hRStarInMtBins:
+        hist.Write()
+    subdir.cd()
 
     hPairMtVsTripletMt = hists['triplet']['hPair12MtVsTripletMt'].GetValue().Clone("hPairMtVsTripletMt")
     hPairMtVsTripletMt.Add(hists['triplet']['hPair13MtVsTripletMt'].GetValue())
@@ -276,7 +305,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     tree = TChain('tEvents')
-    tree.Add(args.infile)
+    if os.path.isfile(args.infile):
+        tree.Add(args.infile)
+    else:
+        for file in glob.glob(f'{args.infile}/*.root'):
+            print(f'Adding file {file}')
+            tree.Add(file)
     nEntries = tree.GetEntries()
 
     df = RDataFrame(tree)
