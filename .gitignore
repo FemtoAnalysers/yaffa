@@ -22,5 +22,8 @@ tests/source_vs_mT.root
 tests/source_cecapaper.root
 tests/source_cecapaper_3b.root
 
+# Example plots
+scripts/CompareGaus.pdf
+
 # python
 *.pyc
