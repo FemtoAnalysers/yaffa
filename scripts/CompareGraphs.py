@@ -60,6 +60,9 @@ def make_plot(plot):
             legends.append(inputCfg['legend'])
             continue
 
+        if isinstance(inObj, TH1):
+            inObj.Rebin(inputCfg.get('rebin', 1))
+
         if isinstance(inObj, TH2):
             for iBinX in range(inObj.GetNbinsX()):
                 for iBinY in range(inObj.GetNbinsY()):            
@@ -69,8 +72,6 @@ def make_plot(plot):
         integral *= inObj.GetYaxis().GetBinWidth(1)
 
         if isinstance(inObj, TH1):
-            inObj.Rebin(inputCfg.get('rebin', 1))
-
             # Check for type since TH2 inherits from TH1 so isinstance would return true
             if type(inObj) is TH1 and plot['opt']['rangex']:  # pylint: disable=unidiomatic-typecheck
                 inObj = utils.analysis.CopyHistInSubrang(inObj, *plot['opt']['rangex'])
