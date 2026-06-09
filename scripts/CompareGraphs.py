@@ -44,10 +44,19 @@ def make_plot(plot):
     integral = 0
     
     for inputCfg in plot["input"]:
+        file = inputCfg.get('file')
+        name = inputCfg.get('name')
+
         if obj := inputCfg.get('obj'):
             inObj = obj
+        elif file and name and ':' in name: # Load leaf from TTree
+            treeName, leafName = name.split(':')            
+            inFile = TFile(file)
+            tree = utils.io.Load(inFile, treeName)
+            tree.Draw(leafName, "", "goff")
+            inObj = gROOT.FindObject("htemp")
 
-        elif inputCfg.get('file') and inputCfg.get('name'):
+        elif file and name:
             inFile = TFile(inputCfg['file'])
             inObj = utils.io.Load(inFile, inputCfg['name'])
             if isinstance(inObj, TH1):
