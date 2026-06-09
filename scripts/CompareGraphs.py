@@ -174,13 +174,14 @@ def make_plot(plot):
     inObjs[0].Draw('same' + drawOpts[0])
 
     for line in plot['opt'].get('lines', []):
-        x1 = fx1 if(line['coordinates'][0] == 'min') else line['coordinates'][0]
-        y1 = plot['opt']['rangey'][0] if(line['coordinates'][1] == 'min') else line['coordinates'][1]
-        x2 = fx2 if(line['coordinates'][2] == 'max') else line['coordinates'][2]
-        y2 = plot['opt']['rangey'][1] if(line['coordinates'][3] == 'max') else line['coordinates'][3]
+        x1 = fx1 if line['coordinates'][0] == 'min' else line['coordinates'][0]
+        y1 = fy1 if line['coordinates'][1] == 'min' else line['coordinates'][1]
+        x2 = fx2 if line['coordinates'][2] == 'max' else line['coordinates'][2]
+        y2 = fy2 if line['coordinates'][3] == 'max' else line['coordinates'][3]
         inputline = TLine(x1, y1, x2, y2)
         inputline.SetLineColor(utils.style.GetColor(line['color']))
         inputline.SetLineWidth(line['thickness'])
+        inputline.SetLineStyle(line.get('style', 9))
         inputline.DrawClone("same")
         if line['legendtag']:
             leg.AddEntry(inputline, line['legendtag'], 'l')
