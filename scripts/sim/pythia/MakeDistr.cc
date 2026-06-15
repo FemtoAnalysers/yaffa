@@ -362,17 +362,16 @@ double Sill(double *x, double *par) {
     return norm / (pow(energy - mass, 2) + 0.25 * gamma * gamma * (energy - threshold));
 }
 
-float ComputeKstar(Pythia8::Particle part1, Pythia8::Particle part2) {
-    ROOT::Math::PxPyPzMVector p1(part1.px(), part1.py(), part1.pz(), part1.m());
-    ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), part2.m());
-
+float ComputeKstar(Pythia8::Particle part1, Pythia8::Particle part2, float mass1, float mass2) {
+    ROOT::Math::PxPyPzMVector p1(part1.px(), part1.py(), part1.pz(), mass1);
+    ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), mass2);
     return ComputeKstar(p1, p2);
 }
 
 // Compute transverse mass (m_T) of the pair
-double ComputeMt(Pythia8::Particle part1, Pythia8::Particle part2) {
-    ROOT::Math::PxPyPzMVector p1(part1.px(), part1.py(), part1.pz(), part1.m());
-    ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), part2.m());
+double ComputeMt(Pythia8::Particle part1, Pythia8::Particle part2, float mass1, float mass2) {
+    ROOT::Math::PxPyPzMVector p1(part1.px(), part1.py(), part1.pz(), mass1);
+    ROOT::Math::PxPyPzMVector p2(part2.px(), part2.py(), part2.pz(), mass2);
 
     double kT = 0.5 * (p1 + p2).Pt();
     double m = 0.5 * (p1.M() + p2.M());
@@ -630,18 +629,28 @@ void MakeDistr(
     // Load selections for part 1. If they don't exist, use the same as part 0 (same-particle pairs e.g. pp)
     cfgPart1 = cfg["part1"].IsNull() ? cfgPart0 : cfg["part1"];
 
-    std::cout << "\033[34mParticle selections before defaults (Mother)\033[0m" << std::endl;
+    std::cout << "Particle selections before defaults (Mother)\033[0m" << std::endl;
     std::cout << cfgMother<< std::endl;
 
-    std::cout << "\033[34mParticle selections before defaults (part0)\033[0m" << std::endl;
+    std::cout << "Particle selections before defaults (part0)\033[0m" << std::endl;
     std::cout << cfgPart0<< std::endl;
 
-    std::cout << "\033[34mParticle selections before defaults (part1)\033[0m" << std::endl;
+    std::cout << "Particle selections before defaults (part1)\033[0m" << std::endl;
     std::cout << cfgPart1<< std::endl;
 
     SetDefaults(cfgMother);
     SetDefaults(cfgPart0);
     SetDefaults(cfgPart1);
+    float part0Mass = PDG->GetParticle(cfgPart0["pdg"].as<int>())->Mass();
+    float part1Mass = PDG->GetParticle(cfgPart1["pdg"].as<int>())->Mass();
+    if (cfgPart0["misid_mass"].IsDefined()) {
+        part0Mass = cfgPart0["misid_mass"].as<float>();
+        std::cout << "Using misid mass for part0: " << part0Mass << " GeV/c^2" << std::endl;
+    }
+    if (cfgPart1["misid_mass"].IsDefined()) {
+        part1Mass = cfgPart1["misid_mass"].as<float>();
+        std::cout << "Using misid mass for part1: " << part1Mass << " GeV/c^2" << std::endl;
+    }
 
     std::cout << "\033[34mParticle selections after defaults (Mother)\033[0m" << std::endl;
     std::cout << cfgMother<< std::endl;
@@ -1030,7 +1039,14 @@ void MakeDistr(
                 DEBUG("\n\nInjecting a new particle\n");
 
                 int myPdg = inj["pdg"].as<int>();
-                double mass = fLineShape->GetRandom();;
+                double mass{-1.};
+                if (inj["fixed_mass"].IsDefined()) {
+                    if (inj["fixed_mass"].as<bool>()) {
+                        mass = inj["mass"].as<doub le>();
+                    }
+                } else {
+                    mass = fLineShape->GetRandom();
+                }
                 double pt;
                 double y = std::nan("");
                 double eta = std::nan("");
@@ -1121,17 +1137,16 @@ void MakeDistr(
 
                 DEBUG("\n\n==========================================================================================================\n");
                 if (GetParticlesInDecayChain(pythia, iPart, cfg["decaychain"]["daus"], part0, part1)) {
-                part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
-                part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
+                    part0.erase(std::remove_if(part0.begin(), part0.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart0);}), part0.end());
+                    part1.erase(std::remove_if(part1.begin(), part1.end(), [&pythia](int iPart){return !IsSelected(pythia, iPart, cfgPart1);}), part1.end());
 
-                // Fill QA
-                hQAMother["mass"]->Fill(part.m());
-                hQAMother["pt"]->Fill(part.pT());
-                hQAMother["y"]->Fill(part.y());
-                hQAMother["eta"]->Fill(part.eta());
-
-                DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
-                break;
+                    // Fill QA
+                    hQAMother["mass"]->Fill(part.m());
+                    hQAMother["pt"]->Fill(part.pT());
+                    hQAMother["y"]->Fill(part.y());
+                    hQAMother["eta"]->Fill(part.eta());
+                    DEBUG("size after loading particles: %zu %zu\n", part0.size(), part1.size());
+                    break;
                 } else {
                     part0.clear();
                     part1.clear();
@@ -1147,7 +1162,7 @@ void MakeDistr(
 
         // Fill QA for Part0
         for (const int& i0 : part0) {
-            hQA0["mass"]->Fill(pythia.event[i0].m());
+            hQA0["mass"]->Fill(part0Mass);
             hQA0["pt"]->Fill(pythia.event[i0].pT());
             hQA0["y"]->Fill(pythia.event[i0].y());
             hQA0["eta"]->Fill(pythia.event[i0].eta());
@@ -1155,7 +1170,7 @@ void MakeDistr(
 
         // Fill QA for Part1
         for (const int& i1 : part1) {
-            hQA1["mass"]->Fill(pythia.event[i1].m());
+            hQA1["mass"]->Fill(part1Mass);
             hQA1["pt"]->Fill(pythia.event[i1].pT());
             hQA1["y"]->Fill(pythia.event[i1].y());
             hQA1["eta"]->Fill(pythia.event[i1].eta());
@@ -1196,8 +1211,8 @@ void MakeDistr(
             auto buffer = pdg0 == pdg1 ? part0 : part1;
             for (size_t i1 = start; i1 < buffer.size(); i1++) {
                 const auto p1 = pythia.event[buffer[i1]];
-                double kStar = ComputeKstar(p0, p1);
-                double mT = ComputeMt(p0, p1);
+                double kStar = ComputeKstar(p0, p1, part0Mass, part1Mass);
+                double mT = ComputeMt(p0, p1, part0Mass, part1Mass);
                 int iMt = FindBin(mT, mTBins);
                 
                 std::tuple<int, int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0, iMt};
@@ -1225,8 +1240,8 @@ void MakeDistr(
             for (size_t iME = 0; iME < partBuffer.size(); iME++) {
                 for (size_t i1 = 0; i1 < partBuffer[iME].size(); i1++) {
                     const auto p1 = partBuffer[iME][i1];
-                    double kStar = ComputeKstar(p0, p1);
-                    double mT = ComputeMt(p0, p1);
+                    double kStar = ComputeKstar(p0, p1, part0Mass, part1Mass);
+                    double mT = ComputeMt(p0, p1, part0Mass, part1Mass);
                     int iMt = FindBin(mT, mTBins);
 
                     std::tuple<int, int, int> pair = {pdg0 == pdg1 ? 0 : p0.id() < 0, pdg0 == pdg1 ? p0.id() * p1.id() < 0 : p1.id() < 0, iMt};

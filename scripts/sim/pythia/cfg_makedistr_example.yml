@@ -24,6 +24,19 @@ tune: Monash
 process: NonDiffractive
 trigger: MB # todo: not implemented
 
+injection:
+  - pdg: 999999
+    name: 'Omega'
+    antiname: 'Omega'
+    spin: 2 # Format: 2s+1
+    charge: -1
+    fixed_mass: true # um=GeV
+    mass: 1.690 # um=GeV
+    width: 20 # um=MeV
+    lineshape: sill
+    daus: '3122 321'
+    meMode: 0
+
 # Selection of particle 0
 part0: # Put here the heaviest of the two particles
     pdg: 3122
@@ -50,6 +63,7 @@ part0: # Put here the heaviest of the two particles
 part1: # Use null if same as part 1
     pdg: 211
     status: null # NB: extremes are included. Negative values if the particle decays
+    misid_mass: 0.13957   # Option to add a specific mass to account for misidentifications
     y: null
     eta: null
     pt: null
