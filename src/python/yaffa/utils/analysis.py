@@ -51,6 +51,7 @@ def SliceVertically(hist, edges=None, name=None):
     '''
     Slice a TH2 vertically (ProjectionY) and return the list of slices
     '''
+    log.fatal("This function has an index bug")
 
     if edges == None:
         edges = [hist.GetXaxis().GetBinLowEdge(iBin + 1) for iBin in range(hist.GetNbinsX() + 1)]
@@ -128,6 +129,8 @@ def GetSpread(objects):
     Returns:
         TH1: histogram containing the average and spread of the input histograms
     '''
+    if len(objects) == 0:
+        log.critical('No objects provided')
 
     if not objects or len(objects) == 0:
         raise ValueError('Empty list of objects')
