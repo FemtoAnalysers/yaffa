@@ -119,6 +119,9 @@ std::vector<std::vector<double>> GetWaveFunction(CATS *cats, double weight = 1, 
             weightList[1] = 1. / 12.;
             weightList[2] = 3. / 12.;
             weightList[3] = 5. / 12.;
+        } else {
+            std::cerr << "Error: unexpected number of channels: " << nChannels << std::endl;
+            exit(1);
         }
 
         wf = GetWaveFunction(cats, weightList[0], 0);
@@ -145,19 +148,9 @@ std::vector<std::vector<double>> GetWaveFunction(CATS *cats, double weight = 1, 
 void ComputeWaveFunction(int pdg1 = 2212, int pdg2 = 2212, double r0 = 1.25) {
     auto pdg = TDatabasePDG::Instance();
 
-    // const double m1 = pdg->GetParticle(pdg1)->Mass() * 1000; // conversion GeV -> MeV
-    // const double m2 = pdg->GetParticle(pdg2)->Mass() * 1000; // conversion GeV -> MeV
+    const double m1 = pdg->GetParticle(pdg1)->Mass() * 1000; // conversion GeV -> MeV
+    const double m2 = pdg->GetParticle(pdg2)->Mass() * 1000; // conversion GeV -> MeV
     const int nKStarBins = std::round(KSTAR_MAX / KSTAR_STEP);
-    // const double KSTAR_MAX = 500.;
-    // const int nRadBins = 2000;
-    // double rmax = 20;
-
-    // Roberta
-    const double m1 = 938.2720813;  // conversion GeV -> MeV
-    const double m2 = 938.2720813;  // conversion GeV -> MeV
-    const double SourceRadValue = 1.25;
-    double rmax = SourceRadValue * 5.;
-
     const double mu = m1 * m2 / (m1 + m2);
 
     CATS *cats = new CATS();
@@ -185,30 +178,9 @@ void ComputeWaveFunction(int pdg1 = 2212, int pdg2 = 2212, double r0 = 1.25) {
         gCF->SetPoint(i, kstar, CorrFuncValue);
     }
 
-    // obtain the total wave function
-    const int nChannels = cats->GetNumChannels();
-    double weighList[nChannels];
-    if (nChannels == 2) {  // without p-wave
-        weighList[0] = 0.25;
-        weighList[1] = 0.75;
-    } else if (nChannels == 4) {  // p-wave
-        weighList[0] = 3. / 12.;
-        weighList[1] = 1. / 12.;
-        weighList[2] = 3. / 12.;
-        weighList[3] = 5. / 12.;
-    } else {
-        std::cerr << "Error: unexpected number of channels: " << nChannels << std::endl;
-        return;
-    }
-
     auto wf = GetWaveFunction(cats);
     ToFile("wf.dat", wf);
-    // for (unsigned short iChn = 0; iChn < nChannels; iChn++) {
-    //     break;
-    // }
     TH2D *hWF = TableToTH2D(wf);
-
-
     TFile* OutputFile = new TFile("ppCF_WF_Source.root", "recreate");
     OutputFile->cd();
     gCF->Write("gCF");
