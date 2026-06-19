@@ -104,8 +104,8 @@ def compute_wave_function(system, oFile):
 
     wf = np.column_stack([radius, wf.T])
     header += (
-        f'radius step = {RADIUS_STEP} fm\n'
-        f'kstar step = {KSTAR_STEP} MeV/c\n'
+        f'radius_step = {RADIUS_STEP} fm\n'
+        f'kstar_step = {KSTAR_STEP} MeV/c\n'
         'radius ' + ' '.join(f'{k:.3f}' for k in kstar)
     )
 
