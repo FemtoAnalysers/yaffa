@@ -9,6 +9,22 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # 
 
 from yaffa import logger as log
 
+def Convert(object, target_type):
+    if type(object).__name__ == 'TH2D':
+        if target_type == 'numpy_array':
+            nx = object.GetNbinsX()
+            ny = object.GetNbinsY()
+
+            arr = np.empty((nx, ny))
+
+            for ix in range(nx):
+                for iy in range(ny):
+                    arr[ix, iy] = object.GetBinContent(ix + 1, iy + 1)
+
+            return arr
+
+    log.critical(f'Conversion from type {type(object).__name__} to {target_type} is not implemented')
+
 def ScaleGraph(graph, value, name=None):
     '''
     Scales a TGraphAsymmErrors by the specified value
