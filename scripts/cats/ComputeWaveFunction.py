@@ -1,17 +1,20 @@
 import os
 import math
 import numpy as np
-import ROOT
+from ROOT import gSystem, gInterpreter, TH2D, TDatabasePDG, TGraph, TFile
 
 cats_dir = os.environ["CATS"]
 
-ROOT.gSystem.Load(f"{cats_dir}/install/lib/libCATS.so")
-ROOT.gInterpreter.AddIncludePath(f"{cats_dir}/install/include")
+gSystem.Load(f"{cats_dir}/install/lib/libCATS.so")
+gInterpreter.AddIncludePath(f"{cats_dir}/install/include")
 
-ROOT.gInterpreter.Declare("""
+gInterpreter.Declare("""
 #include "CATS.h"
 #include "CommonAnaFunctions.h"
 """)
+
+from ROOT import CATS
+from ROOT import DLM_CommonAnaFunctions
 
 RADIUS_STEP = 0.01
 RADIUS_MAX = 6.25
@@ -19,7 +22,7 @@ KSTAR_STEP = 0.4
 KSTAR_MAX = 400.
 
 def table_to_th2d(matrix):
-    h = ROOT.TH2D(
+    h = TH2D(
         "hWF", "",
         round(RADIUS_MAX / RADIUS_STEP), 0, RADIUS_MAX,
         round(KSTAR_MAX / KSTAR_STEP), 0, KSTAR_MAX
@@ -80,7 +83,7 @@ def get_wave_function(cats, weight=1., channel=-1):
     return wf
 
 def compute_wave_function(pdg1=2212, pdg2=2212, r0=1.25):
-    pdg = ROOT.TDatabasePDG.Instance()
+    pdg = TDatabasePDG.Instance()
 
     m1 = 1000. * pdg.GetParticle(pdg1).Mass()
     m2 = 1000. * pdg.GetParticle(pdg2).Mass()
@@ -88,13 +91,13 @@ def compute_wave_function(pdg1=2212, pdg2=2212, r0=1.25):
     mu = m1 * m2 / (m1 + m2)
     n_kstar_bins = round(KSTAR_MAX / KSTAR_STEP)
 
-    cats = ROOT.CATS()
+    cats = CATS()
     cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
     cats.SetQ1Q2(1)
     cats.SetQuantumStatistics(True)
     cats.SetRedMass(mu)
 
-    can = ROOT.DLM_CommonAnaFunctions()
+    can = DLM_CommonAnaFunctions()
 
     if pdg1 == 2212 and pdg2 == 2212:
         header = "Wave function of proton-proton with Argonne v18 potential computed with CATS\n"
@@ -105,7 +108,7 @@ def compute_wave_function(pdg1=2212, pdg2=2212, r0=1.25):
     cats.SetAnaSource(0, r0)
     cats.KillTheCat()
 
-    gCF = ROOT.TGraph()
+    gCF = TGraph()
 
     for i in range(n_kstar_bins):
         gCF.SetPoint(i, cats.GetMomentum(i), cats.GetCorrFun(i))
@@ -117,17 +120,15 @@ def compute_wave_function(pdg1=2212, pdg2=2212, r0=1.25):
     hWF = table_to_th2d(wf)
     hWF.SetTitle("pp, AV18, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}")
 
-    fout = ROOT.TFile("ppCF_WF_Source.root", "RECREATE")
+    fout = TFile("ppCF_WF_Source.root", "RECREATE")
     gCF.Write("gCF")
     hWF.Write("hWF")
     fout.Close()
-
 
     radius = RADIUS_STEP/2 + np.arange(wf.shape[1]) * RADIUS_STEP
     kstar = KSTAR_STEP/2 + np.arange(wf.shape[0]) * KSTAR_STEP
 
     table = np.column_stack([radius, wf.T])
-
     header += (
         f"radius step = {RADIUS_STEP} fm\n"
         f"kstar step = {KSTAR_STEP} MeV/c\n"
