@@ -17,9 +17,9 @@ from ROOT import CATS
 from ROOT import DLM_CommonAnaFunctions
 
 RADIUS_STEP = 0.01
-RADIUS_MAX = 6.25
-KSTAR_STEP = 0.4
-KSTAR_MAX = 400.
+RADIUS_MAX = 20
+KSTAR_STEP = 1
+KSTAR_MAX = 500
 
 def matrix_to_th2d(matrix, title=''):
     h = TH2D(
@@ -119,7 +119,7 @@ def compute_wave_function(system, oFile):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('system')
+    parser.add_argument('system', choices=('pp'))
     parser.add_argument('oFile')
     args = parser.parse_args()
     
