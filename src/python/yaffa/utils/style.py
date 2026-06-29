@@ -24,20 +24,20 @@ colors = {
     'kPink': EColor.kPink,
 }
 
-# Accessible color palette
-PETROFF_COLORS = [
-    EColor.kP10Red,
-    EColor.kP10Blue,
-    EColor.kP10Yellow,
-    EColor.kP10Violet,
-    EColor.kP10Orange,
-    EColor.kP10Brown,
-    EColor.kP10Green,
-    EColor.kP10Gray,
-    EColor.kP10Ash,
-    EColor.kP10Cyan,
-    EColor.kBlack,
-]
+# # Accessible color palette
+# PETROFF_COLORS = [
+#     EColor.kP10Red,
+#     EColor.kP10Blue,
+#     EColor.kP10Yellow,
+#     EColor.kP10Violet,
+#     EColor.kP10Orange,
+#     EColor.kP10Brown,
+#     EColor.kP10Green,
+#     EColor.kP10Gray,
+#     EColor.kP10Ash,
+#     EColor.kP10Cyan,
+#     EColor.kBlack,
+# ]
 
 petroffColorCounter = 0
 
