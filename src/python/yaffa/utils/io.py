@@ -82,8 +82,14 @@ def LoadCF(pair, **kwargs):
     method = kwargs['method']
     version = kwargs['version']
     name = '_'.join([pair, author, method, version])
-    inFile = TFile(f'{os.environ.get("YAFFA")}/yaffa/secrets/theory/cf/{pair}.root')
-    gCF = inFile.Get(f'g{name}')
+    if 'path' in kwargs:
+        inFile = TFile(kwargs['path'])
+    else:
+        inFile = TFile(f'{os.environ.get("YAFFA")}/yaffa/secrets/theory/cf/{pair}.root')
+    if 'graph' in kwargs:
+        gCF = inFile.Get(kwargs["graph"])
+    else:
+        gCF = inFile.Get(f'g{name}')
     return gCF
 
 
@@ -113,7 +119,7 @@ def LoadResolutionMatrix(pair, **kwargs):
     version = kwargs['version']
 
     name = '_'.join(filter(None, ['ResolutionMatrix', pair, dataset, NanoAOD, version]))
-    inFile = TFile(f'{os.environ.get("YAFFA")}/yaffa/secrets/resolution/{name}.root')
+    inFile = TFile(f'{os.environ.get("YAFFA")}/secrets/resolution/{name}.root')
 
     dResMat = {}
     combs = ('02', '13')
