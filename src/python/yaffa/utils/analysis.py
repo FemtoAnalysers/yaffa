@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
+from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -126,7 +126,10 @@ def GetSpread(objects):
         TH1: histogram containing the average and spread of the input histograms
     '''
 
-    if all(type(obj) is TF1 for obj in objects):  # pylint: disable=unidiomatic-typecheck
+    if not objects or len(objects) == 0:
+        raise ValueError('Empty list of objects')
+
+    if all(type(obj) in (TF1, TSpline3) for obj in objects):  # pylint: disable=unidiomatic-typecheck
         xMin = objects[0].GetXmin()
         xMax = objects[0].GetXmax()
         gSpread = TGraphErrors(1)
@@ -155,21 +158,40 @@ def GetSpread(objects):
 
     raise NotImplementedError('Spread only implemented for histograms and TF1')
 
-def ChangeUnits(hist, multiplier, name=None, title=''):
+def ChangeUnits(obj, multiplier, name=None, title=''):
     '''
-    Only for histogram with constant binwidth!
+    Only for objogram with constant binwidth!
     '''
-    nbins = hist.GetNbinsX()
-    lowEdge = hist.GetBinLowEdge(1)
-    upEdge = hist.GetBinLowEdge(nbins+1)
-    if name is None:
-        name = f'{hist.GetName()}_new'
-    hNew = TH1F(name, title, nbins, lowEdge*multiplier, upEdge*multiplier)
-    for i in range(0, nbins+2):
-        hNew.SetBinContent(i, hist.GetBinContent(i))
-        hNew.SetBinError(i, hist.GetBinError(i))
-    return hNew
 
+    if isinstance(obj, TH1):
+        nbins = obj.GetNbinsX()
+        lowEdge = obj.GetBinLowEdge(1)
+        upEdge = obj.GetBinLowEdge(nbins+1)
+        if name is None:
+            name = f'{obj.GetName()}_new'
+        hNew = TH1F(name, title, nbins, lowEdge*multiplier, upEdge*multiplier)
+        for i in range(0, nbins+2):
+            hNew.SetBinContent(i, obj.GetBinContent(i))
+            hNew.SetBinError(i, obj.GetBinError(i))
+        return hNew
+
+    if isinstance(obj, TGraphErrors):
+        nPoints = obj.GetN()
+        gNew = TGraphErrors(nPoints)
+        gNew.SetName(name if name else f'{obj.GetName()}_stretch')
+
+        for iPoint in range(nPoints):
+            x = obj.GetPointX(iPoint)
+            y = obj.GetPointY(iPoint)
+            gNew.SetPoint(iPoint, x * multiplier, y)
+
+            xUnc = obj.GetErrorX(iPoint)
+            yUnc = obj.GetErrorY(iPoint)
+            gNew.SetPointError(iPoint, xUnc, yUnc)
+
+        return gNew
+
+    raise NotImplementedError()
 
 def ChangeUnits2D(hist, multiplier, name=None, title=''):
     '''
