@@ -496,7 +496,7 @@ def Bootstrap(obj):
 
             buNew = np.random.normal(loc=bc, scale=bu)
 
-            hBS.SetBinContent(iBin, buNew)
+            hBS.SetBinContent(iBin + 1, buNew)
 
         return hBS
 
