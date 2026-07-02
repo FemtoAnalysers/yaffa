@@ -413,13 +413,34 @@ def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
     if isinstance(den, TH1):
         if isinstance(num, TGraphErrors):
             nBins = den.GetNbinsX()
-            if nBins != num.GetN():
-                log.critical("You you are trying to divide two objects with different number of bins/points.")
-            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
-                log.critical("The binnings are not aligned.")
-
             ratio = den.Clone(name)
             ratio.Reset()
+
+            if nBins != num.GetN():
+                log.warning("You you are trying to divide two objects with different number of bins/points.")
+
+                for iBin in range(nBins):
+                    x = den.GetBinCenter(iBin + 1)
+                    y = num.Eval(x)
+                    ey = 0
+
+                    binContent = den.GetBinContent(iBin + 1)
+                    binError = den.GetBinError(iBin + 1)
+
+                    if binContent > 0 and y > 0:
+                        r = y / binContent
+                        ratioUnc = r * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+
+                        ratio.SetBinContent(iBin + 1, r)
+                        ratio.SetBinError(iBin + 1, ratioUnc)
+                    else:
+                        ratio.SetBinContent(iBin + 1, 0)
+                        ratio.SetBinError(iBin + 1, 0)
+
+                return ratio
+
+            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
+                log.critical("The binnings are not aligned.")
 
             for iBin in range(nBins):
                 x = num.GetPointX(iBin)
