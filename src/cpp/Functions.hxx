@@ -1,4 +1,6 @@
 /* Various mathematical functions to be used in fits etc. */
+#include "gsl/gsl_sf_gamma.h"
+#include "gsl/gsl_sf_hyperg.h"
 
 #ifndef FUNCTIONS_HXX
 #define FUNCTIONS_HXX
@@ -27,6 +29,42 @@ double _SourceAAAJC(double r12, double r312, double r0) {
     double jacobianr312 = 4 * M_PI * r312 * r312;
 
     return jacobianr12 * jacobianr312 * norm * exp(arg);
+}
+
+/*
+Regularized confluent hypergeometric function = 0F1(a, z) / Gamma(a).
+See https://reference.wolfram.com/language/ref/Hypergeometric0F1Regularized.html
+*/
+double Hypergeometric0F1Regularized(double a, double z) {
+    return gsl_sf_hyperg_0F1(a, z) / gsl_sf_gamma(a);
+}
+
+// Source function for 3 identical particles where 2 are primary and the 3rd one originates from a resonance
+double _SourceAAApprAvg(double hypRad, double rp, double rs) {
+    double rp2 = rp * rp;
+    double rs2 = rs * rs;
+
+    double z = (std::pow(rp2 - rs2, 2) * std::pow(hypRad, 4)) / (64 * std::pow(rp, 4) * std::pow(rp2 + 2 * rs2, 2));
+    double chgr = Hypergeometric0F1Regularized(2, z);
+
+    double arg = -(((2 * rp2 + rs2) * std::pow(hypRad, 2)) / (4 * rp2 * (rp2 + 2 * rs2)));
+    double norm = 3 * std::sqrt(3) / (64 * pow(rp, 3) * pow(rp2 + 2 * rs2, 3. / 2));
+
+    return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
+}
+
+// Source function for 3 identical particles where 1 is primary and the other 2 originate from resonances
+double _SourceAAAprrAvg(double hypRad, double rp, double rs) {
+    double rp2 = rp * rp;
+    double rs2 = rs * rs;
+
+    double z = (std::pow(rp2 - rs2, 2) * std::pow(hypRad, 4))/(64 * std::pow(rs, 4) * std::pow(2 * rp2 + rs2, 2));
+
+    double chgr = Hypergeometric0F1Regularized(2, z);
+    double arg = -(((rp2 + 2 * rs2) * std::pow(hypRad, 2))/(4 * rs2 * (2 * rp2 + rs2)));
+    double norm = 3 * std::sqrt(3) / (64 * std::pow(rs, 3) * std::pow(2 * rp2 + rs2, 3./2));
+
+    return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
 }
 
 #endif
