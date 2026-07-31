@@ -53,18 +53,4 @@ double _SourceAAApprAvg(double hypRad, double rp, double rs) {
     return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
 }
 
-// Source function for 3 identical particles where 1 is primary and the other 2 originate from resonances
-double _SourceAAAprrAvg(double hypRad, double rp, double rs) {
-    double rp2 = rp * rp;
-    double rs2 = rs * rs;
-
-    double z = (std::pow(rp2 - rs2, 2) * std::pow(hypRad, 4))/(64 * std::pow(rs, 4) * std::pow(2 * rp2 + rs2, 2));
-
-    double chgr = Hypergeometric0F1Regularized(2, z);
-    double arg = -(((rp2 + 2 * rs2) * std::pow(hypRad, 2))/(4 * rs2 * (2 * rp2 + rs2)));
-    double norm = 3 * std::sqrt(3) / (64 * std::pow(rs, 3) * std::pow(2 * rp2 + rs2, 3./2));
-
-    return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
-}
-
 #endif

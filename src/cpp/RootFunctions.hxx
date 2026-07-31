@@ -87,7 +87,8 @@ double SourceCountsAAAprrAvg(double *x, double *p) {
     double rp = p[1];
     double rs = p[2];
 
-    return norm * _SourceAAAprrAvg(hyperRadius, rp, rs);
+    // The same as primary-primary-resonances but with r_prim and r_reso switched
+    return norm * _SourceAAApprAvg(hyperRadius, rs, rp);
 }
 
 // Source function for 2 particles
