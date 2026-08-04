@@ -53,4 +53,22 @@ double _SourceAAApprAvg(double hypRad, double rp, double rs) {
     return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
 }
 
+double _SourceAAAppr(double hypRad, double hypAngle, double rp, double rs) {
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+
+    double norm = 3 * sqrt(3) / (pow(4 * std::numbers::pi * rp, 3) * std::pow(rp * rp + 2 * rs * rs, 3. / 2));
+    double arg = -1. / 4 * hypRad * hypRad * (cp2 / (rp * rp) + 3 * sp2 / (rp * rp + 2 * rs * rs));
+
+    return norm * std::exp(arg);
+}
+
+double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+
+    double jac = std::pow(hypRad, 5) * cp2 * sp2 * pow(4 * std::numbers::pi * rp, 2);
+
+    return jac * _SourceAAAppr(hypRad, hypAngle, rp, rs);
+}
 #endif
