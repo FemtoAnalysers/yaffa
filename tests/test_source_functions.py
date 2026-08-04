@@ -7,6 +7,8 @@ import pytest
 from dotenv import load_dotenv
 from pathlib import Path
 
+import numpy as np
+
 env_path = Path(__file__).resolve().parent.parent / ".env"
 print(f'Loading env from {env_path}')
 if not load_dotenv(dotenv_path=env_path, verbose=True, override=True):
@@ -17,7 +19,7 @@ if not YAFFA_PATH:
 
 from ROOT import TF1, TF2, gInterpreter
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC
+from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC, SourceCountsAAAppr
 
 EPSILON = 1.e-12
 
@@ -61,3 +63,13 @@ def test_normalization_SourceCountsAAAJC():
     fSourceCountsAAAJC.SetNpx(10000)
     print("---> ", fSourceCountsAAAJC.Integral(0., 50, 0., 50))
     assert abs(fSourceCountsAAAJC.Integral(0., 50, 0., 50, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAAppr():
+    fSourceCountsAAAppr = TF2("SourceAAAppr", SourceCountsAAAppr, 0, 30, 0, np.pi / 2,  3)
+    fSourceCountsAAAppr.SetParameter(0, 1)
+    fSourceCountsAAAppr.SetParameter(1, 1)
+    fSourceCountsAAAppr.SetParameter(2, 2)
+    fSourceCountsAAAppr.SetNpx(10000)
+    fSourceCountsAAAppr.SetNpy(10000)
+
+    assert abs(fSourceCountsAAAppr.Integral(0, 30, 0, np.pi / 2, EPSILON) - 1) < EPSILON

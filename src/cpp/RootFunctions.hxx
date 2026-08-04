@@ -89,6 +89,17 @@ double SourceCountsAAAGaussResonances(double* x, double* p) {
     return norm * (source_ppp + source_pps + source_pss + source_sss);
 }
 
+double SourceCountsAAAppr(double *x, double *p) {
+    double hyperRadius = x[0];
+    double hyperAngle = x[1];
+
+    double norm = p[0];
+    double rp = p[1];
+    double rs = p[2];
+
+    return norm * _SourcePdfAAAppr(hyperRadius, hyperAngle, rp, rs);
+}
+
 double SourceCountsAAApprAvg(double *x, double *p) {
     double hyperRadius = x[0];
 
