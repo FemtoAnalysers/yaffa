@@ -61,7 +61,9 @@ double SourceCountsGaussResonances(double* x, double* p) {
     double norm = p[0];
     double f = p[1];
     double rp = p[2];
-    double rs = p[3];
+    double delta = p[3]; // Delta radius: rs = rp + drs. p[3] must be limited > 0
+
+    double rs = rp + delta;
 
     double source_pp = f * f * _SourceGauss(rStar, rp);
     double source_ps = 2 * f * (1 - f) * _SourceGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
