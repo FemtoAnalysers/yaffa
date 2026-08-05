@@ -81,10 +81,10 @@ double SourceCountsAAAGaussResonances(double* x, double* p) {
     double rp = p[2]; // Single-particle radius of primordial particles
     double rs = p[3]; // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourceAAA(hyperRadius, rp);
+    double source_ppp = pow(f, 3) * _SourceAAA(hyperRadius, 2 * rp);
     double source_pps = 3 * f * f * (1 - f) * _SourceAAApprAvg(hyperRadius, rp, rs);
     double source_pss = 3 * f * pow(1 - f, 2) * _SourceAAApprAvg(hyperRadius, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourceGauss(hyperRadius, rs);
+    double source_sss = pow(1 - f, 3) * _SourceAAA(hyperRadius, 2 * rs);
 
     return norm * (source_ppp + source_pps + source_pss + source_sss);
 }
