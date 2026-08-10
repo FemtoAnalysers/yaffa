@@ -51,7 +51,6 @@ def SliceVertically(hist, edges=None, name=None):
     '''
     Slice a TH2 vertically (ProjectionY) and return the list of slices
     '''
-    log.fatal("This function has an index bug")
 
     if edges == None:
         edges = [hist.GetXaxis().GetBinLowEdge(iBin + 1) for iBin in range(hist.GetNbinsX() + 1)]
@@ -69,7 +68,7 @@ def SliceVertically(hist, edges=None, name=None):
         slices.append(hist.ProjectionY(f'{name}{lowEdge:.0f}_{upEdge:.0f}', firstBin, lastBin))
 
         # Exclude underflow and overflow
-        if lastBin <= 0 or firstBin >= hist.GetNbinsX():
+        if lastBin < 1 or firstBin > hist.GetNbinsX():
             slices[-1].Reset()
 
     return slices
