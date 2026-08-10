@@ -148,6 +148,7 @@ def BookTripletHistograms(df, max_Q3):
         'hMt12' : df_femto.Histo1D((f'hMt12', ';m_{T}^{(1,2)} (GeV);Counts', *BINNING_MT), 'mT12'),
         'hMt13' : df_femto.Histo1D((f'hMt13', ';m_{T}^{(1,3)} (GeV);Counts', *BINNING_MT), 'mT13'),
         'hMt23' : df_femto.Histo1D((f'hMt23', ';m_{T}^{(2,3)} (GeV);Counts', *BINNING_MT), 'mT23'),
+        'hHypAngleVsHypRad' : df_femto.Histo2D((f'hHypAngleVsHypRad', ';#rho (fm);#varphi (rad);Counts', *BINNING_SOURCE, 200, 0, np.pi / 2), 'hyp_rad', 'hyp_angle'),
         'hHypRad' : df_femto.Histo1D((f'hHypRad', ';#rho (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypRad_ppp' : df_femto.Filter(f'origin == 0b111').Histo1D((f'hHypRad_ppp', ';#rho_{{ppp}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypRad_pps' : df_femto.Filter(f'origin == 0b110').Histo1D((f'hHypRad_pps', ';#rho_{{pps}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
@@ -345,3 +346,5 @@ if __name__ == '__main__':
     ProcessTriplet(hists, oFile)
 
     oFile.Close()
+
+    print(f'Output saved in {args.ofile}')
