@@ -72,6 +72,16 @@ double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
     return jac * _SourceAAAppr(hypRad, hypAngle, rp, rs);
 }
 
+// Hyper-angle distribution for 3 identical particles all of the same kind (ppp or sss):
+// the source does not depend on the hyper-angle, so only the Jacobian survives, normalized
+// on [0, pi/2]
+double _SourcePdfAAAHypAngle(double hypAngle) {
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+
+    return 16. / M_PI * cp2 * sp2;
+}
+
 // Hyper-angle distribution for 3 identical particles where 2 are primary and the 3rd
 // one originates from a resonance (i.e. _SourcePdfAAAppr marginalized over hypRad)
 double _SourcePdfAAApprHypAngle(double hypAngle, double rp, double rs) {
