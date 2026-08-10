@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 from dotenv import load_dotenv
 from pathlib import Path
 import numpy as np
@@ -22,18 +23,26 @@ from ROOT import (
     SourceCountsGaussResonances,
     SourceCountsAAAprrAvg,
     SourceCountsAAApprAvg,
+    SourceCountsAAAHypAngle,
+    SourceCountsAAApprHypAngle,
+    SourceCountsAAAprrHypAngle,
     SourceCountsAAAGaussResonances,
+    SourceCountsAAAGaussResonancesHypAngle,
     SourceCountsAAA,
 )
 
 utils.style.SetStyle()
 
-Q3cut = 800
 fPrim = 0.3578
 
 
 def main(args):
     oFileBase = Path(args.output).stem
+
+    match = re.search(r"Q3lt(\d+)MeV", Path(args.input).name)
+    if not match:
+        raise ValueError(f"Could not extract Q3 cut from input file name '{args.input}'")
+    Q3cut = int(match.group(1))
 
     inFile = TFile(args.input)
 
@@ -146,6 +155,62 @@ def main(args):
     leg3B.Draw("same")
     c3B.SaveAs(f"{oFileBase}_3B.pdf")
 
+    # 3B hyper-angle: compare with the full ppp/pps/pss/sss mixture, using fPrim, rPrim
+    # and rSec from the 2B r* fit above
+    hHypAngle = inFile.Get("triplet/hHypAngleVsHypRad").ProjectionY("hHypAngle")
+    hHypAngle.Rebin(5)
+
+    fSourceCountsAAAGaussResonancesHypAngle = TF1(
+        "fSourceCountsAAAGaussResonancesHypAngle", SourceCountsAAAGaussResonancesHypAngle, 0, np.pi / 2, 4
+    )
+    fSourceCountsAAAGaussResonancesHypAngle.SetParameter(0, hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
+    fSourceCountsAAAGaussResonancesHypAngle.FixParameter(1, fPrim)
+    fSourceCountsAAAGaussResonancesHypAngle.FixParameter(2, rPrim)
+    fSourceCountsAAAGaussResonancesHypAngle.FixParameter(3, rSec)
+
+    fSourceHypAngle_ppp = TF1("fSourceHypAngle_ppp", SourceCountsAAAHypAngle, 0, np.pi / 2, 1)
+    fSourceHypAngle_ppp.SetParameter(0, fPrim**3 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
+    fSourceHypAngle_ppp.SetLineStyle(7)
+
+    fSourceHypAngle_pps = TF1("fSourceHypAngle_pps", SourceCountsAAApprHypAngle, 0, np.pi / 2, 3)
+    fSourceHypAngle_pps.SetParameter(0, 3 * fPrim**2 * (1 - fPrim) * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
+    fSourceHypAngle_pps.SetParameter(1, rPrim)
+    fSourceHypAngle_pps.SetParameter(2, rSec)
+    fSourceHypAngle_pps.SetLineStyle(8)
+
+    fSourceHypAngle_pss = TF1("fSourceHypAngle_pss", SourceCountsAAAprrHypAngle, 0, np.pi / 2, 3)
+    fSourceHypAngle_pss.SetParameter(0, 3 * fPrim * (1 - fPrim) ** 2 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
+    fSourceHypAngle_pss.SetParameter(1, rPrim)
+    fSourceHypAngle_pss.SetParameter(2, rSec)
+    fSourceHypAngle_pss.SetLineStyle(9)
+
+    fSourceHypAngle_sss = TF1("fSourceHypAngle_sss", SourceCountsAAAHypAngle, 0, np.pi / 2, 1)
+    fSourceHypAngle_sss.SetParameter(0, (1 - fPrim) ** 3 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
+    fSourceHypAngle_sss.SetLineStyle(10)
+
+    cHypAngle = TCanvas("cHypAngle", "", 600, 600)
+    cHypAngle.DrawFrame(0, 0, np.pi / 2, 1.6 * hHypAngle.GetMaximum(), ";#varphi (rad);Counts")
+    hHypAngle.Draw("pe same")
+
+    fSourceCountsAAAGaussResonancesHypAngle.SetLineColor(2)
+    fSourceCountsAAAGaussResonancesHypAngle.Draw("same")
+
+    fSourceHypAngle_ppp.Draw("same")
+    fSourceHypAngle_pps.Draw("same")
+    fSourceHypAngle_pss.Draw("same")
+    fSourceHypAngle_sss.Draw("same")
+
+    legHypAngle = TLegend(0.55, 0.6, 0.9, 0.9)
+    legHypAngle.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
+    legHypAngle.AddEntry(hHypAngle, "Total", "pel")
+    legHypAngle.AddEntry(fSourceHypAngle_ppp, "ppp", "l")
+    legHypAngle.AddEntry(fSourceHypAngle_pps, "pps", "l")
+    legHypAngle.AddEntry(fSourceHypAngle_pss, "pss", "l")
+    legHypAngle.AddEntry(fSourceHypAngle_sss, "sss", "l")
+
+    legHypAngle.Draw("same")
+    cHypAngle.SaveAs(f"{oFileBase}_HypAngle.pdf")
+
     # Save the fit functions
     oFile = TFile(args.output, "RECREATE")
     fSource2B.Write()
@@ -157,6 +222,11 @@ def main(args):
     fSource3B_pps.Write()
     fSource3B_pss.Write()
     fSource3B_sss.Write()
+    fSourceCountsAAAGaussResonancesHypAngle.Write()
+    fSourceHypAngle_ppp.Write()
+    fSourceHypAngle_pps.Write()
+    fSourceHypAngle_pss.Write()
+    fSourceHypAngle_sss.Write()
     oFile.Close()
 
 
