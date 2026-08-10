@@ -71,4 +71,19 @@ double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
 
     return jac * _SourceAAAppr(hypRad, hypAngle, rp, rs);
 }
+
+// Hyper-angle distribution for 3 identical particles where 2 are primary and the 3rd
+// one originates from a resonance (i.e. _SourcePdfAAAppr marginalized over hypRad)
+double _SourcePdfAAApprHypAngle(double hypAngle, double rp, double rs) {
+    double rp2 = rp * rp;
+    double rs2 = rs * rs;
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+    double s2phi2 = std::pow(std::sin(2 * hypAngle), 2);
+
+    double num = 12 * std::sqrt(3) * std::pow(rp, 3) * std::pow(rp2 + 2 * rs2, 1.5) * s2phi2;
+    double den = M_PI * std::pow((rp2 + 2 * rs2) * cp2 + 3 * rp2 * sp2, 3);
+
+    return num / den;
+}
 #endif

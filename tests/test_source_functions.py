@@ -19,7 +19,7 @@ if not YAFFA_PATH:
 
 from ROOT import TF1, TF2, gInterpreter
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC, SourceCountsAAAppr
+from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC, SourceCountsAAAppr, SourceCountsAAApprHypAngle
 
 EPSILON = 1.e-12
 
@@ -73,3 +73,12 @@ def test_normalization_SourceCountsAAAppr():
     fSourceCountsAAAppr.SetNpy(10000)
 
     assert abs(fSourceCountsAAAppr.Integral(0, 30, 0, np.pi / 2, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAApprHypAngle():
+    fSourceCountsAAApprHypAngle = TF1("SourceAAApprHypAngle", SourceCountsAAApprHypAngle, 0, np.pi / 2, 3)
+    fSourceCountsAAApprHypAngle.SetParameter(0, 1)
+    fSourceCountsAAApprHypAngle.SetParameter(1, 1)
+    fSourceCountsAAApprHypAngle.SetParameter(2, 2)
+    fSourceCountsAAApprHypAngle.SetNpx(100000)
+
+    assert abs(fSourceCountsAAApprHypAngle.Integral(0, np.pi / 2, EPSILON) - 1) < EPSILON

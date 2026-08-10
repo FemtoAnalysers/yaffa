@@ -102,6 +102,16 @@ double SourceCountsAAAppr(double *x, double *p) {
     return norm * _SourcePdfAAAppr(hyperRadius, hyperAngle, rp, rs);
 }
 
+double SourceCountsAAApprHypAngle(double *x, double *p) {
+    double hyperAngle = x[0];
+
+    double norm = p[0];
+    double rp = p[1];
+    double rs = p[2];
+
+    return norm * _SourcePdfAAApprHypAngle(hyperAngle, rp, rs);
+}
+
 double SourceCountsAAApprAvg(double *x, double *p) {
     double hyperRadius = x[0];
 
