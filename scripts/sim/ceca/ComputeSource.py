@@ -21,6 +21,8 @@ from yaffa import utils
 BINNING_MT = (30, 1000, 2500) # um = MeV
 BINNING_SOURCE = (200, 0, 20) # um = fm
 BINNING_MOMENTUM = (2000, 0, 2000) # um = MeV/c
+BINNING_POLAR = (200, 0, np.pi) # um = rad
+BINNING_AZIMUTH = (200, -np.pi, np.pi) # um = rad
 
 def DefineVariables(df, m1, m2, m3, arbitraryMass):
     '''
@@ -104,6 +106,10 @@ def DefineVariables(df, m1, m2, m3, arbitraryMass):
         .Define('Q', f'std::sqrt({arbitraryMass} / {mu12} * k12 * k12 + {arbitraryMass} / {mu3_12} * k3_12 * k3_12)') \
         .Define('r12', 'x1_com_prop.Vect() - x2_com_prop.Vect()') \
         .Define('r3_12', f'-{m1 / (m1 + m2)} * x1_com_prop.Vect() - {m2 / (m1 + m2)} * x2_com_prop.Vect() + x3_com_prop.Vect()') \
+        .Define('theta12', 'r12.Theta()') \
+        .Define('phi12', 'r12.Phi()') \
+        .Define('theta3_12', 'r3_12.Theta()') \
+        .Define('phi3_12', 'r3_12.Phi()') \
         .Define('hyp_rad', f'std::sqrt(({mu12} * r12 * r12 + {mu3_12} * r3_12 * r3_12) / {arbitraryMass})') \
         .Define('hyp_angle', f'std::atan2(std::sqrt({mu3_12} * r3_12 * r3_12), std::sqrt({mu12} * r12 * r12))') \
 
@@ -159,6 +165,10 @@ def BookTripletHistograms(df, max_Q3):
         'hHypRad_ssp' : df_femto.Filter(f'origin == 0b001').Histo1D((f'hHypRad_ssp', ';#rho_{{ssp}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypRad_sss' : df_femto.Filter(f'origin == 0b000').Histo1D((f'hHypRad_sss', ';#rho_{{sss}} (fm);Counts', *BINNING_SOURCE), 'hyp_rad'),
         'hHypAngle' : df_femto.Histo1D((f'hHypAngle', ';#varphi (rad);Counts', 200, 0, np.pi / 2), 'hyp_angle'),
+        'hTheta12' : df_femto.Histo1D((f'hTheta12', ';#theta_{12} (rad);Counts', *BINNING_POLAR), 'theta12'),
+        'hPhi12' : df_femto.Histo1D((f'hPhi12', ';#phi_{12} (rad);Counts', *BINNING_AZIMUTH), 'phi12'),
+        'hTheta3_12' : df_femto.Histo1D((f'hTheta3_12', ';#theta_{3,12} (rad);Counts', *BINNING_POLAR), 'theta3_12'),
+        'hPhi3_12' : df_femto.Histo1D((f'hPhi3_12', ';#phi_{3,12} (rad);Counts', *BINNING_AZIMUTH), 'phi3_12'),
         'hHypRadVsMt' : df_femto.Histo2D(('hHypRadVsMt', ';m_{T}^{3B} (GeV/#it{c});#rho (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'hyp_rad'),
         'hRStar12VsMt' : df_femto.Histo2D((f'hRStar12VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,2)} (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'rstar12'),
         'hRStar13VsMt' : df_femto.Histo2D((f'hRStar13VsMt', ';m_{T}^{3B} (GeV/#it{c});r*_{(1,3)} (fm)', *BINNING_MT, *BINNING_SOURCE), 'mT', 'rstar13'),
