@@ -200,7 +200,7 @@ def main(args):
     fSourceHypAngle_pss.Draw("same")
     fSourceHypAngle_sss.Draw("same")
 
-    legHypAngle = TLegend(0.55, 0.6, 0.9, 0.9)
+    legHypAngle = TLegend(0.22, 0.6, 0.5, 0.9)
     legHypAngle.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
     legHypAngle.AddEntry(hHypAngle, "Total", "pel")
     legHypAngle.AddEntry(fSourceHypAngle_ppp, "ppp", "l")
@@ -210,6 +210,43 @@ def main(args):
 
     legHypAngle.Draw("same")
     cHypAngle.SaveAs(f"{oFileBase}_HypAngle.pdf")
+
+    # theta12 and theta3_12: polar angles of r12 and r3_12. Since these vectors are
+    # isotropically distributed, the expected pdf is 0.5 * sin(theta)
+    hTheta12 = inFile.Get("triplet/hTheta12")
+    hTheta312 = inFile.Get("triplet/hTheta3_12")
+
+    fTheta12 = TF1("fTheta12", "[0] * 0.5 * sin(x)", 0, np.pi)
+    fTheta12.SetParameter(0, hTheta12.GetEntries() * hTheta12.GetBinWidth(1))
+
+    fTheta312 = TF1("fTheta312", "[0] * 0.5 * sin(x)", 0, np.pi)
+    fTheta312.SetParameter(0, hTheta312.GetEntries() * hTheta312.GetBinWidth(1))
+
+    cTheta12 = TCanvas("cTheta12", "", 600, 600)
+    cTheta12.DrawFrame(0, 0, np.pi, 1.6 * hTheta12.GetMaximum(), ";#theta_{12} (rad);Counts")
+    hTheta12.Draw("pe same")
+    fTheta12.SetLineColor(2)
+    fTheta12.Draw("same")
+
+    legTheta12 = TLegend(0.55, 0.7, 0.9, 0.9)
+    legTheta12.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
+    legTheta12.AddEntry(hTheta12, "Total", "pel")
+    legTheta12.AddEntry(fTheta12, "0.5 sin(#theta_{12})", "l")
+    legTheta12.Draw("same")
+    cTheta12.SaveAs(f"{oFileBase}_Theta12.pdf")
+
+    cTheta312 = TCanvas("cTheta312", "", 600, 600)
+    cTheta312.DrawFrame(0, 0, np.pi, 1.6 * hTheta312.GetMaximum(), ";#theta_{3,12} (rad);Counts")
+    hTheta312.Draw("pe same")
+    fTheta312.SetLineColor(2)
+    fTheta312.Draw("same")
+
+    legTheta312 = TLegend(0.55, 0.7, 0.9, 0.9)
+    legTheta312.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
+    legTheta312.AddEntry(hTheta312, "Total", "pel")
+    legTheta312.AddEntry(fTheta312, "0.5 sin(#theta_{3,12})", "l")
+    legTheta312.Draw("same")
+    cTheta312.SaveAs(f"{oFileBase}_Theta312.pdf")
 
     # Save the fit functions
     oFile = TFile(args.output, "RECREATE")
@@ -227,6 +264,8 @@ def main(args):
     fSourceHypAngle_pps.Write()
     fSourceHypAngle_pss.Write()
     fSourceHypAngle_sss.Write()
+    fTheta12.Write()
+    fTheta312.Write()
     oFile.Close()
 
 
