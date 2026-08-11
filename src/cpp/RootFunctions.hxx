@@ -102,7 +102,8 @@ double SourceCountsAAAppr(double *x, double *p) {
     return norm * _SourcePdfAAAppr(hyperRadius, hyperAngle, rp, rs);
 }
 
-// Hyper-angle distribution for 3 identical particles of the same kind (ppp or sss)
+// Hyper-angle distribution for 3 identical particles of the same kind. Since the source in this case is hypercentral,
+// only the Jacobian survives
 double SourceCountsAAAHypAngle(double *x, double *p) {
     double hyperAngle = x[0];
 
