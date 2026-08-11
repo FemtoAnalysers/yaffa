@@ -33,8 +33,6 @@ from ROOT import (
 
 utils.style.SetStyle()
 
-fPrim = 0.3578
-
 
 def main(args):
     oFileBase = Path(args.output).stem
@@ -45,6 +43,13 @@ def main(args):
     Q3cut = int(match.group(1))
 
     inFile = TFile(args.input)
+
+    if args.fPrim is not None:
+        fPrim = args.fPrim
+    else:
+        nPPP = inFile.Get("triplet/hHypRad_ppp").GetEntries()
+        n = inFile.Get("triplet/hHypRad").GetEntries()
+        fPrim = (nPPP / n) ** (1. / 3.)
 
     # Extract rPrim and rSec from the 2B source
     hRStar = inFile.Get("triplet/hRStarVsMt").ProjectionY()
@@ -89,7 +94,7 @@ def main(args):
 
     leg = TLegend(0.5, 0.5, 0.9, 0.85)
     leg.SetHeader(f"2B, Q_{{3}} < {Q3cut} MeV/c")
-    leg.AddEntry(hRStar, "Total", "pel")
+    leg.AddEntry(hRStar, f"Total, f_{{prim}} = {fPrim * 100:.2f}%", "pel")
     leg.AddEntry(fSource2B_pp, f"pp: r_{{p}} = {rPrim:.2f} fm", "l")
     leg.AddEntry(
         fSource2B_ps,
@@ -146,7 +151,7 @@ def main(args):
 
     leg3B = TLegend(0.55, 0.5, 0.9, 0.9)
     leg3B.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
-    leg3B.AddEntry(hHypRad, "Total", "pel")
+    leg3B.AddEntry(hHypRad, f"Total, f_{{prim}} = {fPrim * 100:.2f}%", "pel")
     leg3B.AddEntry(fSource3B_ppp, f"ppp: #rho_{{ppp}} = {2 * rPrim:.2f} fm", "l")
     leg3B.AddEntry(fSource3B_pps, f"pps", "l")
     leg3B.AddEntry(fSource3B_pss, f"pss", "l")
@@ -202,7 +207,7 @@ def main(args):
 
     legHypAngle = TLegend(0.22, 0.6, 0.5, 0.9)
     legHypAngle.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
-    legHypAngle.AddEntry(hHypAngle, "Total", "pel")
+    legHypAngle.AddEntry(hHypAngle, f"Total, f_{{prim}} = {fPrim * 100:.2f}%", "pel")
     legHypAngle.AddEntry(fSourceHypAngle_ppp, "ppp", "l")
     legHypAngle.AddEntry(fSourceHypAngle_pps, "pps", "l")
     legHypAngle.AddEntry(fSourceHypAngle_pss, "pss", "l")
@@ -230,7 +235,7 @@ def main(args):
 
     legTheta12 = TLegend(0.55, 0.7, 0.9, 0.9)
     legTheta12.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
-    legTheta12.AddEntry(hTheta12, "Total", "pel")
+    legTheta12.AddEntry(hTheta12, f"Total, f_{{prim}} = {fPrim * 100:.2f}%", "pel")
     legTheta12.AddEntry(fTheta12, "0.5 sin(#theta_{12})", "l")
     legTheta12.Draw("same")
     cTheta12.SaveAs(f"{oFileBase}_Theta12.pdf")
@@ -243,7 +248,7 @@ def main(args):
 
     legTheta312 = TLegend(0.55, 0.7, 0.9, 0.9)
     legTheta312.SetHeader(f"3B, Q_{{3}} < {Q3cut} MeV/c")
-    legTheta312.AddEntry(hTheta312, "Total", "pel")
+    legTheta312.AddEntry(hTheta312, f"Total, f_{{prim}} = {fPrim * 100:.2f}%", "pel")
     legTheta312.AddEntry(fTheta312, "0.5 sin(#theta_{3,12})", "l")
     legTheta312.Draw("same")
     cTheta312.SaveAs(f"{oFileBase}_Theta312.pdf")
@@ -273,6 +278,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Path to the input root file")
     parser.add_argument("output", help="Path to the output root file")
+    parser.add_argument(
+        "--fPrim",
+        type=float,
+        default=None,
+        help="Fraction of primary particles. If not given, it is computed as "
+        "(N_ppp / N)^(1/3) from triplet/hHypRad_ppp and triplet/hHypRad",
+    )
     args = parser.parse_args()
 
     main(args)
