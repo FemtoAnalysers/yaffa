@@ -32,7 +32,7 @@ def ComputeSource(source, radii):
         source = [_SourceAAA(radius, float(second)) for radius in radii]
     elif first == 'gauss2b':
         source = [_SourceGauss(radius, float(second)) for radius in radii]    
-    elif source:
+    else:
         inFile = TFile(first)
         hSource = inFile.Get(second)
         hSource.SetDirectory(0)
@@ -42,7 +42,7 @@ def ComputeSource(source, radii):
 
     return source
 
-def main(ofile, wf, source=None, radius=2.6):
+def main(ofile, wf, source=None):
     if not Path(wf).exists():
         log.error(f'File "{wf}" does not exist.')
         return
