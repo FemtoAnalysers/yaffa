@@ -2,7 +2,7 @@ import os
 import numpy as np
 from pathlib import Path
 
-from ROOT import TGraph
+from ROOT import TGraph, TF1
 
 from yaffa import utils
 from yaffa import logger as log
@@ -35,10 +35,15 @@ def ComputeSource(source, radii):
     else:
         inFile = TFile(first)
         hSource = inFile.Get(second)
-        hSource.SetDirectory(0)
+
+        if isinstance(hSource, TF1):
+            source = [hSource.Eval(radius) / hSource.GetParameter(0) for radius in radii]
+        else:
+            hSource.SetDirectory(0)
+            source = [hSource.GetBinContent(hSource.FindBin(radius)) for radius in radii]
+
         inFile.Close()
 
-        source = [hSource.GetBinContent(hSource.FindBin(radius)) for radius in radii]    
 
     return source
 
@@ -74,11 +79,17 @@ def main(ofile, wf, source=None):
 
     source = np.array(ComputeSource(source, radii), dtype='d')
 
+    gSource = TGraph(len(source))
+    gSource.SetName('gSource')
+    for iPoint, (r, s) in enumerate(zip(radii, source)):
+        gSource.SetPoint(iPoint, r, s)
+
     for iMomentum, (momentum, wf2) in enumerate(zip(momenta, wf)):
         gCF.SetPoint(iMomentum, momentum, source @ wf2 / sum(source))
 
     oFile = TFile(ofile, 'recreate')
     gCF.Write()
+    gSource.Write()
     oFile.Close()
 
     print(f'Output saved in {ofile}')
