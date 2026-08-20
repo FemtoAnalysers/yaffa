@@ -55,6 +55,7 @@ def main(args):
     hRStar = inFile.Get("triplet/hRStarVsMt").ProjectionY()
 
     fSource2B = TF1("fSource2B", SourceCountsGaussResonances, 0, 12, 4)
+    fSource2B.SetNpx(100000)
     fSource2B.SetParameter(0, 1.0e5)
     fSource2B.FixParameter(1, fPrim)
     fSource2B.SetParameter(2, 1)
@@ -75,18 +76,21 @@ def main(args):
     fSource2B.Draw("same")
 
     fSource2B_pp = TF1("fSource2B_pp", SourceCountsGauss, 0, 20, 2)
+    fSource2B_pp.SetNpx(100000)
     fSource2B_pp.SetParameter(0, fPrim * fPrim * fSource2B.GetParameter(0))
     fSource2B_pp.SetParameter(1, rPrim)
     fSource2B_pp.SetLineStyle(7)
     fSource2B_pp.Draw("same")
 
     fSource2B_ps = TF1("fSource2B_ps", SourceCountsGauss, 0, 20, 2)
+    fSource2B_ps.SetNpx(100000)
     fSource2B_ps.SetParameter(0, 2 * fPrim * (1 - fPrim) * fSource2B.GetParameter(0))
     fSource2B_ps.SetParameter(1, np.sqrt((rPrim * rPrim + rSec * rSec) / 2))
     fSource2B_ps.SetLineStyle(8)
     fSource2B_ps.Draw("same")
 
     fSource2B_ss = TF1("fSource2B_ss", SourceCountsGauss, 0, 20, 2)
+    fSource2B_ss.SetNpx(100000)
     fSource2B_ss.SetParameter(0, (1 - fPrim) * (1 - fPrim) * fSource2B.GetParameter(0))
     fSource2B_ss.SetParameter(1, rSec)
     fSource2B_ss.SetLineStyle(9)
@@ -110,29 +114,34 @@ def main(args):
     hHypRad = inFile.Get("triplet/hHypRad")
 
     fSourceCountsAAAGaussResonances = TF1("fSourceCountsAAAGaussResonances", SourceCountsAAAGaussResonances, 0, 20, 4)
+    fSourceCountsAAAGaussResonances.SetNpx(100000)
     fSourceCountsAAAGaussResonances.SetParameter(0, hHypRad.GetEntries() / 10)
     fSourceCountsAAAGaussResonances.FixParameter(1, fPrim)
     fSourceCountsAAAGaussResonances.SetParameter(2, rPrim)
     fSourceCountsAAAGaussResonances.SetParameter(3, rSec)
 
     fSource3B_ppp = TF1("fSource3B_ppp", SourceCountsAAA, 0, 20, 2)
+    fSource3B_ppp.SetNpx(100000)
     fSource3B_ppp.SetParameter(0, fPrim**3 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_ppp.SetParameter(1, 2 * rPrim)
     fSource3B_ppp.SetLineStyle(7)
 
     fSource3B_pps = TF1("fSource3B_pps", SourceCountsAAApprAvg, 0, 20, 3)
+    fSource3B_pps.SetNpx(100000)
     fSource3B_pps.SetParameter(0, 3 * fPrim**2 * (1 - fPrim) * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_pps.SetParameter(1, rPrim)
     fSource3B_pps.SetParameter(2, rSec)
     fSource3B_pps.SetLineStyle(8)
 
     fSource3B_pss = TF1("fSource3B_pss", SourceCountsAAAprrAvg, 0, 20, 3)
+    fSource3B_pss.SetNpx(100000)
     fSource3B_pss.SetParameter(0, 3 * fPrim * (1 - fPrim) ** 2 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_pss.SetParameter(1, rPrim)
     fSource3B_pss.SetParameter(2, rSec)
     fSource3B_pss.SetLineStyle(9)
 
     fSource3B_sss = TF1("fSource3B_sss", SourceCountsAAA, 0, 20, 2)
+    fSource3B_sss.SetNpx(100000)
     fSource3B_sss.SetParameter(0, (1 - fPrim) ** 3 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_sss.SetParameter(1, 2 * rSec)
     fSource3B_sss.SetLineStyle(10)
@@ -168,28 +177,33 @@ def main(args):
     fSourceCountsAAAGaussResonancesHypAngle = TF1(
         "fSourceCountsAAAGaussResonancesHypAngle", SourceCountsAAAGaussResonancesHypAngle, 0, np.pi / 2, 4
     )
+    fSourceCountsAAAGaussResonancesHypAngle.SetNpx(100000)
     fSourceCountsAAAGaussResonancesHypAngle.SetParameter(0, hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
     fSourceCountsAAAGaussResonancesHypAngle.FixParameter(1, fPrim)
     fSourceCountsAAAGaussResonancesHypAngle.FixParameter(2, rPrim)
     fSourceCountsAAAGaussResonancesHypAngle.FixParameter(3, rSec)
 
     fSourceHypAngle_ppp = TF1("fSourceHypAngle_ppp", SourceCountsAAAHypAngle, 0, np.pi / 2, 1)
+    fSourceHypAngle_ppp.SetNpx(100000)
     fSourceHypAngle_ppp.SetParameter(0, fPrim**3 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
     fSourceHypAngle_ppp.SetLineStyle(7)
 
     fSourceHypAngle_pps = TF1("fSourceHypAngle_pps", SourceCountsAAApprHypAngle, 0, np.pi / 2, 3)
+    fSourceHypAngle_pps.SetNpx(100000)
     fSourceHypAngle_pps.SetParameter(0, 3 * fPrim**2 * (1 - fPrim) * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
     fSourceHypAngle_pps.SetParameter(1, rPrim)
     fSourceHypAngle_pps.SetParameter(2, rSec)
     fSourceHypAngle_pps.SetLineStyle(8)
 
     fSourceHypAngle_pss = TF1("fSourceHypAngle_pss", SourceCountsAAAprrHypAngle, 0, np.pi / 2, 3)
+    fSourceHypAngle_pss.SetNpx(100000)
     fSourceHypAngle_pss.SetParameter(0, 3 * fPrim * (1 - fPrim) ** 2 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
     fSourceHypAngle_pss.SetParameter(1, rPrim)
     fSourceHypAngle_pss.SetParameter(2, rSec)
     fSourceHypAngle_pss.SetLineStyle(9)
 
     fSourceHypAngle_sss = TF1("fSourceHypAngle_sss", SourceCountsAAAHypAngle, 0, np.pi / 2, 1)
+    fSourceHypAngle_sss.SetNpx(100000)
     fSourceHypAngle_sss.SetParameter(0, (1 - fPrim) ** 3 * hHypAngle.GetEntries() * hHypAngle.GetBinWidth(1))
     fSourceHypAngle_sss.SetLineStyle(10)
 
@@ -222,9 +236,11 @@ def main(args):
     hTheta312 = inFile.Get("triplet/hTheta3_12")
 
     fTheta12 = TF1("fTheta12", "[0] * 0.5 * sin(x)", 0, np.pi)
+    fTheta12.SetNpx(100000)
     fTheta12.SetParameter(0, hTheta12.GetEntries() * hTheta12.GetBinWidth(1))
 
     fTheta312 = TF1("fTheta312", "[0] * 0.5 * sin(x)", 0, np.pi)
+    fTheta312.SetNpx(100000)
     fTheta312.SetParameter(0, hTheta312.GetEntries() * hTheta312.GetBinWidth(1))
 
     cTheta12 = TCanvas("cTheta12", "", 600, 600)
