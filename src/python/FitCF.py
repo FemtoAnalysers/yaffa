@@ -25,6 +25,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     '''
 
     terms = {}
+    hObsList = []
     # oFile = TFile('ancestors_LPiplus.root', 'create')
     fitter = SuperFitter()
     fitter.SetFitRange(cfg['fits'][0]['fitrange'])
@@ -34,6 +35,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         inFile = TFile(fitCfg['infile'])
         hObs = utils.io.Load(inFile, fitCfg['path'])
         hObs.SetDirectory(0)
+        hObsList.append(hObs)
         oObs = Observable(hObs)
         inFile.Close()
 
@@ -98,7 +100,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     cFit.Divide(*panels)
     for iFit in range(len(cfg['fits'])):
         cFit.cd(iFit + 1)
-        cFit.DrawFrame(*fitCfg['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
+        cFit.DrawFrame(*cfg['fits'][iFit]['frame'], ';#it{k}* (GeV/c);#it{C}(#it{k}*)')
         fitter.Draw(iFit, cfg['fits'][iFit]['draw_recipes'], cfg['fits'][iFit]['datalabel'], cfg['fits'][iFit]['header'])
         terms[iFit] = fitter.GetTerms()
         fitter.GetFitFunction(iFit).Write()
@@ -136,7 +138,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     with open(f'{oFileName}_parameters.txt', "w") as file:
         file.write(table)
 
-    hObs.Write()
+    for hObs in hObsList:
+        hObs.Write()
     for idx, _ in enumerate(cfg['fits']):
         hGenCF = fitter.GetGenuineCF(idx, cfg['fits'][idx]['gencf']) # explicit cast to int for some reason
         hGenCF.SetName(f'hGenCF{idx}')
