@@ -7,13 +7,15 @@ fits:
 
     fitrange: [[0., 0.45]]
     drawrange: [0, 0.55]
+    frame: [0., 0, 0.3, 4]
+    header: "HMpp13TeV"
     datalabel: "Data #Lambda#pi^{#scale[1.3]{+}}#oplus #bar{#Lambda}#pi^{#scale[1.5]{-}}"
     legend:
         xrange: [0.6, 0.9]
         yrange: [0.6, 0.9]
 
     model: '(wc * ca + (1 - wc) * nca ) * ll + Xi1530 + Sigma1385_direct +Sigma1385_indirect + L1520_A + Xi1690'
-    # model: 'll * (wc * ca + (1 - wc) * nca)'
+    gencf: "1"
 
     draw_recipes:
         - ['MJ', 'wc * ca + (1 - wc) * nca']
