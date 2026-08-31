@@ -1123,11 +1123,10 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
     hGenCF->Reset();
 
     // Draw the fitted observable
-    // todo: change
-    this->fObs[0]->Draw("hist same pe");
+    this->fObs[idx]->Draw("hist same pe");
 
     // Draw the final fit function
-    this->fFit[0]->Draw("same");
+    this->fFit[idx]->Draw("same");
 
     // Tokenization of the recipe
     auto tokens = Tokenize(recipe);
