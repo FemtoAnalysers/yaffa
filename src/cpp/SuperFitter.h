@@ -16,6 +16,7 @@
 #include "TFormula.h"
 #include "TH1.h"
 #include "TObject.h"
+#include "Functions.hxx"
 #include "gsl/gsl_sf_dawson.h"
 
 #define DEBUG(level, indent, msg, ...)                       \
@@ -39,6 +40,41 @@ int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, 
 namespace sf {
 using parameter = std::tuple<std::string, double, double, double>;
 using func = std::function<double(double*, double*)>;
+}
+
+std::vector<std::vector<double>> LoadWaveFunction(const std::string& filename) {
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+    }
+
+    std::vector<std::vector<double>> data;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        // Skip comments / headers
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        std::istringstream iss(line);
+        std::vector<double> row;
+        double value;
+
+        while (iss >> value) {
+            row.push_back(value);
+        }
+
+        if (!row.empty()) {
+            data.push_back(std::move(row));
+        }
+    }
+
+    if (data.size() == 0) {
+        throw std::runtime_error("Data is empty: " + filename);
+    }
+    return data;
 }
 
 // Definition of variables ---------------------------------------------------------------------------------------------
@@ -289,6 +325,33 @@ double Lednicky(double* x, double* par) {
     return sourcePar3 * (sourcePar2 * ll1 + (1 - sourcePar2) * ll2) + 1. - sourcePar3;
 }
 
+std::vector<std::vector<double>> av18;
+// Argonnev18
+double Argonnev18(double* x, double* par) {
+    double kStar = x[0];
+    
+    double r0 = par[0];     // real part of the scattering length
+    
+    if (av18.size() == 0) {
+        av18 = LoadWaveFunction("/home/db/ph/proj/source3b/ext/yaffa/secrets/theory/wf/pp_av18.dat");
+    }
+
+    double cf = 0;
+    double sourceInt = 0;
+    for (const auto& row : av18) {
+        double rStar = row[0]; // first row is the source
+
+        // todo: fix this dirty trick that assumes that cfs are computed in k* intervals of 1 MeV
+        int iKStar = std::round(kStar*1000);
+
+        double source = _SourceGauss(rStar, r0);
+        sourceInt += source;
+        cf += row[iKStar] * source;
+    }
+
+    return cf / sourceInt;
+}
+
 // Class for advanced fitting ------------------------------------------------------------------------------------------
 class SuperFitter : public TObject {
    private:
@@ -438,6 +501,8 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         functions[idx].push_back({name, BreitWigner, 3});
     } else if (func == "lednicky") {
         functions[idx].push_back({name, Lednicky, 7});
+    } else if (func == "av18") {
+        functions[idx].push_back({name, Argonnev18, 1});
     } else {
         throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
     }
