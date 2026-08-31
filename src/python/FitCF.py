@@ -9,13 +9,22 @@ import argparse
 import yaml
 import tabulate
 
-from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
-gInterpreter.ProcessLine(f'#define DEBUG_LEVEL 0')
-gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/Observable.h"')
-gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/yaffa/utils/SuperFitter.h"')
-from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
-
 from yaffa import utils
+from yaffa import logger as log
+
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parents[2] / ".env"
+print(f'Loading env from {env_path}')
+if not load_dotenv(dotenv_path=env_path, verbose=True, override=True):
+    print("Environment variables in .env not loaded")
+YAFFA_PATH = os.getenv("YAFFA")
+if not YAFFA_PATH:
+    print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
+
+
+
 
 def FitCF(cfg): # pylint disable:missing-function-docstring
     '''Fit the correlation functions.
@@ -161,9 +170,15 @@ if __name__ == '__main__':
     parser.add_argument('--debug', type=int, default=10)
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
-    
+
+    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
     gInterpreter.ProcessLine(f'#undef DEBUG_LEVEL')
     gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
+    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/src/cpp/Observable.h"')
+    gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/src/cpp/SuperFitter.h"')
+    from ROOT import Observable, SuperFitter # plint: disable=ungrouped-imports
+
+    
 
     utils.style.SetStyle()
 
