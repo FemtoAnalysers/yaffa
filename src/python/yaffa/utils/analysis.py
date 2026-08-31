@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
+from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -47,10 +47,13 @@ def ScaleGraph(graph, value, name=None):
 
     return gScaled
 
-def SliceVertically(hist, edges, name=None):
+def SliceVertically(hist, edges=None, name=None):
     '''
     Slice a TH2 vertically (ProjectionY) and return the list of slices
     '''
+
+    if edges == None:
+        edges = [hist.GetXaxis().GetBinLowEdge(iBin + 1) for iBin in range(hist.GetNbinsX() + 1)]
 
     slices = []
     lowEdges = edges[:-1]
@@ -65,7 +68,7 @@ def SliceVertically(hist, edges, name=None):
         slices.append(hist.ProjectionY(f'{name}{lowEdge:.0f}_{upEdge:.0f}', firstBin, lastBin))
 
         # Exclude underflow and overflow
-        if lastBin <= 0 or firstBin >= hist.GetNbinsX():
+        if lastBin < 1 or firstBin > hist.GetNbinsX():
             slices[-1].Reset()
 
     return slices
@@ -125,8 +128,13 @@ def GetSpread(objects):
     Returns:
         TH1: histogram containing the average and spread of the input histograms
     '''
+    if len(objects) == 0:
+        log.critical('No objects provided')
 
-    if all(type(obj) is TF1 for obj in objects):  # pylint: disable=unidiomatic-typecheck
+    if not objects or len(objects) == 0:
+        raise ValueError('Empty list of objects')
+
+    if all(type(obj) in (TF1, TSpline3) for obj in objects):  # pylint: disable=unidiomatic-typecheck
         xMin = objects[0].GetXmin()
         xMax = objects[0].GetXmax()
         gSpread = TGraphErrors(1)
@@ -155,21 +163,40 @@ def GetSpread(objects):
 
     raise NotImplementedError('Spread only implemented for histograms and TF1')
 
-def ChangeUnits(hist, multiplier, name=None, title=''):
+def ChangeUnits(obj, multiplier, name=None, title=''):
     '''
-    Only for histogram with constant binwidth!
+    Only for objogram with constant binwidth!
     '''
-    nbins = hist.GetNbinsX()
-    lowEdge = hist.GetBinLowEdge(1)
-    upEdge = hist.GetBinLowEdge(nbins+1)
-    if name is None:
-        name = f'{hist.GetName()}_new'
-    hNew = TH1F(name, title, nbins, lowEdge*multiplier, upEdge*multiplier)
-    for i in range(0, nbins+2):
-        hNew.SetBinContent(i, hist.GetBinContent(i))
-        hNew.SetBinError(i, hist.GetBinError(i))
-    return hNew
 
+    if isinstance(obj, TH1):
+        nbins = obj.GetNbinsX()
+        lowEdge = obj.GetBinLowEdge(1)
+        upEdge = obj.GetBinLowEdge(nbins+1)
+        if name is None:
+            name = f'{obj.GetName()}_new'
+        hNew = TH1F(name, title, nbins, lowEdge*multiplier, upEdge*multiplier)
+        for i in range(0, nbins+2):
+            hNew.SetBinContent(i, obj.GetBinContent(i))
+            hNew.SetBinError(i, obj.GetBinError(i))
+        return hNew
+
+    if isinstance(obj, TGraphErrors):
+        nPoints = obj.GetN()
+        gNew = TGraphErrors(nPoints)
+        gNew.SetName(name if name else f'{obj.GetName()}_stretch')
+
+        for iPoint in range(nPoints):
+            x = obj.GetPointX(iPoint)
+            y = obj.GetPointY(iPoint)
+            gNew.SetPoint(iPoint, x * multiplier, y)
+
+            xUnc = obj.GetErrorX(iPoint)
+            yUnc = obj.GetErrorY(iPoint)
+            gNew.SetPointError(iPoint, xUnc, yUnc)
+
+        return gNew
+
+    raise NotImplementedError()
 
 def ChangeUnits2D(hist, multiplier, name=None, title=''):
     '''
@@ -413,13 +440,34 @@ def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
     if isinstance(den, TH1):
         if isinstance(num, TGraphErrors):
             nBins = den.GetNbinsX()
-            if nBins != num.GetN():
-                log.critical("You you are trying to divide two objects with different number of bins/points.")
-            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
-                log.critical("The binnings are not aligned.")
-
             ratio = den.Clone(name)
             ratio.Reset()
+
+            if nBins != num.GetN():
+                log.warning("You you are trying to divide two objects with different number of bins/points.")
+
+                for iBin in range(nBins):
+                    x = den.GetBinCenter(iBin + 1)
+                    y = num.Eval(x)
+                    ey = 0
+
+                    binContent = den.GetBinContent(iBin + 1)
+                    binError = den.GetBinError(iBin + 1)
+
+                    if binContent > 0 and y > 0:
+                        r = y / binContent
+                        ratioUnc = r * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+
+                        ratio.SetBinContent(iBin + 1, r)
+                        ratio.SetBinError(iBin + 1, ratioUnc)
+                    else:
+                        ratio.SetBinContent(iBin + 1, 0)
+                        ratio.SetBinError(iBin + 1, 0)
+
+                return ratio
+
+            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
+                log.critical("The binnings are not aligned.")
 
             for iBin in range(nBins):
                 x = num.GetPointX(iBin)
@@ -496,7 +544,7 @@ def Bootstrap(obj):
 
             buNew = np.random.normal(loc=bc, scale=bu)
 
-            hBS.SetBinContent(iBin, buNew)
+            hBS.SetBinContent(iBin + 1, buNew)
 
         return hBS
 

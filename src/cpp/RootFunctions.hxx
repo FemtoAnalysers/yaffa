@@ -61,7 +61,9 @@ double SourceCountsGaussResonances(double* x, double* p) {
     double norm = p[0];
     double f = p[1];
     double rp = p[2];
-    double rs = p[3];
+    double delta = p[3]; // Delta radius: rs = rp + drs. p[3] must be limited > 0
+
+    double rs = rp + delta;
 
     double source_pp = f * f * _SourceGauss(rStar, rp);
     double source_ps = 2 * f * (1 - f) * _SourceGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
@@ -81,10 +83,10 @@ double SourceCountsAAAGaussResonances(double* x, double* p) {
     double rp = p[2]; // Single-particle radius of primordial particles
     double rs = p[3]; // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourceAAA(hyperRadius, rp);
+    double source_ppp = pow(f, 3) * _SourceAAA(hyperRadius, 2 * rp);
     double source_pps = 3 * f * f * (1 - f) * _SourceAAApprAvg(hyperRadius, rp, rs);
     double source_pss = 3 * f * pow(1 - f, 2) * _SourceAAApprAvg(hyperRadius, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourceGauss(hyperRadius, rs);
+    double source_sss = pow(1 - f, 3) * _SourceAAA(hyperRadius, 2 * rs);
 
     return norm * (source_ppp + source_pps + source_pss + source_sss);
 }
@@ -98,6 +100,56 @@ double SourceCountsAAAppr(double *x, double *p) {
     double rs = p[2];
 
     return norm * _SourcePdfAAAppr(hyperRadius, hyperAngle, rp, rs);
+}
+
+// Hyper-angle distribution for 3 identical particles of the same kind. Since the source in this case is hypercentral,
+// only the Jacobian survives
+double SourceCountsAAAHypAngle(double *x, double *p) {
+    double hyperAngle = x[0];
+
+    double norm = p[0];
+
+    return norm * _SourcePdfAAAHypAngle(hyperAngle);
+}
+
+double SourceCountsAAApprHypAngle(double *x, double *p) {
+    double hyperAngle = x[0];
+
+    double norm = p[0];
+    double rp = p[1];
+    double rs = p[2];
+
+    return norm * _SourcePdfAAApprHypAngle(hyperAngle, rp, rs);
+}
+
+double SourceCountsAAAprrHypAngle(double *x, double *p) {
+    double hyperAngle = x[0];
+
+    double norm = p[0];
+    double rp = p[1];
+    double rs = p[2];
+
+    // The same as primary-primary-resonances but with r_prim and r_reso switched
+    return norm * _SourcePdfAAApprHypAngle(hyperAngle, rs, rp);
+}
+
+// Hyper-angle distribution for 3 identical particles including the effect of resonances
+double SourceCountsAAAGaussResonancesHypAngle(double* x, double* p) {
+    // Variables
+    double hyperAngle = x[0];
+
+    // Parameters
+    double norm = p[0];
+    double f = p[1]; // Fraction of primordinal particles
+    double rp = p[2]; // Single-particle radius of primordial particles
+    double rs = p[3]; // Single-particle radius of secondary particles
+
+    double source_ppp = pow(f, 3) * _SourcePdfAAAHypAngle(hyperAngle);
+    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypAngle(hyperAngle, rp, rs);
+    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypAngle(hyperAngle, rs, rp); // Same as ppr with rp <--> rs
+    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypAngle(hyperAngle);
+
+    return norm * (source_ppp + source_pps + source_pss + source_sss);
 }
 
 double SourceCountsAAApprAvg(double *x, double *p) {

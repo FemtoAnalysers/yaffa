@@ -19,7 +19,19 @@ if not YAFFA_PATH:
 
 from ROOT import TF1, TF2, gInterpreter
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import SourceGauss, SourceAAA, SourceAAAJC, SourceCountsGauss, SourceCountsAAA, SourceCountsAAAJC, SourceCountsAAAppr
+from ROOT import (
+    SourceGauss,
+    SourceAAA,
+    SourceAAAJC,
+    SourceCountsGauss,
+    SourceCountsAAA,
+    SourceCountsAAAJC,
+    SourceCountsAAAppr,
+    SourceCountsAAAHypAngle,
+    SourceCountsAAApprHypAngle,
+    SourceCountsAAAprrHypAngle,
+    SourceCountsAAAGaussResonancesHypAngle,
+)
 
 EPSILON = 1.e-12
 
@@ -73,3 +85,40 @@ def test_normalization_SourceCountsAAAppr():
     fSourceCountsAAAppr.SetNpy(10000)
 
     assert abs(fSourceCountsAAAppr.Integral(0, 30, 0, np.pi / 2, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAApprHypAngle():
+    fSourceCountsAAApprHypAngle = TF1("SourceAAApprHypAngle", SourceCountsAAApprHypAngle, 0, np.pi / 2, 3)
+    fSourceCountsAAApprHypAngle.SetParameter(0, 1)
+    fSourceCountsAAApprHypAngle.SetParameter(1, 1)
+    fSourceCountsAAApprHypAngle.SetParameter(2, 2)
+    fSourceCountsAAApprHypAngle.SetNpx(100000)
+
+    assert abs(fSourceCountsAAApprHypAngle.Integral(0, np.pi / 2, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAAHypAngle():
+    fSourceCountsAAAHypAngle = TF1("SourceAAAHypAngle", SourceCountsAAAHypAngle, 0, np.pi / 2, 1)
+    fSourceCountsAAAHypAngle.SetParameter(0, 1)
+    fSourceCountsAAAHypAngle.SetNpx(100000)
+
+    assert abs(fSourceCountsAAAHypAngle.Integral(0, np.pi / 2, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAAprrHypAngle():
+    fSourceCountsAAAprrHypAngle = TF1("SourceAAAprrHypAngle", SourceCountsAAAprrHypAngle, 0, np.pi / 2, 3)
+    fSourceCountsAAAprrHypAngle.SetParameter(0, 1)
+    fSourceCountsAAAprrHypAngle.SetParameter(1, 1)
+    fSourceCountsAAAprrHypAngle.SetParameter(2, 2)
+    fSourceCountsAAAprrHypAngle.SetNpx(100000)
+
+    assert abs(fSourceCountsAAAprrHypAngle.Integral(0, np.pi / 2, EPSILON) - 1) < EPSILON
+
+def test_normalization_SourceCountsAAAGaussResonancesHypAngle():
+    fSourceCountsAAAGaussResonancesHypAngle = TF1(
+        "SourceAAAGaussResonancesHypAngle", SourceCountsAAAGaussResonancesHypAngle, 0, np.pi / 2, 4
+    )
+    fSourceCountsAAAGaussResonancesHypAngle.SetParameter(0, 1)
+    fSourceCountsAAAGaussResonancesHypAngle.SetParameter(1, 0.3578)
+    fSourceCountsAAAGaussResonancesHypAngle.SetParameter(2, 1)
+    fSourceCountsAAAGaussResonancesHypAngle.SetParameter(3, 2)
+    fSourceCountsAAAGaussResonancesHypAngle.SetNpx(100000)
+
+    assert abs(fSourceCountsAAAGaussResonancesHypAngle.Integral(0, np.pi / 2, EPSILON) - 1) < EPSILON

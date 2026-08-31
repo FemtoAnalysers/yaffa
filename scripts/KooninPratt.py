@@ -2,7 +2,7 @@ import os
 import numpy as np
 from pathlib import Path
 
-from ROOT import TGraph
+from ROOT import TGraph, TF1
 
 from yaffa import utils
 from yaffa import logger as log
@@ -32,24 +32,25 @@ def ComputeSource(source, radii):
         source = [_SourceAAA(radius, float(second)) for radius in radii]
     elif first == 'gauss2b':
         source = [_SourceGauss(radius, float(second)) for radius in radii]    
-    elif source:
+    else:
         inFile = TFile(first)
         hSource = inFile.Get(second)
-        hSource.SetDirectory(0)
+
+        if isinstance(hSource, TF1):
+            source = [hSource.Eval(radius) / hSource.GetParameter(0) for radius in radii]
+        else:
+            hSource.SetDirectory(0)
+            source = [hSource.GetBinContent(hSource.FindBin(radius)) for radius in radii]
+
         inFile.Close()
 
-        source = [hSource.GetBinContent(hSource.FindBin(radius)) for radius in radii]    
 
     return source
 
-def main(ofile, wf, source=None, radius=2.6):
+def main(ofile, wf, source=None):
     if not Path(wf).exists():
         log.error(f'File "{wf}" does not exist.')
         return
-
-    gCF = TGraph(1)
-    gCF.SetName('gCF')
-    gCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
 
     if '.root' in wf:
         inFile = TFile(wf)
@@ -72,13 +73,34 @@ def main(ofile, wf, source=None, radius=2.6):
         radii = data[:, 0]
         wf = data[:, 1:].T
 
-    source = np.array(ComputeSource(source, radii), dtype='d')
-
-    for iMomentum, (momentum, wf2) in enumerate(zip(momenta, wf)):
-        gCF.SetPoint(iMomentum, momentum, source @ wf2 / sum(source))
-
     oFile = TFile(ofile, 'recreate')
-    gCF.Write()
+
+    for label, src in utils.io.Expand(source):
+        if not label:
+            suffix = ''
+        elif label[0] == '_':
+            suffix = label
+        else:
+            suffix = f'_{label}'
+
+        sourceValues = np.array(ComputeSource(src, radii), dtype='d')
+
+        gCF = TGraph(1)
+        gCF.SetName(f'gCF{suffix}')
+        gCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
+
+        gSource = TGraph(len(sourceValues))
+        gSource.SetName(f'gSource{suffix}')
+        for iPoint, (r, s) in enumerate(zip(radii, sourceValues)):
+            gSource.SetPoint(iPoint, r, s)
+
+        for iMomentum, (momentum, wf2) in enumerate(zip(momenta, wf)):
+            gCF.SetPoint(iMomentum, momentum, sourceValues @ wf2 / sum(sourceValues))
+
+        oFile.cd()
+        gCF.Write()
+        gSource.Write()
+
     oFile.Close()
 
     print(f'Output saved in {ofile}')

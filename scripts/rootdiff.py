@@ -124,27 +124,24 @@ def compare_graph(g1, g2, tol=1e-12):
 
     return True
 
-def compare_files(f1name, f2name):
-    print(f"Comparing file '{f1name}' vs '{f2name}'")
-    f1 = ROOT.TFile.Open(f1name)
-    f2 = ROOT.TFile.Open(f2name)
+def compare_directories(d1, d2, path=""):
+    label = path or "/"
 
-    keys1 = {k.GetName(): k.GetClassName() for k in f1.GetListOfKeys()}
-    keys2 = {k.GetName(): k.GetClassName() for k in f2.GetListOfKeys()}
+    keys1 = {k.GetName(): k.GetClassName() for k in d1.GetListOfKeys()}
+    keys2 = {k.GetName(): k.GetClassName() for k in d2.GetListOfKeys()}
 
     are_same = keys1 == keys2
 
     if not are_same:
         only1 = set(keys1) - set(keys2)
         only2 = set(keys2) - set(keys1)
-        print_error(f1, f'Different keys: only in file1: {only1}, only in file2: {only2}')
-
+        print_error(d1, f"Different keys in '{label}': only in file1: {only1}, only in file2: {only2}")
 
         # Try to detect renames
         for n1 in list(only1):
-            o1 = f1.Get(n1)
+            o1 = d1.Get(n1)
             for n2 in list(only2):
-                o2 = f2.Get(n2)
+                o2 = d2.Get(n2)
 
                 same = False
 
@@ -164,18 +161,22 @@ def compare_files(f1name, f2name):
                     break
 
         if only1:
-            print_warning(o1, f'Only in file1: {n1}')
+            print_warning(d1, f"Only in file1 '{label}': {only1}")
         if only2:
-            print_warning(o2, f'Only in file2: {n2}')
+            print_warning(d2, f"Only in file2 '{label}': {only2}")
 
     for name in keys1:
-        o1 = f1.Get(name)
-        o2 = f2.Get(name)
-        
+        o1 = d1.Get(name)
+        o2 = d2.Get(name)
+
         if not o2:
             continue
 
-        if o1.InheritsFrom("TH1"):
+        subpath = f"{path}/{name}" if path else name
+
+        if o1.InheritsFrom("TDirectory"):
+            are_same &= compare_directories(o1, o2, subpath)
+        elif o1.InheritsFrom("TH1"):
             are_same &= compare_hist(o1, o2)
         elif o1.InheritsFrom("TF1"):
             are_same &= compare_tf1(o1, o2)
@@ -184,6 +185,15 @@ def compare_files(f1name, f2name):
         else:
             print_warning(o1, 'Comparison not implemented for this class')
             continue
+
+    return are_same
+
+def compare_files(f1name, f2name):
+    print(f"Comparing file '{f1name}' vs '{f2name}'")
+    f1 = ROOT.TFile.Open(f1name)
+    f2 = ROOT.TFile.Open(f2name)
+
+    are_same = compare_directories(f1, f2)
 
     if are_same:
         print("Files are equivalent")

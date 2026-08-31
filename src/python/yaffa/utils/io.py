@@ -3,6 +3,8 @@ Utility functions for i/o operations on root files
 '''
 
 import os
+import re
+import fnmatch
 
 from ROOT import TFile, TDirectoryFile, TList # pylint: disable=import-error
 
@@ -129,6 +131,33 @@ def LoadResolutionMatrix(pair, **kwargs):
 
 
     return dResMat
+
+
+def Expand(path):
+    '''
+    Expand "file.root:name_{a,b,c}" into [("a", "file.root:name_a"), ...],
+    or "file.root:name_*" into one entry per matching key in the file,
+    labelled by the part of the name matched by "*".
+    '''
+    match = re.search(r'\{([^}]*)\}', path)
+    if match:
+        options = match.group(1).split(',')
+        return [(opt, path[:match.start()] + opt + path[match.end():]) for opt in options]
+
+    if '*' in path:
+        first, second = path.split(':')
+        prefix, _, suffix = second.partition('*')
+
+        inFile = TFile(first)
+        names = [key.GetName() for key in inFile.GetListOfKeys() if fnmatch.fnmatch(key.GetName(), second)]
+        inFile.Close()
+
+        return [
+            (name[len(prefix):len(name) - len(suffix)] if suffix else name[len(prefix):], f'{first}:{name}')
+            for name in names
+        ]
+
+    return [(None, path)]
 
 
 def GetHistNames(rdir):

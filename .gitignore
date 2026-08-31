@@ -12,12 +12,18 @@ build/**
 *.d
 *.so
 
+# Root files that are not supposed to be tracked by git. e.g. large datasets (> 50 M)
+*.local.root
+
 # Root files
 tests/source.root
 tests/source_3b.root
 tests/source_vs_mT.root
 tests/source_cecapaper.root
 tests/source_cecapaper_3b.root
+
+# Example plots
+scripts/CompareGaus.pdf
 
 # python
 *.pyc
