@@ -52,10 +52,6 @@ def main(ofile, wf, source=None):
         log.error(f'File "{wf}" does not exist.')
         return
 
-    gCF = TGraph(1)
-    gCF.SetName('gCF')
-    gCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
-
     if '.root' in wf:
         inFile = TFile(wf)
         hWF = inFile.Get('hWF')
@@ -77,19 +73,34 @@ def main(ofile, wf, source=None):
         radii = data[:, 0]
         wf = data[:, 1:].T
 
-    source = np.array(ComputeSource(source, radii), dtype='d')
-
-    gSource = TGraph(len(source))
-    gSource.SetName('gSource')
-    for iPoint, (r, s) in enumerate(zip(radii, source)):
-        gSource.SetPoint(iPoint, r, s)
-
-    for iMomentum, (momentum, wf2) in enumerate(zip(momenta, wf)):
-        gCF.SetPoint(iMomentum, momentum, source @ wf2 / sum(source))
-
     oFile = TFile(ofile, 'recreate')
-    gCF.Write()
-    gSource.Write()
+
+    for label, src in utils.io.Expand(source):
+        if not label:
+            suffix = ''
+        elif label[0] == '_':
+            suffix = label
+        else:
+            suffix = f'_{label}'
+
+        sourceValues = np.array(ComputeSource(src, radii), dtype='d')
+
+        gCF = TGraph(1)
+        gCF.SetName(f'gCF{suffix}')
+        gCF.SetTitle(';#it{k}* (GeV/#it{c});#it{C}(#it{k}*)')
+
+        gSource = TGraph(len(sourceValues))
+        gSource.SetName(f'gSource{suffix}')
+        for iPoint, (r, s) in enumerate(zip(radii, sourceValues)):
+            gSource.SetPoint(iPoint, r, s)
+
+        for iMomentum, (momentum, wf2) in enumerate(zip(momenta, wf)):
+            gCF.SetPoint(iMomentum, momentum, sourceValues @ wf2 / sum(sourceValues))
+
+        oFile.cd()
+        gCF.Write()
+        gSource.Write()
+
     oFile.Close()
 
     print(f'Output saved in {ofile}')
