@@ -98,7 +98,7 @@ WaveFunction::WaveFunction(const std::string& filename) : fNBody(0) {
             iss >> mom;
             fMomentum.push_back(mom);
             std::size_t count = 0;
-            for (double v; iss >> v; ++count) fValues.push_back(v);
+            for (double v; iss >> v; count++) fValues.push_back(v);
             if (count != fRadius.size())
                 throw std::runtime_error(
                     "WaveFunction: a data row has the wrong number of columns");
@@ -126,7 +126,7 @@ static std::string AxisSummary(const std::vector<double>& a) {
     if (a.size() >= 2) {
         const double step = (a.back() - a.front()) / static_cast<double>(a.size() - 1);
         bool uniform = true;
-        for (std::size_t i = 1; i < a.size() && uniform; ++i)
+        for (std::size_t i = 1; i < a.size() && uniform; i++)
             if (std::fabs((a[i] - a[i - 1]) - step) > 1e-6 * std::fabs(step)) uniform = false;
         if (uniform)
             s << ", uniform step " << step;
@@ -177,12 +177,12 @@ void WaveFunction::Save(const std::string& filename) const {
 
     out << "mom\\radius";  // corner label: column 1 is the momentum axis, the rest
                            // of this row is the radius axis. Ignored on read.
-    for (std::size_t j = 0; j < fRadius.size(); ++j) out << ' ' << fRadius[j];
+    for (std::size_t j = 0; j < fRadius.size(); j++) out << ' ' << fRadius[j];
     out << '\n';
 
-    for (std::size_t i = 0; i < fMomentum.size(); ++i) {
+    for (std::size_t i = 0; i < fMomentum.size(); i++) {
         out << fMomentum[i];
-        for (std::size_t j = 0; j < fRadius.size(); ++j) out << ' ' << At(i, j);
+        for (std::size_t j = 0; j < fRadius.size(); j++) out << ' ' << At(i, j);
         out << '\n';
     }
 }
@@ -207,13 +207,13 @@ std::vector<double> WaveFunction::CorrelationFunction(
 
     // Radius-dependent weight J(r) * S(r); identical for every momentum.
     std::vector<double> weight(nRad);
-    for (std::size_t j = 0; j < nRad; ++j)
+    for (std::size_t j = 0; j < nRad; j++)
         weight[j] = Jacobian(fRadius[j]) * sourceOnRadiusAxis[j];
 
     std::vector<double> cf(nMom, 0.);
-    for (std::size_t i = 0; i < nMom; ++i) {
+    for (std::size_t i = 0; i < nMom; i++) {
         double num = 0., den = 0.;
-        for (std::size_t j = 0; j + 1 < nRad; ++j) {  // trapezoid over the radius axis
+        for (std::size_t j = 0; j + 1 < nRad; j++) {  // trapezoid over the radius axis
             const double dr = fRadius[j + 1] - fRadius[j];
             num += 0.5 * dr * (weight[j] * At(i, j) + weight[j + 1] * At(i, j + 1));
             den += 0.5 * dr * (weight[j] + weight[j + 1]);
@@ -226,6 +226,6 @@ std::vector<double> WaveFunction::CorrelationFunction(
 std::vector<double> WaveFunction::CorrelationFunction(
     const std::function<double(double)>& source) const {
     std::vector<double> sampled(fRadius.size());
-    for (std::size_t j = 0; j < fRadius.size(); ++j) sampled[j] = source(fRadius[j]);
+    for (std::size_t j = 0; j < fRadius.size(); j++) sampled[j] = source(fRadius[j]);
     return CorrelationFunction(sampled);
 }
