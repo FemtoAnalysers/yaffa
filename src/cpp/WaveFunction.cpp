@@ -13,9 +13,9 @@
 //
 //   # yaffa.WaveFunction 1           <- format magic + version (must be line 1)
 //   #
-//   # ... several free-text comment lines describing the quantity, the two
-//   #     axes (name, unit, point count, range, spacing) and the table order,
-//   #     so the file is self-explanatory without this source ...
+//   # ... free-text comment lines: the quantity, the two axes (name, unit,
+//   #     point count, range, spacing), the table order, and any notes
+//   #     passed as `description`, so the file is self-explanatory. Ignored on read.
 //   #
 //   # system = pp                    <- parsed: free-form system label
 //   # nbody = 2                      <- parsed: 2 or 3 (sets axis meaning + KP Jacobian)
@@ -26,11 +26,11 @@
 //   <mom_1>  v10 v11 ... v1{N-1}
 //   ...
 //
-// Lines starting with '#' are either "key = value" metadata or free comments
-// (no '='); both are skipped on read except the keys 'system' and 'nbody', so
-// those two lines must carry the bare value only (no trailing text). Blank
-// lines are skipped. Everything is whitespace-separated; axes may be
-// non-uniform. Table values are row-major: values[iMom * nRadius + iRad].
+// Every '#' line is skipped on read except the keys 'system' and 'nbody', so
+// those two lines must carry the bare value only (no trailing text); all other
+// comments are for the human reader. Blank lines are skipped. Everything is
+// whitespace-separated; axes may be non-uniform. Values are row-major:
+// values[iMom * nRadius + iRad].
 
 namespace {
 
@@ -44,12 +44,14 @@ std::string Trim(const std::string& s) {
 }  // namespace
 
 WaveFunction::WaveFunction(std::vector<double> momentum, std::vector<double> radius,
-                           std::vector<double> values, int nBody, std::string system)
+                           std::vector<double> values, int nBody, std::string system,
+                           std::string description)
     : fMomentum(std::move(momentum)),
       fRadius(std::move(radius)),
       fValues(std::move(values)),
       fNBody(nBody),
-      fSystem(std::move(system)) {
+      fSystem(std::move(system)),
+      fDescription(std::move(description)) {
     if (fNBody != 2 && fNBody != 3)
         throw std::runtime_error("WaveFunction: nBody must be 2 or 3");
     CheckShape();
@@ -151,7 +153,7 @@ void WaveFunction::Save(const std::string& filename) const {
     out << "# per momentum value; integrating it against an emission source over the\n";
     out << "# radius axis (the Koonin-Pratt formula) gives the correlation function.\n";
     out << "#\n";
-    out << "# quantity      : " << psiName << "  (dimensionless)\n";
+    out << "# quantity      : " << psiName << "\n";
     out << "# momentum axis : " << momName << ", MeV/c -- one value per row\n";
     out << "#                 " << AxisSummary(fMomentum) << "\n";
     out << "# radius axis   : " << radName << ", fm -- one value per column\n";
@@ -163,6 +165,12 @@ void WaveFunction::Save(const std::string& filename) const {
     out << "#   row i+1 : m_i  v(i,0) v(i,1) ... v(i,nRadius-1)    where v(i,j) holds "
         << psiName << " at (m_i, r_j)\n";
     out << "#\n";
+    if (!fDescription.empty()) {  // free-form notes, for the human reader only
+        std::istringstream cs(fDescription);
+        std::string cl;
+        while (std::getline(cs, cl)) out << "# " << cl << "\n";
+        out << "#\n";
+    }
     out << "# system = " << fSystem << "\n";
     out << "# nbody = " << static_cast<int>(fNBody) << "\n";
     out << "#\n";

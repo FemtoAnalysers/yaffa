@@ -21,8 +21,13 @@ class WaveFunction {
     // radius   : r* (nBody == 2) or hyper-radius rho (nBody == 3), one per column
     // values   : row-major, values[iMom * radius.size() + iRad]
     // nBody    : number of particles (2 or 3); sets the Koonin-Pratt Jacobian
+    // system      : free-form label ("pp", "ppp", ...)
+    // description : free-form notes (reference, assumptions, ...); may be
+    //               multi-line. Written into the file header as comment lines for
+    //               the human reader; not parsed back when a file is loaded.
     WaveFunction(std::vector<double> momentum, std::vector<double> radius,
-                 std::vector<double> values, int nBody, std::string system = "");
+                 std::vector<double> values, int nBody, std::string system = "",
+                 std::string description = "");
 
     // Read the standardized text format written by Save().
     explicit WaveFunction(const std::string& filename);
@@ -34,6 +39,7 @@ class WaveFunction {
     const std::vector<double>& Radius() const { return fRadius; }
     int GetNBody() const { return fNBody; }
     const std::string& System() const { return fSystem; }
+    const std::string& Description() const { return fDescription; }
 
     // |psi|^2 at grid node (iMom, iRad).
     double At(std::size_t iMom, std::size_t iRad) const {
@@ -63,6 +69,7 @@ class WaveFunction {
     std::vector<double> fValues;    // row-major, size fMomentum.size() * fRadius.size()
     int fNBody;
     std::string fSystem;  // free-form label: "pp", "ppp", ...
+    std::string fDescription;  // free-form notes; may be multi-line
 };
 
 #endif  // YAFFA_WAVEFUNCTION_H
