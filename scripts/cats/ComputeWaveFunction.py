@@ -1,7 +1,23 @@
 import os
-import math
 import numpy as np
 from ROOT import gSystem, gInterpreter, TH2D, TDatabasePDG, TGraph, TFile
+
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parents[2]/ ".env"
+print(f'Loading env from {env_path}')
+if not load_dotenv(dotenv_path=env_path, verbose=True, override=True):
+    print("Environment variables in .env not loaded")
+YAFFA_PATH = os.getenv("YAFFA")
+if not YAFFA_PATH:
+    print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
+
+from ROOT import gInterpreter, TFile
+# Include the .cpp (not just the header) so cling JIT-compiles the member
+# definitions in WaveFunction.cpp -- there is no compiled libyaffa to link.
+gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/WaveFunction.cpp"')
+from ROOT import WaveFunction
 
 CATS_PATH = os.environ['CATS']
 
@@ -102,6 +118,22 @@ def compute_wave_function(system, oFile):
     radius = RADIUS_STEP/2 + np.arange(wf.shape[1]) * RADIUS_STEP
     kstar = KSTAR_STEP/2 + np.arange(wf.shape[0]) * KSTAR_STEP
 
+    # --- new: save via the WaveFunction C++ class (.wf standardized format) ---
+    # wf has shape (nk, nr) == (row = momentum, column = r*), which is exactly
+    # the class's row-major convention: values[iMom * nRad + iRad].
+    wf_path = str(Path(oFile).with_suffix('.wf'))
+    wff = WaveFunction(
+        kstar.tolist(),        # momentum axis: k* (MeV/c), one entry per row
+        radius.tolist(),       # r* axis (fm), one entry per column
+        wf.ravel().tolist(),   # row-major values, iMom slow / iRad fast
+        2,                     # nBody
+        system,                # free-form system label, e.g. "pp"
+    )
+    wff.Save(wf_path)
+    print(f'WaveFunction (.wf) written to {wf_path}')
+
+    # --- old: legacy plain-text table kept for the time being (.dat format) ---
+    dat_path = str(Path(oFile).with_suffix('.dat'))
     wf = np.column_stack([radius, wf.T])
     header += (
         f'radius_step = {RADIUS_STEP} fm\n'
@@ -110,11 +142,12 @@ def compute_wave_function(system, oFile):
     )
 
     np.savetxt(
-        oFile,
+        dat_path,
         wf,
         fmt='%.17e',
         header=header
     )
+    print(f'legacy wave function (.dat) written to {dat_path}')
 
 if __name__ == '__main__':
     import argparse
