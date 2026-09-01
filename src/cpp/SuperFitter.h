@@ -368,7 +368,7 @@ double Argonnev18(double* x, double* par) {
 
     double cf = 0;
     double sourceInt = 0;
-    for (size_t iRad = 0; iRad < rad.size(); ++iRad) {
+    for (size_t iRad = 0; iRad < rad.size(); iRad++) {
         double source = _SourceGauss(rad[iRad], r0);
         sourceInt += source;
         cf += ((1 - w) * gWfAv18.At(iLo, iRad) + w * gWfAv18.At(iHi, iRad)) * source;
