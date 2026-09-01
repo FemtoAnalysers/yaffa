@@ -19,6 +19,7 @@
 #include "TH1.h"
 #include "TObject.h"
 #include "Functions.hxx"
+#include "RootFunctions.hxx"  // ROOT-style source shapes S(x, p), e.g. SourceGauss
 #include "gsl/gsl_sf_dawson.h"
 // Include the .cpp, not just the header: SuperFitter.h is loaded through cling
 // (FitCF.py does `#include "SuperFitter.h"`), and there is no compiled libyaffa,
@@ -345,14 +346,15 @@ double Lednicky(double* x, double* par) {
 
 
 
-// Argonne v18 pp correlation function: Koonin-Pratt convolution of the tabulated
-// |psi(k*, r*)|^2 (gWfAv18) with a Gaussian source of size r0. _SourceGauss
-// already carries the 4*pi*r*^2 radial measure, so this is a plain rectangle-rule
-// average over the wave-function radius grid, linearly interpolated between the
-// two tabulated k* bins bracketing k*.
-double Argonnev18(double* x, double* par) {
-    const double kStar = x[0] * 1000;  // GeV/c -> MeV/c
-    const double r0 = par[0];          // Gaussian source radius [fm]
+// Koonin-Pratt fold of the tabulated AV18 pp |psi(k*, r*)|^2 (gWfAv18) with a
+// radial source S(r*) = src({r*}, srcPar). The RootFunctions.hxx source shapes
+// already carry the 4*pi*r*^2 measure, so this is a plain rectangle-rule average
+// over the wave-function radius grid, linearly interpolated in k* between the two
+// tabulated momentum bins bracketing k*. `srcPar` points at the term's parameter
+// slice (already offset by SetModel). Used by the `av18[@<source>]` fit terms
+// (see SuperFitter::Add).
+double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
+    const double kStar = kStarGeV * 1000;  // GeV/c -> MeV/c
 
     const std::vector<double>& mom = gWfAv18.Momentum();  // k* bins [MeV/c]
     const std::vector<double>& rad = gWfAv18.Radius();    // r* grid [fm]
@@ -369,7 +371,8 @@ double Argonnev18(double* x, double* par) {
     double cf = 0;
     double sourceInt = 0;
     for (size_t iRad = 0; iRad < rad.size(); iRad++) {
-        double source = _SourceGauss(rad[iRad], r0);
+        double rStar = rad[iRad];
+        double source = src(&rStar, srcPar);
         sourceInt += source;
         cf += ((1 - w) * gWfAv18.At(iLo, iRad) + w * gWfAv18.At(iHi, iRad)) * source;
     }
@@ -526,8 +529,32 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         functions[idx].push_back({name, BreitWigner, 3});
     } else if (func == "lednicky") {
         functions[idx].push_back({name, Lednicky, 7});
-    } else if (func == "av18") {
-        functions[idx].push_back({name, Argonnev18, 1});
+    } else if (func.rfind("av18@", 0) == 0) {
+        // av18@<source>: AV18 pp |psi(k*,r*)|^2 folded with a radial source S(r*).
+        // The source `norm` of the "*Counts*" shapes is fixed to 1 here: it cancels
+        // in the KP normalisation (sum S / sum S), so it is not exposed as a
+        // (degenerate) fit parameter.
+        const std::string src = func.substr(5);
+        sf::func folded;
+        int nSrcPar;
+        if (src == "gauss") {
+            // params: r0 [fm]
+            folded = [](double* x, double* p) { return Argonnev18(SourceGauss, x[0], p); };
+            nSrcPar = 1;
+        } else if (src == "gauss_resonances") {
+            // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
+            folded = [](double* x, double* p) {
+                double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
+                return Argonnev18(SourceCountsGaussResonances, x[0], pp);
+            };
+            nSrcPar = 3;
+        } else {
+            throw std::runtime_error("Unknown av18 source '" + src + "'");
+        }
+        if (static_cast<int>(pars.size()) != nSrcPar) {
+            throw std::runtime_error("av18@" + src + " needs " + std::to_string(nSrcPar) + " parameters");
+        }
+        functions[idx].push_back({name, folded, nSrcPar});
     } else {
         throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
     }
