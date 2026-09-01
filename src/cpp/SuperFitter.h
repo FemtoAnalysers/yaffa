@@ -5,7 +5,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,11 @@
 #include "TObject.h"
 #include "Functions.hxx"
 #include "gsl/gsl_sf_dawson.h"
+// Include the .cpp, not just the header: SuperFitter.h is loaded through cling
+// (FitCF.py does `#include "SuperFitter.h"`), and there is no compiled libyaffa,
+// so cling must see WaveFunction's member definitions to JIT them.
+#include "WaveFunction.cpp"
+
 
 #define DEBUG(level, indent, msg, ...)                       \
     do {                                                     \
@@ -28,6 +35,15 @@
             printf("\n");                                    \
         }                                                    \
     } while (0)
+
+// Path to the yaffa repo, from $YAFFA (set by ext/yaffa/.env). Resolved once, at
+// load time, like the rest of the repo relies on it.
+const std::string YAFFA = [] {
+    const char* env = std::getenv("YAFFA");
+    if (!env || !*env)
+        throw std::runtime_error("SuperFitter: environment variable $YAFFA is not set");
+    return std::string(env);
+}();
 
 // Definition of constants ---------------------------------------------------------------------------------------------
 #define TINY std::numeric_limits<double>::min()
@@ -41,6 +57,8 @@ namespace sf {
 using parameter = std::tuple<std::string, double, double, double>;
 using func = std::function<double(double*, double*)>;
 }
+
+const WaveFunction gWfAv18(YAFFA + "/secrets/theory/wf/pp_av18.wf");
 
 std::vector<std::vector<double>> LoadWaveFunction(const std::string& filename) {
     std::ifstream file(filename);
@@ -325,28 +343,35 @@ double Lednicky(double* x, double* par) {
     return sourcePar3 * (sourcePar2 * ll1 + (1 - sourcePar2) * ll2) + 1. - sourcePar3;
 }
 
-std::vector<std::vector<double>> av18;
-// Argonnev18
+
+
+// Argonne v18 pp correlation function: Koonin-Pratt convolution of the tabulated
+// |psi(k*, r*)|^2 (gWfAv18) with a Gaussian source of size r0. _SourceGauss
+// already carries the 4*pi*r*^2 radial measure, so this is a plain rectangle-rule
+// average over the wave-function radius grid, linearly interpolated between the
+// two tabulated k* bins bracketing k*.
 double Argonnev18(double* x, double* par) {
-    double kStar = x[0];
-    
-    double r0 = par[0];     // real part of the scattering length
-    
-    if (av18.size() == 0) {
-        av18 = LoadWaveFunction("/home/db/ph/proj/source3b/ext/yaffa/secrets/theory/wf/pp_av18.dat");
-    }
+    const double kStar = x[0] * 1000;  // GeV/c -> MeV/c
+    const double r0 = par[0];          // Gaussian source radius [fm]
+
+    const std::vector<double>& mom = gWfAv18.Momentum();  // k* bins [MeV/c]
+    const std::vector<double>& rad = gWfAv18.Radius();    // r* grid [fm]
+
+    // Bracketing k* bins [iLo, iHi] and the interpolation weight w in [0, 1]
+    // (w is clamped, so k* outside the grid is held at the edge value).
+    size_t iHi = std::lower_bound(mom.begin(), mom.end(), kStar) - mom.begin();
+    if (iHi == 0) iHi = 1;
+    if (iHi == mom.size()) iHi = mom.size() - 1;
+    const size_t iLo = iHi - 1;
+    double w = (kStar - mom[iLo]) / (mom[iHi] - mom[iLo]);
+    w = std::max(0., std::min(1., w));
 
     double cf = 0;
     double sourceInt = 0;
-    for (const auto& row : av18) {
-        double rStar = row[0]; // first row is the source
-
-        // todo: fix this dirty trick that assumes that cfs are computed in k* intervals of 1 MeV
-        int iKStar = std::round(kStar*1000);
-
-        double source = _SourceGauss(rStar, r0);
+    for (size_t iRad = 0; iRad < rad.size(); ++iRad) {
+        double source = _SourceGauss(rad[iRad], r0);
         sourceInt += source;
-        cf += row[iKStar] * source;
+        cf += ((1 - w) * gWfAv18.At(iLo, iRad) + w * gWfAv18.At(iHi, iRad)) * source;
     }
 
     return cf / sourceInt;
