@@ -356,20 +356,21 @@ double Lednicky(double* x, double* par) {
 // tabulated momentum bins bracketing k*. `srcPar` points at the term's parameter
 // slice (already offset by SetModel). Used by the `av18[:smear]@<source>` fit
 // terms (see SuperFitter::Add).
-double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
-    const double kStar = kStarGeV * 1000;  // GeV/c -> MeV/c
-
-    const std::vector<double>& mom = gWfAv18.Momentum();  // k* bins [MeV/c]
-    const std::vector<double>& rad = gWfAv18.Radius();    // r* grid [fm]
-
-    // Bracketing k* bins [iLo, iHi] and the interpolation weight w in [0, 1]
-    // (w is clamped, so k* outside the grid is held at the edge value).
-    size_t iHi = std::lower_bound(mom.begin(), mom.end(), kStar) - mom.begin();
+// The two gWfAv18 momentum bins bracketing k* [MeV/c] and the interpolation
+// weight t in [0, 1] (clamped, so k* outside the grid is held at the edge value).
+std::tuple<size_t, size_t, double> Av18MomBracket(double kStarMeV) {
+    const std::vector<double>& mom = gWfAv18.Momentum();
+    size_t iHi = std::lower_bound(mom.begin(), mom.end(), kStarMeV) - mom.begin();
     if (iHi == 0) iHi = 1;
     if (iHi == mom.size()) iHi = mom.size() - 1;
     const size_t iLo = iHi - 1;
-    double w = (kStar - mom[iLo]) / (mom[iHi] - mom[iLo]);
-    w = std::max(0., std::min(1., w));
+    double t = (kStarMeV - mom[iLo]) / (mom[iHi] - mom[iLo]);
+    return {iLo, iHi, std::max(0., std::min(1., t))};
+}
+
+double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
+    const auto [iLo, iHi, t] = Av18MomBracket(kStarGeV * 1000);  // GeV/c -> MeV/c
+    const std::vector<double>& rad = gWfAv18.Radius();           // r* grid [fm]
 
     double cf = 0;
     double sourceInt = 0;
@@ -377,15 +378,30 @@ double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
         double rStar = rad[iRad];
         double source = src(&rStar, srcPar);
         sourceInt += source;
-        cf += ((1 - w) * gWfAv18.At(iLo, iRad) + w * gWfAv18.At(iHi, iRad)) * source;
+        cf += ((1 - t) * gWfAv18.At(iLo, iRad) + t * gWfAv18.At(iHi, iRad)) * source;
     }
 
     return cf / sourceInt;
 }
 
+// pp momentum resolution, pre-folded into the wave function at load time.
+//
+// The source S(r*) does not depend on k*, so the Koonin-Pratt fold and the
+// resolution convolution commute:
+//   C_reco(kReco) = sum_i w_i [ sum_r psi_i(r) S(r) ] / sum_r S(r)
+//                 = sum_r [ sum_i w_i psi_i(r) ] S(r) / sum_r S(r)
+// The inner bracket depends only on the resolution matrix and the tabulated wave
+// function -- never on the fit parameters -- so we build it once here. psi[j] is
+// that pre-smeared |psi|^2 on the radius grid for reco bin j, which makes a
+// smeared evaluation exactly as cheap as an unsmeared one (one pass over r*)
+// instead of one pass per contributing true bin.
+//
+// The reco axis lives in the SAME global as psi on purpose: cling does not
+// initialise separate globals in declaration order, so a standalone TAxis
+// assigned from here got clobbered by its own default constructor.
 struct Av18Smearing {
-    TAxis reco;                 // reco (y) binning of the matrix [MeV/c]
-    std::vector<TH1*> proj;     // [reco bin] -> P(k*_true | reco bin), unit area
+    TAxis reco;                             // reco (y) binning of the matrix [MeV/c]
+    std::vector<std::vector<double>> psi;   // [reco bin] -> pre-smeared |psi|^2 vs r*
 };
 const Av18Smearing gAv18Smear = [] {
     const std::string path = YAFFA + "/secrets/resolution/ResolutionMatrix_pp_HMpp13TeV_v1.root";
@@ -397,33 +413,50 @@ const Av18Smearing gAv18Smear = [] {
     Av18Smearing s;
     s.reco = *R->GetYaxis();
     s.reco.SetParent(nullptr);  // R dies with the TFile
-    s.proj.resize(R->GetNbinsY() + 2, nullptr);  // indexed by reco bin (1-based)
+    s.psi.resize(R->GetNbinsY() + 2);  // indexed by reco bin (1-based)
+
+    const size_t nRad = gWfAv18.Radius().size();
     for (int j = 1; j <= R->GetNbinsY(); j++) {
-        TH1* p = R->ProjectionX(Form("gAv18SmearProj_%d", j), j, j);
+        TH1* p = R->ProjectionX(Form("av18SmearProj_%d", j), j, j);  // P(k*_true | reco bin j)
         p->SetDirectory(nullptr);
         const double norm = p->Integral();
-        if (norm > 0) p->Scale(1.0 / norm);
-        s.proj[j] = p;
+        if (norm > 0) {
+            std::vector<double> psi(nRad, 0.);
+            for (int i = 1; i <= p->GetNbinsX(); i++) {
+                const double w = p->GetBinContent(i) / norm;
+                if (w <= 0) continue;
+                const auto [iLo, iHi, t] = Av18MomBracket(p->GetBinCenter(i));
+                for (size_t iRad = 0; iRad < nRad; iRad++)
+                    psi[iRad] += w * ((1 - t) * gWfAv18.At(iLo, iRad) + t * gWfAv18.At(iHi, iRad));
+            }
+            s.psi[j] = std::move(psi);
+        }
+        delete p;  // only the folded result is kept
     }
     return s;
 }();
 
-// Argonnev18 folded, then convolved with the pp momentum resolution:
-//   C_reco(kReco) = sum_i P(k*_true,i | reco bin) * C_true(k*_true,i)
-// self-normalised (the projection has unit area). k* outside the matrix coverage
-// falls back to the unsmeared value.
+// Argonnev18 with the pp momentum resolution folded in. Same cost as Argonnev18:
+// the resolution is already baked into gAv18Smear.psi. k* outside the matrix
+// coverage falls back to the unsmeared value.
 double Argonnev18Smeared(const sf::func& src, double kRecoGeV, double* srcPar) {
     const int j = gAv18Smear.reco.FindBin(kRecoGeV * 1000.0);  // matrix axes in MeV/c
-    if (j < 1 || j >= static_cast<int>(gAv18Smear.proj.size()) || !gAv18Smear.proj[j])
+    if (j < 1 || j >= static_cast<int>(gAv18Smear.psi.size()) || gAv18Smear.psi[j].empty())
         return Argonnev18(src, kRecoGeV, srcPar);
 
-    const TH1* p = gAv18Smear.proj[j];
+    const std::vector<double>& psi = gAv18Smear.psi[j];
+    const std::vector<double>& rad = gWfAv18.Radius();
+
     double cf = 0;
-    for (int i = 1; i <= p->GetNbinsX(); i++) {
-        const double w = p->GetBinContent(i);
-        if (w > 0) cf += w * Argonnev18(src, p->GetBinCenter(i) / 1000.0, srcPar);
+    double sourceInt = 0;
+    for (size_t iRad = 0; iRad < rad.size(); iRad++) {
+        double rStar = rad[iRad];
+        double source = src(&rStar, srcPar);
+        sourceInt += source;
+        cf += psi[iRad] * source;
     }
-    return cf;
+
+    return cf / sourceInt;
 }
 
 // Class for advanced fitting ------------------------------------------------------------------------------------------
