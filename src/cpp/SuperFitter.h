@@ -1033,7 +1033,8 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
     
     if (hObs->GetNbinsX() < hTemplate->GetNbinsX()) {
         double limit = hObs->GetBinLowEdge(nBins + 1);
-        printf("\033[33mWARNING: data histogram has %d bins but template '%s' has %d. Stopping at k*= %.3f GeV", name.data(), hObs->GetNbinsX(), hTemplate->GetNbinsX(), limit);
+        printf("\033[33mWARNING: data histogram has %d bins but template '%s' has %d. Stopping at k*= %.3f GeV\033[0m\n",
+               hObs->GetNbinsX(), name.data(), hTemplate->GetNbinsX(), limit);
     }
 
     if (fabs(hObs->GetBinWidth(1) - hTemplate->GetBinWidth(1)) > TINY) {
