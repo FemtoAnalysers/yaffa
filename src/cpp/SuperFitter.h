@@ -873,9 +873,14 @@ void SuperFitter::Fit(const char* option) {
 
 
 
+    // Total number of fitted points, over every observable (data[1] does not exist
+    // for a single fit -- indexing it was out of bounds and gave a garbage ndf).
+    unsigned int nDataPoints = 0;
+    for (const auto& binData : data) nDataPoints += binData.Size();
+
     fitter.Config().MinimizerOptions().SetPrintLevel(0);
     fitter.Config().SetMinimizer("Minuit2", "Migrad");
-    fitter.FitFCN(nPars - nShared, globalChi2, nullptr, data[0].Size() + data[1].Size(), true);
+    fitter.FitFCN(nPars - nShared, globalChi2, nullptr, nDataPoints, true);
     ROOT::Fit::FitResult result = fitter.Result();
     result.Print(std::cout);
 
