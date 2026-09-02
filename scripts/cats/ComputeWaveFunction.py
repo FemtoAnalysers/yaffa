@@ -13,6 +13,11 @@ YAFFA_PATH = os.getenv("YAFFA")
 if not YAFFA_PATH:
     print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
 
+# Folder with the CATS input files (external wave functions, source
+# distributions, ...). Only needed by the systems whose potential is read from
+# disk rather than computed analytically.
+CATS_FILES_PATH = os.getenv("CATS_FILES")
+
 from ROOT import gInterpreter, TFile
 # Include the .cpp (not just the header) so cling JIT-compiles the member
 # definitions in WaveFunction.cpp -- there is no compiled libyaffa to link.
@@ -79,6 +84,7 @@ def compute_wave_function(system, oFile):
         m2 = 1000. * pdg.GetParticle(2212).Mass()
 
         header = 'Wave function of proton-proton with Argonne v18 potential computed with CATS\n'
+        title = 'pp, AV18, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
         cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
         cats.SetQ1Q2(1)
         cats.SetQuantumStatistics(True)
@@ -86,6 +92,27 @@ def compute_wave_function(system, oFile):
 
         can = DLM_CommonAnaFunctions()
         can.SetUpCats_pp(cats, 'AV18', 'Gauss', 0, 0)
+    elif system == 'pL':
+        m1 = 1000. * pdg.GetParticle(2212).Mass()
+        m2 = 1000. * pdg.GetParticle(3122).Mass()
+
+        header = ('Wave function of proton-lambda with the chiral EFT NLO13(600) potential '
+                  'including the coupled S, P and D channels, computed with CATS\n')
+        title = 'p#Lambda, #chiEFT NLO13(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+        cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
+        cats.SetQ1Q2(0)  # the lambda is neutral: no Coulomb
+        cats.SetQuantumStatistics(False)
+        cats.SetRedMass(reduced_mass(m1, m2))
+
+        if not CATS_FILES_PATH:
+            raise RuntimeError(
+                'CATS_FILES is not set. Add it to the .env file: it must point to the folder '
+                'with the CATS input files (the one containing Interaction/Haidenbauer/).'
+            )
+
+        can = DLM_CommonAnaFunctions()
+        can.SetCatsFilesFolder(CATS_FILES_PATH)
+        can.SetUpCats_pL(cats, 'Chiral_Coupled_SPD', 'Gauss', 0, 0)
     else:
         raise RuntimeError('System not implemented')
 
@@ -97,23 +124,29 @@ def compute_wave_function(system, oFile):
     for i in range(n_kstar_bins):
         gCF.SetPoint(i, cats.GetMomentum(i), cats.GetCorrFun(i))
 
-    nChn = cats.GetNumChannels()
-    if nChn == 2:
-        weights = [0.25, 0.75]
-    elif nChn == 4:
-        weights = [3/12, 1/12, 3/12, 5/12]
-    else:
-        raise RuntimeError(f'Unexpected number of channels: {nChn}')
+    # CATS builds the correlation function as C(k*) = Int S(r) sum_ch w_ch |psi_ch|^2,
+    # so the same weights turn the per-channel wave functions into the tabulated one.
+    # Channels with a vanishing weight (e.g. the p-waves of the coupled-channel
+    # potentials, which exist only for some cutoffs) are skipped.
+    channels = [
+        (iChn, cats.GetChannelWeight(iChn))
+        for iChn in range(cats.GetNumChannels())
+        if cats.GetChannelWeight(iChn) > 0
+    ]
+    print(f'Summing {len(channels)} channels with weights: '
+          + ', '.join(f'{iChn}: {w:.4f}' for iChn, w in channels))
 
-    wf = sum([get_wave_function(cats, iChn) * weights[iChn] for iChn in range(nChn)])
+    wf = sum([get_wave_function(cats, iChn) * w for iChn, w in channels])
 
     hWF = matrix_to_th2d(wf)
-    hWF.SetTitle('pp, AV18, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}')
+    hWF.SetTitle(title)
 
-    fout = TFile('wf.root', 'RECREATE')
+    root_path = str(Path(oFile).with_suffix('.root'))
+    fout = TFile(root_path, 'RECREATE')
     gCF.Write('gCF')
     hWF.Write('hWF')
     fout.Close()
+    print(f'correlation function and |#psi|^2 (.root) written to {root_path}')
 
     radius = RADIUS_STEP/2 + np.arange(wf.shape[1]) * RADIUS_STEP
     kstar = KSTAR_STEP/2 + np.arange(wf.shape[0]) * KSTAR_STEP
@@ -152,7 +185,7 @@ def compute_wave_function(system, oFile):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('system', choices=('pp'))
+    parser.add_argument('system', choices=('pp', 'pL'))
     parser.add_argument('oFile')
     args = parser.parse_args()
     
