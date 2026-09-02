@@ -13,10 +13,13 @@
 
 #include "Observable.h"
 #include "Riostream.h"
+#include "TAxis.h"
 #include "TF1.h"
+#include "TFile.h"
 #include "TGraphErrors.h"
 #include "TFormula.h"
 #include "TH1.h"
+#include "TH2.h"
 #include "TObject.h"
 #include "Functions.hxx"
 #include "RootFunctions.hxx"  // ROOT-style source shapes S(x, p), e.g. SourceGauss
@@ -351,8 +354,8 @@ double Lednicky(double* x, double* par) {
 // already carry the 4*pi*r*^2 measure, so this is a plain rectangle-rule average
 // over the wave-function radius grid, linearly interpolated in k* between the two
 // tabulated momentum bins bracketing k*. `srcPar` points at the term's parameter
-// slice (already offset by SetModel). Used by the `av18[@<source>]` fit terms
-// (see SuperFitter::Add).
+// slice (already offset by SetModel). Used by the `av18[:smear]@<source>` fit
+// terms (see SuperFitter::Add).
 double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
     const double kStar = kStarGeV * 1000;  // GeV/c -> MeV/c
 
@@ -378,6 +381,49 @@ double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
     }
 
     return cf / sourceInt;
+}
+
+struct Av18Smearing {
+    TAxis reco;                 // reco (y) binning of the matrix [MeV/c]
+    std::vector<TH1*> proj;     // [reco bin] -> P(k*_true | reco bin), unit area
+};
+const Av18Smearing gAv18Smear = [] {
+    const std::string path = YAFFA + "/secrets/resolution/ResolutionMatrix_pp_HMpp13TeV_v1.root";
+    TFile f(path.c_str());
+    if (f.IsZombie()) throw std::runtime_error("Cannot open " + path);
+    TH2* R = dynamic_cast<TH2*>(f.Get("hResolutionMatrixME"));
+    if (!R) throw std::runtime_error("No TH2 'hResolutionMatrixME' in " + path);
+
+    Av18Smearing s;
+    s.reco = *R->GetYaxis();
+    s.reco.SetParent(nullptr);  // R dies with the TFile
+    s.proj.resize(R->GetNbinsY() + 2, nullptr);  // indexed by reco bin (1-based)
+    for (int j = 1; j <= R->GetNbinsY(); j++) {
+        TH1* p = R->ProjectionX(Form("gAv18SmearProj_%d", j), j, j);
+        p->SetDirectory(nullptr);
+        const double norm = p->Integral();
+        if (norm > 0) p->Scale(1.0 / norm);
+        s.proj[j] = p;
+    }
+    return s;
+}();
+
+// Argonnev18 folded, then convolved with the pp momentum resolution:
+//   C_reco(kReco) = sum_i P(k*_true,i | reco bin) * C_true(k*_true,i)
+// self-normalised (the projection has unit area). k* outside the matrix coverage
+// falls back to the unsmeared value.
+double Argonnev18Smeared(const sf::func& src, double kRecoGeV, double* srcPar) {
+    const int j = gAv18Smear.reco.FindBin(kRecoGeV * 1000.0);  // matrix axes in MeV/c
+    if (j < 1 || j >= static_cast<int>(gAv18Smear.proj.size()) || !gAv18Smear.proj[j])
+        return Argonnev18(src, kRecoGeV, srcPar);
+
+    const TH1* p = gAv18Smear.proj[j];
+    double cf = 0;
+    for (int i = 1; i <= p->GetNbinsX(); i++) {
+        const double w = p->GetBinContent(i);
+        if (w > 0) cf += w * Argonnev18(src, p->GetBinCenter(i) / 1000.0, srcPar);
+    }
+    return cf;
 }
 
 // Class for advanced fitting ------------------------------------------------------------------------------------------
@@ -529,23 +575,27 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         functions[idx].push_back({name, BreitWigner, 3});
     } else if (func == "lednicky") {
         functions[idx].push_back({name, Lednicky, 7});
-    } else if (func.rfind("av18@", 0) == 0) {
-        // av18@<source>: AV18 pp |psi(k*,r*)|^2 folded with a radial source S(r*).
-        // The source `norm` of the "*Counts*" shapes is fixed to 1 here: it cancels
-        // in the KP normalisation (sum S / sum S), so it is not exposed as a
-        // (degenerate) fit parameter.
-        const std::string src = func.substr(5);
-        sf::func folded;
+    } else if (func.rfind("av18@", 0) == 0 || func.rfind("av18:smear@", 0) == 0) {
+        // av18[:smear]@<source>: AV18 pp |psi(k*,r*)|^2 folded with a radial source
+        // S(r*); with ":smear" the result is also folded with the pp momentum
+        // resolution. The source `norm` of the "*Counts*" shapes is fixed to 1
+        // here: it cancels in the KP normalisation (sum S / sum S), so it is not
+        // exposed as a (degenerate) fit parameter.
+        using FoldFn = double (*)(const sf::func&, double, double*);
+        const bool smear = func.rfind("av18:smear@", 0) == 0;
+        const FoldFn fold = smear ? &Argonnev18Smeared : &Argonnev18;
+        const std::string src = func.substr(smear ? 11 : 5);
+        sf::func term;
         int nSrcPar;
         if (src == "gauss") {
             // params: r0 [fm]
-            folded = [](double* x, double* p) { return Argonnev18(SourceGauss, x[0], p); };
+            term = [fold](double* x, double* p) { return fold(SourceGauss, x[0], p); };
             nSrcPar = 1;
         } else if (src == "gauss_resonances") {
             // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
-            folded = [](double* x, double* p) {
+            term = [fold](double* x, double* p) {
                 double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
-                return Argonnev18(SourceCountsGaussResonances, x[0], pp);
+                return fold(SourceCountsGaussResonances, x[0], pp);
             };
             nSrcPar = 3;
         } else {
@@ -554,7 +604,7 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         if (static_cast<int>(pars.size()) != nSrcPar) {
             throw std::runtime_error("av18@" + src + " needs " + std::to_string(nSrcPar) + " parameters");
         }
-        functions[idx].push_back({name, folded, nSrcPar});
+        functions[idx].push_back({name, term, nSrcPar});
     } else {
         throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
     }
