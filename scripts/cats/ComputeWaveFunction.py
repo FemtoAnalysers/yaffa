@@ -38,14 +38,14 @@ from ROOT import CATS
 from ROOT import DLM_CommonAnaFunctions
 
 RADIUS_STEP = 0.01
-RADIUS_MAX = 20
+RADIUS_MAX = {'pp': 20, 'pL': 10}
 KSTAR_STEP = 1
 KSTAR_MAX = 500
 
-def matrix_to_th2d(matrix, title=''):
+def matrix_to_th2d(matrix, radius_max, title=''):
     h = TH2D(
         'hWF', title,
-        round(RADIUS_MAX / RADIUS_STEP), 0, RADIUS_MAX,
+        round(radius_max / RADIUS_STEP), 0, radius_max,
         round(KSTAR_MAX / KSTAR_STEP), 0, KSTAR_MAX
     )
 
@@ -57,9 +57,9 @@ def matrix_to_th2d(matrix, title=''):
 
     return h 
 
-def get_wave_function(cats, channel):
+def get_wave_function(cats, channel, radius_max):
     nk = cats.GetNumMomBins()
-    nr = round(RADIUS_MAX / RADIUS_STEP)
+    nr = round(radius_max / RADIUS_STEP)
 
     wf = np.empty((nk, nr))
 
@@ -75,6 +75,7 @@ def reduced_mass(m1, m2):
 
 def compute_wave_function(system, oFile):
     n_kstar_bins = round(KSTAR_MAX / KSTAR_STEP)
+    radius_max = RADIUS_MAX[system]
     pdg = TDatabasePDG.Instance()
 
     cats = CATS()
@@ -136,10 +137,9 @@ def compute_wave_function(system, oFile):
     print(f'Summing {len(channels)} channels with weights: '
           + ', '.join(f'{iChn}: {w:.4f}' for iChn, w in channels))
 
-    wf = sum([get_wave_function(cats, iChn) * w for iChn, w in channels])
+    wf = sum([get_wave_function(cats, iChn, radius_max) * w for iChn, w in channels])
 
-    hWF = matrix_to_th2d(wf)
-    hWF.SetTitle(title)
+    hWF = matrix_to_th2d(wf, radius_max, title)
 
     root_path = str(Path(oFile).with_suffix('.root'))
     fout = TFile(root_path, 'RECREATE')
