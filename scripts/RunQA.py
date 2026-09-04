@@ -5,7 +5,7 @@ Script to produce the QA plots.
 import os
 import argparse
 
-from ROOT import TFile, TCanvas, gPad, gROOT
+from ROOT import TFile, TCanvas, TLatex, gPad, gROOT, kRed
 
 from yaffa import utils
 from yaffa import logger as log
@@ -15,21 +15,35 @@ utils.style.SetStyle()
 def draw_objects(name, objects, drawopt='pe', normalize=False):
     c = TCanvas('c', '', 600, 600)
 
+    empty = []
     for i, (leg, obj) in enumerate(objects.items()):
         obj.SetTitle(leg if leg else '')
         obj.SetLineColor(i + 1)
         obj.SetLineWidth(2)
-        
+
         obj.SetMarkerColor(i + 1)
         if normalize:
-            obj.Scale(1./obj.Integral())
+            integral = obj.Integral()
+            if integral == 0:
+                log.warning(f'The {leg if leg else name} histogram is empty. Skipping normalization')
+                empty.append(f'EMPTY ({leg})' if leg else 'EMPTY')
+            else:
+                obj.Scale(1./integral)
 
         obj.Draw(drawopt)
-        
+
         if 'same' not in drawopt:
             drawopt += ' same'
 
     gPad.BuildLegend()
+
+    # Flag the empty histograms. Drawn after the legend so that they don't end up in it
+    tl = TLatex()
+    tl.SetNDC()
+    tl.SetTextColor(kRed)
+    tl.SetTextSize(0.06)
+    for iEmpty, label in enumerate(empty):
+        tl.DrawLatex(0.4, 0.5 - 0.07 * iEmpty, label)
 
     c.SaveAs(f'qa/c{name}.pdf')
 
