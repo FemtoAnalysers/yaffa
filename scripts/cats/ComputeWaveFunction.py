@@ -114,6 +114,14 @@ def compute_wave_function(system, oFile):
         can = DLM_CommonAnaFunctions()
         can.SetCatsFilesFolder(CATS_FILES_PATH)
         can.SetUpCats_pL(cats, 'Chiral_Coupled_SPD', 'Gauss', 0, 0)
+
+        # Scale down the SigmaN -> LambdaN channels, which drive the cusp
+        cusp_weight = 0.33
+        cats.SetChannelWeight(7, 1/4 * cusp_weight)     # 1S0 SN(s) -> LN(s)
+        cats.SetChannelWeight(8, 3/4 * cusp_weight)     # 3S1 SN(s) -> LN(s)
+        cats.SetChannelWeight(10, 3/4 * cusp_weight)    # 3S1 SN(d) -> LN(s)
+        cats.SetChannelWeight(13, 3/20 * cusp_weight)   # 3D1 SN(d) -> LN(d)
+        cats.SetChannelWeight(15, 3/20 * cusp_weight)   # 3D1 SN(s) -> LN(d)
     else:
         raise RuntimeError('System not implemented')
 
