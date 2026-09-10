@@ -112,15 +112,9 @@ def draw_legend(objects, header):
 
 def get_particle(directory):
     '''Identify the particle analyzed in a combination directory from its charge and mass.'''
-    tracks = sorted(
-        [key.GetName() for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())],
-        key=lambda name: int(name.removeprefix('Track')))
 
-    if not tracks:
-        log.critical(f'No Track directory found in {directory.GetName()}. Cannot determine the analyzed system')
-
-    hSign = directory.Get(f'{tracks[0]}/Analysis/hSign')
-    hMass = directory.Get(f'{tracks[0]}/Analysis/hMass')
+    hSign = directory.Get(f'Analysis/hSign')
+    hMass = directory.Get(f'Analysis/hMass')
 
     if not hSign or not hMass:
         log.critical(f'hSign or hMass are missing in {directory.GetName()}/{tracks[0]}. '
@@ -143,6 +137,18 @@ def get_particle(directory):
         return "K^{+}" if charge > 0 else "K^{#minus}"
 
     raise ValueError("Mass and charge combination not implemented")
+
+def get_system(directory):
+    track_dirs = [directory.Get(key.GetName()) for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())]
+
+    if len(track_dirs) == 1:
+        return get_particle(track_dirs[0]) * 3 # identical particles
+    if len(track_dirs) == 2:
+        return get_particle(track_dirs[0]) * 2 + get_particle(track_dirs[1]) # 2 identical particles, 1 different
+    if len(track_dirs) == 3:
+        return get_particle(track_dirs[0]) + get_particle(track_dirs[1]) + get_particle(track_dirs[2])
+
+    raise ValueError("Wrong number of particles")
 
 def do_triplet_qa(directory, header=''):
     se = directory.Get('SE/Analysis/hQ3VsMtVsMultVsCent')
@@ -170,8 +176,7 @@ def do_triplet_qa(directory, header=''):
 def process_combination(directory, particle):
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
         if key == 'TrackTrackTrack':
-            # For the time being the triplets are assumed to be made of three particles of the same type
-            system = '-'.join([particle] * key.count('Track'))
+            system = get_system(directory)
             do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
         else:
             log.warning(f'QA not implemented for directory {key}')
@@ -186,7 +191,7 @@ def main(in_file : str):
     directories = [inFile.Get(key.GetName()) for key in inFile.GetListOfKeys()]
 
     # Identify all the systems before drawing anything, so that an unknown one is reported before producing any plot
-    particles = [get_particle(directory) for directory in directories]
+    particles = [get_system(directory) for directory in directories]
 
     for directory, particle in zip(directories, particles):
         process_combination(directory, particle)
