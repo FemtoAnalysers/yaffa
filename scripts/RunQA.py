@@ -152,6 +152,20 @@ def get_system(directory):
 
     raise ValueError("Wrong number of particles")
 
+def do_collision_qa(directory):
+    '''Draw the event-level QA of the collisions.'''
+    # Subdirectory of qa where the collision plots are saved
+    SUBDIR = 'collision'
+
+    for name in ['hPosZ', 'hMult', 'hCent', 'hMagField']:
+        hist = directory.Get(f'Analysis/{name}')
+
+        if not hist:
+            log.error(f'Analysis/{name} is missing. Skipping it')
+            continue
+
+        draw_objects(name.removeprefix('h'), {None: hist}, subdir=SUBDIR)
+
 def do_triplet_qa(directory, header=''):
     # Subdirectory of qa where the triplet plots are saved
     SUBDIR = 'triplet'
@@ -183,6 +197,8 @@ def process_combination(directory, particle):
         if key == 'TrackTrackTrack':
             system = get_system(directory)
             do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
+        elif key == 'Collisions':
+            do_collision_qa(directory.Get(key))
         else:
             log.warning(f'QA not implemented for directory {key}')
 
