@@ -13,6 +13,21 @@ from yaffa import logger as log
 
 utils.style.SetStyle()
 
+PARTICLES_LABELS = {
+    2212: "p",
+    -2212: "ap",
+    321: "Kplus",
+    -321: "Kminus",
+}
+
+PARTICLES_LATEX = {
+    2212: "p",
+    -2212: "#bar{p}",
+    321: "K^{+}",
+    -321: "K^{#minus}",
+}
+
+
 # Maximum distance between the measured and the expected mass to consider a particle as identified
 MASS_TOLERANCE = 0.001
 
@@ -112,7 +127,7 @@ def draw_legend(objects, header):
 
     return legend
 
-def get_particle(directory):
+def get_particle_label(directory):
     '''Identify the particle analyzed in a combination directory from its charge and mass.'''
 
     hSign = directory.Get(f'Analysis/hSign')
@@ -127,30 +142,59 @@ def get_particle(directory):
 
     database = TDatabasePDG.Instance()
 
-    if abs(database.GetParticle(2212).Mass() - mass) < MASS_TOLERANCE:
-        if charge == 0:
-            raise ValueError("Invalid mass and charge combination")
-        return "p" if charge > 0 else "#bar{p}"
-
-    if abs(database.GetParticle(321).Mass() - mass) < MASS_TOLERANCE:
-        if charge == 0:
-            raise ValueError("Invalid mass and charge combination")
-
-        return "K^{+}" if charge > 0 else "K^{#minus}"
+    for pdg in [2212, 321]:
+        if abs(database.GetParticle(pdg).Mass() - mass) < MASS_TOLERANCE:
+            return PARTICLES_LABELS[charge * pdg]
 
     raise ValueError("Mass and charge combination not implemented")
 
-def get_system(directory):
+
+def get_particle_latex(directory):
+    '''Identify the particle analyzed in a combination directory from its charge and mass.'''
+
+    hSign = directory.Get(f'Analysis/hSign')
+    hMass = directory.Get(f'Analysis/hMass')
+
+    if not hSign or not hMass:
+        log.critical(f'hSign or hMass are missing in {directory.GetName()}/{tracks[0]}. '
+                     'Cannot determine the analyzed system')
+
+    charge = round(hSign.GetMean())
+    mass = hMass.GetMean()
+
+    database = TDatabasePDG.Instance()
+
+    for pdg in [2212, 321]:
+        if abs(database.GetParticle(pdg).Mass() - mass) < MASS_TOLERANCE:
+            return PARTICLES_LATEX[charge * pdg]
+
+    raise ValueError("Mass and charge combination not implemented")
+
+def get_system_latex(directory):
     track_dirs = [directory.Get(key.GetName()) for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())]
 
     if len(track_dirs) == 1:
-        return get_particle(track_dirs[0]) * 3 # identical particles
+        return get_particle_latex(track_dirs[0]) * 3 # identical particles
     if len(track_dirs) == 2:
-        return get_particle(track_dirs[0]) * 2 + get_particle(track_dirs[1]) # 2 identical particles, 1 different
+        return get_particle_latex(track_dirs[0]) * 2 + get_particle_latex(track_dirs[1]) # 2 identical particles, 1 different
     if len(track_dirs) == 3:
-        return get_particle(track_dirs[0]) + get_particle(track_dirs[1]) + get_particle(track_dirs[2])
+        return get_particle_latex(track_dirs[0]) + get_particle_latex(track_dirs[1]) + get_particle_latex(track_dirs[2])
 
     raise ValueError("Wrong number of particles")
+
+def do_track_qa(directory, header=''):
+    '''Draw the QA of the tracks of one of the particle species of the combination.'''
+    # Subdirectory of qa where the track plots are saved
+    SUBDIR = 'triplet/track_' + get_particle_label(directory)
+
+    for name in ['hPt', 'hEta', 'hPhi', 'hSign', 'hMass']:
+        hist = directory.Get(f'Analysis/{name}')
+
+        if not hist:
+            log.error(f'Analysis/{name} is missing. Skipping it')
+            continue
+
+        draw_objects(name.removeprefix('h'), {None: hist}, header=header, subdir=SUBDIR)
 
 def do_collision_qa(directory):
     '''Draw the event-level QA of the collisions.'''
@@ -195,10 +239,13 @@ def do_triplet_qa(directory, header=''):
 def process_combination(directory, particle):
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
         if key == 'TrackTrackTrack':
-            system = get_system(directory)
+            system = get_system_latex(directory)
             do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
         elif key == 'Collisions':
             do_collision_qa(directory.Get(key))
+        elif re.fullmatch(r'Track\d+', key):
+            track = directory.Get(key)
+            do_track_qa(track, f'{get_particle_latex(track)} ({directory.GetName()})')
         else:
             log.warning(f'QA not implemented for directory {key}')
 
@@ -212,7 +259,7 @@ def main(in_file : str):
     directories = [inFile.Get(key.GetName()) for key in inFile.GetListOfKeys()]
 
     # Identify all the systems before drawing anything, so that an unknown one is reported before producing any plot
-    particles = [get_system(directory) for directory in directories]
+    particles = [get_system_latex(directory) for directory in directories]
 
     for directory, particle in zip(directories, particles):
         process_combination(directory, particle)
