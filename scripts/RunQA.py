@@ -6,19 +6,12 @@ import os
 import re
 import argparse
 
-from ROOT import TFile, TCanvas, TLatex, TLegend, SetOwnership, gPad, gROOT, kRed
+from ROOT import TFile, TCanvas, TDatabasePDG, TLatex, TLegend, SetOwnership, gPad, gROOT, kRed
 
 from yaffa import utils
 from yaffa import logger as log
 
 utils.style.SetStyle()
-
-# Mass (GeV/c^2) and charge of the particles that can be identified from the QA histograms. To analyze a new system,
-# add here the corresponding (mass, charge) pair together with the label to be displayed in the plots
-KNOWN_PARTICLES = {
-    (0.938272, +1): 'p',
-    (0.938272, -1): '#bar{p}',
-}
 
 # Maximum distance between the measured and the expected mass to consider a particle as identified
 MASS_TOLERANCE = 0.001
@@ -136,13 +129,20 @@ def get_particle(directory):
     charge = round(hSign.GetMean())
     mass = hMass.GetMean()
 
-    for (knownMass, knownCharge), particle in KNOWN_PARTICLES.items():
-        if charge == knownCharge and abs(mass - knownMass) < MASS_TOLERANCE:
-            return particle
+    database = TDatabasePDG.Instance()
 
-    log.critical(f'Unknown system: no known particle has charge {charge:+d} and mass {mass:.6f} GeV/c^2. '
-                 'You may need to add your system to KNOWN_PARTICLES')
-    return None
+    if abs(database.GetParticle(2212).Mass() - mass) < MASS_TOLERANCE:
+        if charge == 0:
+            raise ValueError("Invalid mass and charge combination")
+        return "p" if charge > 0 else "#bar{p}"
+
+    if abs(database.GetParticle(321).Mass() - mass) < MASS_TOLERANCE:
+        if charge == 0:
+            raise ValueError("Invalid mass and charge combination")
+
+        return "K^{+}" if charge > 0 else "K^{#minus}"
+
+    raise ValueError("Mass and charge combination not implemented")
 
 def do_triplet_qa(directory, header=''):
     se = directory.Get('SE/Analysis/hQ3VsMtVsMultVsCent')
