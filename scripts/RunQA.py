@@ -22,11 +22,13 @@ LEGEND_TEXT_SIZE = 0.04
 # Multipage PDF files that are still open. Each of them collects the same quantity for the different systems
 openPDFs = []
 
-def save_canvas(canvas, name):
+def save_canvas(canvas, name, subdir=''):
     '''Save the canvas as a new page of the multipage PDF file dedicated to the quantity called name.'''
-    path = f'qa/c{name}.pdf'
+    directory = os.path.join('qa', subdir)
+    path = os.path.join(directory, f'c{name}.pdf')
 
     if path not in openPDFs:
+        os.makedirs(directory, exist_ok=True)
         canvas.Print(f'{path}[')
         openPDFs.append(path)
 
@@ -41,7 +43,7 @@ def close_pdfs():
 
     openPDFs.clear()
 
-def draw_objects(name, objects, drawopt='pe', normalize=False, header=''):
+def draw_objects(name, objects, drawopt='pe', normalize=False, header='', subdir=''):
     c = TCanvas('c', '', 600, 600)
 
     empty = []
@@ -74,7 +76,7 @@ def draw_objects(name, objects, drawopt='pe', normalize=False, header=''):
     for iEmpty, label in enumerate(empty):
         tl.DrawLatex(0.4, 0.5 - 0.07 * iEmpty, label)
 
-    save_canvas(c, name)
+    save_canvas(c, name, subdir)
 
 def draw_legend(objects, header):
     '''Draw the legend of the objects in the current pad, with the analyzed system as header.'''
@@ -151,6 +153,9 @@ def get_system(directory):
     raise ValueError("Wrong number of particles")
 
 def do_triplet_qa(directory, header=''):
+    # Subdirectory of qa where the triplet plots are saved
+    SUBDIR = 'triplet'
+
     se = directory.Get('SE/Analysis/hQ3VsMtVsMultVsCent')
     me = directory.Get('ME/Analysis/hQ3VsMtVsMultVsCent')
 
@@ -167,15 +172,16 @@ def do_triplet_qa(directory, header=''):
         hist.SetName(name)
         return hist
 
-    draw_objects('Q3', {'SE': proj(se, 0, 'SE'), 'ME': proj(me, 0, 'ME')}, normalize=True, header=header)
-    draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, normalize=True, header=header)
-    draw_objects('Mult', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, normalize=True, header=header)
-    draw_objects('Cent', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True, header=header)
-    draw_objects('Q3VsMult', {None: proj(se, (0, 2), 'SE')}, drawopt='colz', normalize=True, header=header)
+    draw_objects('Q3', {'SE': proj(se, 0, 'SE'), 'ME': proj(me, 0, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
+    draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
+    draw_objects('Mult', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
+    draw_objects('Cent', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
+    draw_objects('Q3VsMult', {None: proj(se, (0, 2), 'SE')}, drawopt='colz', normalize=True, header=header, subdir=SUBDIR)
 
 def process_combination(directory, particle):
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
         if key == 'TrackTrackTrack':
+            # For the time being the triplets are assumed to be made of three particles of the same type
             system = get_system(directory)
             do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
         else:
