@@ -181,7 +181,6 @@ def do_triplet_qa(directory, header=''):
 def process_combination(directory, particle):
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
         if key == 'TrackTrackTrack':
-            # For the time being the triplets are assumed to be made of three particles of the same type
             system = get_system(directory)
             do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
         else:
