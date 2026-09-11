@@ -43,6 +43,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     for iFit, fitCfg in enumerate(cfg['fits']):
         inFile = TFile(fitCfg['infile'])
         hObs = utils.io.Load(inFile, fitCfg['path'])
+        hObs = utils.analysis.ChangeUnits(hObs, fitCfg.get('unit_mult', 1))
         hObs.SetDirectory(0)
         hObsList.append(hObs)
         oObs = Observable(hObs)
@@ -59,7 +60,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     hTemplate = utils.analysis.ChangeUnits(template, term.get('unit_mult', 1))
                     hTemplate.SetDirectory(0)
                     fitter.Add(iFit, term['name'], hTemplate, term['params'])
-                elif isinstance(template, TGraphErrors):
+                elif isinstance(template, (TGraph, TGraphErrors)):
                     fitter.Add(iFit, term['name'], template, term['params'], term.get('unit_mult', 1))
                 elif isinstance(template, TF1):
                     fitter.Add(iFit, term['name'], template, term['params'], 1)
@@ -90,8 +91,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                     # fitter.Add(term['name'], template, term['params'], term.get('unit_mult', 1))
                     # fitter.Add(term['name'], hTemplate, term['params'])
                 else:
-                    print('Type not implemented. Exit!')
-                    sys.exit()
+                    raise ValueError("Type not implemented")
                 templFile.Close()
             else:
                 fitter.Add(iFit, term['name'], term['func'], term['params'])
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
 
-    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraphErrors
+    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraph, TGraphErrors
     gInterpreter.ProcessLine(f'#undef DEBUG_LEVEL')
     gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/src/cpp/Observable.h"')
