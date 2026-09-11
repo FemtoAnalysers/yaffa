@@ -15,7 +15,7 @@ YAFFA_PATH = os.getenv("YAFFA")
 if not YAFFA_PATH:
     print("\033[33mWARNING: Path to yaffa is empty, something might break!\033[0m")
 
-from ROOT import gInterpreter, TFile, TF1, TCanvas, TLegend
+from ROOT import gInterpreter, TFile, TF1, TCanvas, TLegend, TGraphPainter
 
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import (
@@ -32,6 +32,10 @@ from ROOT import (
 )
 
 utils.style.SetStyle()
+
+# This ensures that TF1s with large Npx are drawn with correct line style (e.g. dashed).
+# High granularity TF1s are needed to avoid catching wavefunction fluctuations when using the Koonin-Pratt formula.
+TGraphPainter.SetMaxPointsPerLine(1000000)
 
 
 def main(args):
