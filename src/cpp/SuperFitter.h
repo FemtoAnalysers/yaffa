@@ -368,8 +368,8 @@ std::tuple<size_t, size_t, double> Av18MomBracket(double kStarMeV) {
     return {iLo, iHi, std::max(0., std::min(1., t))};
 }
 
-double Argonnev18(const sf::func& src, double kStarGeV, double* srcPar) {
-    const auto [iLo, iHi, t] = Av18MomBracket(kStarGeV * 1000);  // GeV/c -> MeV/c
+double Argonnev18(const sf::func& src, double kStarMeV, double* srcPar) {
+    const auto [iLo, iHi, t] = Av18MomBracket(kStarMeV);
     const std::vector<double>& rad = gWfAv18.Radius();           // r* grid [fm]
 
     double cf = 0;
