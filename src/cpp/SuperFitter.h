@@ -440,7 +440,7 @@ const Av18Smearing gAv18Smear = [] {
 // the resolution is already baked into gAv18Smear.psi. k* outside the matrix
 // coverage falls back to the unsmeared value.
 double Argonnev18Smeared(const sf::func& src, double kRecoGeV, double* srcPar) {
-    const int j = gAv18Smear.reco.FindBin(kRecoGeV * 1000.0);  // matrix axes in MeV/c
+    const int j = gAv18Smear.reco.FindBin(kRecoGeV);
     if (j < 1 || j >= static_cast<int>(gAv18Smear.psi.size()) || gAv18Smear.psi[j].empty())
         return Argonnev18(src, kRecoGeV, srcPar);
 
@@ -496,6 +496,9 @@ class SuperFitter : public TObject {
     void Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
 
     // Add graph
+    void Add(int idx, std::string name, TGraph* gTemplate, std::vector<sf::parameter> pars, double unitMult);
+
+    // Add graph with errors
     void Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars, double unitMult);
 
     // Add TF1 function
@@ -1112,6 +1115,39 @@ int FindPoint(TGraph *g, double x) {
     }
 
     return idx;
+}
+
+void SuperFitter::Add(int idx, std::string name, TGraph* gTemplate, std::vector<sf::parameter> pars, double unitMult) {
+    if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
+    }
+
+    printf("Adding graph '%s'\n", gTemplate->GetName());
+
+    auto lambda = [gTemplate, unitMult](double* x, double* p) { return p[0] * gTemplate->Eval(x[0] * unitMult); };
+    functions[idx].push_back({name, lambda, 1});
+
+    // Save fit settings
+    printf("Adding '%s' template with parameters:\n", name.data());
+    for (const auto& par : pars) {
+        auto [name, centr, min, max] = par;
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        if (!IsParameterPresent(name)) {
+            this->fPars[idx].push_back(par);
+        }
+    }
 }
 
 void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::vector<sf::parameter> pars, double unitMult) {
