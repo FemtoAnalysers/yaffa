@@ -32,7 +32,7 @@ def ComputeSource(source, radii):
         source = [_SourceAAA(radius, float(second)) for radius in radii]
     elif first == 'gauss2b':
         source = [_SourceGauss(radius, float(second)) for radius in radii]    
-    else:
+    elif '.root' in first:
         inFile = TFile(first)
         hSource = inFile.Get(second)
 
@@ -43,7 +43,8 @@ def ComputeSource(source, radii):
             source = [hSource.GetBinContent(hSource.FindBin(radius)) for radius in radii]
 
         inFile.Close()
-
+    else:
+        raise ValueError("Invalid source")
 
     return source
 
