@@ -356,14 +356,14 @@ def SmearGraph(graph, matrix, name=None, title=''): # pylint: disable=inconsiste
         gSmeared.SetTitle(title)
 
         iPoint = 0
-        for iBin in range(matrix.GetNbinsX()):
-            hProj = matrix.ProjectionY(f'hProj_{iBin+1}', iBin+1, iBin+1)
+        for iBin in range(matrix.GetNbinsY()):
+            hProj = matrix.ProjectionX(f'hProj_{iBin+1}', iBin+1, iBin+1)
             counts = hProj.Integral(1, hProj.GetNbinsX())
 
             if counts < 1:
                 continue
 
-            x = matrix.GetXaxis().GetBinCenter(iBin+1)
+            x = matrix.GetYaxis().GetBinCenter(iBin+1)
             if x > graph.GetPointX(graph.GetN() - 1):
                 break
 
