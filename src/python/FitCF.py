@@ -101,6 +101,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
                 else:
                     raise ValueError("Type not implemented")
                 templFile.Close()
+            elif wfFileName := term.get('wf'):
+                fitter.Add(iFit, term['name'], wfFileName, term['source'], term['params'])
             else:
                 fitter.Add(iFit, term['name'], term['func'], term['params'])
 
