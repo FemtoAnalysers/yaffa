@@ -970,6 +970,14 @@ void SuperFitter::Fit(const char* option) {
     ROOT::Fit::FitResult result = fitter.Result();
     result.Print(std::cout);
 
+    // Propagate the fit results to the fit functions
+    for (size_t iFit = 0; iFit < fFit.size(); iFit++) {
+        for (size_t iPar = 0; iPar < iPars[iFit].size(); iPar++) {
+            this->fFit[iFit]->SetParameter(iPar, result.Parameter(iPars[iFit][iPar]));
+            this->fFit[iFit]->SetParError(iPar, result.ParError(iPars[iFit][iPar]));
+        }
+    }
+
     // Check if fit parameters are AT LIMIT
     for (int iFit = 0; iFit < fFit.size(); iFit++) {
         for (int iPar = 0; iPar < this->fFit[iFit]->GetNpar(); iPar++) {
