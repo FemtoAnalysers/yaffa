@@ -511,9 +511,8 @@ class SuperFitter : public TObject {
     void AddObservable(Observable* obs) {
         this->fObs.push_back(obs);
 
-        auto hObs = obs->GetHistogram();
-        auto name = hObs->GetName(); 
-        Observable * oOrig = new Observable((TH1 *) hObs->Clone(Form("%s_orig", name)));
+        auto gObs = obs->GetGraph();
+        Observable * oOrig = new Observable((TGraphErrors *) gObs->Clone(Form("%s_orig", gObs->GetName())));
         this->fObsOrig.push_back(oOrig);
     }
 
@@ -533,7 +532,7 @@ class SuperFitter : public TObject {
     std::vector<double> GetInitialParameters();
 
     TF1* GetFitFunction(int idx = 0) { return this->fFit[idx]; }
-    TH1D* GetGenuineCF(int idx, std::string recipe);
+    TGraphErrors* GetGenuineCF(int idx, std::string recipe);
     std::vector<TF1*> GetTerms() { return this->fTerms; }
 
     ClassDef(SuperFitter, 2)
@@ -910,7 +909,7 @@ void SuperFitter::Fit(const char* option) {
     for (size_t iFit = 0; iFit < fFit.size(); iFit++) {
         data.push_back(ROOT::Fit::BinData(opt, range));
         wf.push_back(ROOT::Math::WrappedMultiTF1(*(fFit[iFit]), 1));
-        ROOT::Fit::FillData(data[iFit], fObs[iFit]->GetHistogram());
+        ROOT::Fit::FillData(data[iFit], fObs[iFit]->GetGraph());
         chi2Func.push_back(new ROOT::Fit::Chi2Function(data[iFit], wf[iFit]));
     }
 
@@ -1036,19 +1035,6 @@ void SuperFitter::Add(int idx, std::string name, TF1* fTemplate, std::vector<sf:
     }
 }
 
-bool HasConstantBinWidth(TH1* hist, double tol = 1e-9) {
-    int nbins = hist->GetNbinsX();
-    double ref_width = hist->GetBinWidth(1);
-
-    for (int i = 2; i <= nbins; ++i) {
-        double width = hist->GetBinWidth(i);
-        if (std::abs(width - ref_width) > tol) {
-            return false;
-        }
-    }
-    return true;
-}
-
 // Add template function
 void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars) {
     if (idx > functions.size()) {
@@ -1067,29 +1053,13 @@ void SuperFitter::Add(int idx, std::string name, TH1* hTemplate, std::vector<sf:
         fPars.push_back({});
     }
 
-    auto hObs = this->fObs[idx]->GetHistogram();
-    int nBins = hObs->GetNbinsX();
-    
-    // Sanity checks
-    if (!HasConstantBinWidth(hObs)) {
-        throw std::runtime_error("Adding templates with non-constant bin width is not implemented!");
-    }
-    
-    if (hObs->GetNbinsX() < hTemplate->GetNbinsX()) {
-        double limit = hObs->GetBinLowEdge(nBins + 1);
-        printf("\033[33mWARNING: data histogram has %d bins but template '%s' has %d. Stopping at k*= %.3f GeV\033[0m\n",
-               hObs->GetNbinsX(), name.data(), hTemplate->GetNbinsX(), limit);
-    }
-
-    if (fabs(hObs->GetBinWidth(1) - hTemplate->GetBinWidth(1)) > TINY) {
-        printf("\033[33mWARNING: template '%s' has different binning from the data! Uncertainties might be nonsensical!\033[0m\n", name.data());
-    }
+    auto gObs = this->fObs[idx]->GetGraph();
 
     // Add in quadrature the uncertainties of the template to the ones of the data
-    for (int iBin = 0; iBin <= nBins; iBin++) {
-        double uncData = hObs->GetBinError(iBin + 1);
-        double uncTempl = hTemplate->GetBinError(iBin + 1);
-        hObs->SetBinError(iBin + 1, std::sqrt(uncData * uncData + uncTempl * uncTempl));
+    for (int iPoint = 0; iPoint < gObs->GetN(); iPoint++) {
+        double uncData = gObs->GetErrorY(iPoint);
+        double uncTempl = hTemplate->GetBinError(hTemplate->FindBin(gObs->GetPointX(iPoint)));
+        gObs->SetPointError(iPoint, 0, std::sqrt(uncData * uncData + uncTempl * uncTempl));
     }
     
     auto lambda = [hTemplate](double* x, double* p) { return p[0] * hTemplate->Interpolate(x[0]); };
@@ -1176,14 +1146,13 @@ void SuperFitter::Add(int idx, std::string name, TGraphErrors* gTemplate, std::v
     }
 
     printf("Adding graph '%s'\n", gTemplate->GetName());
-    auto hObs = this->fObs[idx]->GetHistogram();
-    int nBins = hObs->GetNbinsX();
+    auto gObs = this->fObs[idx]->GetGraph();
 
     // Add in quadrature the uncertainties of the template to the ones of the data
-    for (int iBin = 0; iBin <= nBins; iBin++) {
-        double uncData = hObs->GetBinError(iBin + 1);
-        double uncTempl = gTemplate->GetErrorY(FindPoint(gTemplate, hObs->GetBinCenter(iBin + 1) * unitMult));
-        hObs->SetBinError(iBin + 1, std::sqrt(uncData * uncData + uncTempl * uncTempl));
+    for (int iPoint = 0; iPoint < gObs->GetN(); iPoint++) {
+        double uncData = gObs->GetErrorY(iPoint);
+        double uncTempl = gTemplate->GetErrorY(FindPoint(gTemplate, gObs->GetPointX(iPoint) * unitMult));
+        gObs->SetPointError(iPoint, 0, std::sqrt(uncData * uncData + uncTempl * uncTempl));
     }
 
     auto lambda = [gTemplate, unitMult](double* x, double* p) { return p[0] * gTemplate->Eval(x[0] * unitMult); };
@@ -1218,7 +1187,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
     }
     
     // Draw the fitted observable
-    this->fObsOrig[iFit]->Draw("hist same pe");
+    this->fObsOrig[iFit]->Draw("p");
     leg->AddEntry(this->fObsOrig[iFit], dataLabel.data(), "pe");
 
     // Draw the final fit function
@@ -1366,14 +1335,13 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
 };
 
 // Get genuine correlation function
-TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
-    // todo: change
-    TH1D* hRawCF = (TH1D*)this->fObs[idx]->GetHistogram();
-    TH1D* hGenCF = (TH1D*)hRawCF->Clone("hGenCF");
-    hGenCF->Reset();
+TGraphErrors* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
+    TGraphErrors* gRawCF = this->fObs[idx]->GetGraph();
+    TGraphErrors* gGenCF = new TGraphErrors();
+    gGenCF->SetName("gGenCF");
 
     // Draw the fitted observable
-    this->fObs[idx]->Draw("hist same pe");
+    this->fObs[idx]->Draw("p");
 
     // Draw the final fit function
     this->fFit[idx]->Draw("same");
@@ -1416,8 +1384,8 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
     auto rpn = toRPN(tokens);
 
     // The following lambda evaluates the fit function
-    for (int iBin = 0; iBin < hGenCF->GetNbinsX(); iBin++) {
-        double x = hGenCF->GetBinCenter(iBin + 1);
+    for (int iPoint = 0; iPoint < gRawCF->GetN(); iPoint++) {
+        double x = gRawCF->GetPointX(iPoint);
 
         std::stack<double> stack;
 
@@ -1427,7 +1395,7 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
                 // Push numbers
                 stack.push(std::stod(token));
             } else if (token == "raw") {
-                stack.push(hRawCF->GetBinContent(iBin + 1));
+                stack.push(gRawCF->GetPointY(iPoint));
             } else if (IsFunction(token)) {
                 int counter = GetIndex(functions[idx], token);
                 int offset = ComputeOffset(functions[idx], counter);
@@ -1465,16 +1433,16 @@ TH1D* SuperFitter::GetGenuineCF(int idx, std::string recipe) {
         if (stack.size() != 1) throw std::runtime_error("Invalid RPN expression");
 
         double cf = stack.top();
-        double cfUnc = hRawCF->GetBinError(iBin + 1) * 2;  //! Use proper uncertainty
+        double cfUnc = gRawCF->GetErrorY(iPoint) * 2;  //! Use proper uncertainty
 
         if (std::isfinite(cf) && std::isfinite(cfUnc)) {
-            hGenCF->SetBinContent(iBin + 1, stack.top());
-            hGenCF->SetBinError(iBin + 1, cfUnc);
+            int n = gGenCF->GetN();
+            gGenCF->SetPoint(n, x, cf);
+            gGenCF->SetPointError(n, 0, cfUnc);
         }
-        // return stack.top();
     }
 
-    return hGenCF;
+    return gGenCF;
 }
 
 ClassImp(SuperFitter);
