@@ -37,6 +37,7 @@ class WaveFunction {
 
     const std::vector<double>& Momentum() const { return fMomentum; }
     const std::vector<double>& Radius() const { return fRadius; }
+    const std::vector<double>& Values() const { return fValues; }  // row-major, see At()
     int GetNBody() const { return fNBody; }
     const std::string& System() const { return fSystem; }
     const std::string& Description() const { return fDescription; }
