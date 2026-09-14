@@ -42,9 +42,17 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
 
     for iFit, fitCfg in enumerate(cfg['fits']):
         inFile = TFile(fitCfg['infile'])
-        hObs = utils.io.Load(inFile, fitCfg['path'])
-        hObs = utils.analysis.ChangeUnits(hObs, fitCfg.get('unit_mult', 1))
-        hObs.SetDirectory(0)
+        obs = utils.io.Load(inFile, fitCfg['path'])
+        if isinstance(obs, TGraphMultiErrors):
+            # Only the statistical uncertainties enter the fit. The x errors are dropped, otherwise ROOT uses the effective chi2
+            hObs = TGraphErrors(obs.GetN())
+            hObs.SetName(obs.GetName())
+            for iPoint in range(obs.GetN()):
+                hObs.SetPoint(iPoint, obs.GetPointX(iPoint) * fitCfg.get('unit_mult', 1), obs.GetPointY(iPoint))
+                hObs.SetPointError(iPoint, 0, obs.GetErrorY(iPoint, 0))
+        else:
+            hObs = utils.analysis.ChangeUnits(obs, fitCfg.get('unit_mult', 1))
+            hObs.SetDirectory(0)
         hObsList.append(hObs)
         oObs = Observable(hObs)
         inFile.Close()
@@ -150,9 +158,9 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     for hObs in hObsList:
         hObs.Write()
     for idx, _ in enumerate(cfg['fits']):
-        hGenCF = fitter.GetGenuineCF(idx, cfg['fits'][idx]['gencf']) # explicit cast to int for some reason
-        hGenCF.SetName(f'hGenCF{idx}')
-        hGenCF.Write()
+        gGenCF = fitter.GetGenuineCF(idx, cfg['fits'][idx]['gencf']) # explicit cast to int for some reason
+        gGenCF.SetName(f'gGenCF{idx}')
+        gGenCF.Write()
     cFit.Write()
 
     for iTerm, termlist in terms.items():
@@ -171,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
 
-    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraph, TGraphErrors
+    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraph, TGraphErrors, TGraphMultiErrors
     gInterpreter.ProcessLine(f'#undef DEBUG_LEVEL')
     gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/src/cpp/Observable.h"')
