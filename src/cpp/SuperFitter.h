@@ -7,19 +7,17 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "Observable.h"
 #include "Riostream.h"
-#include "TAxis.h"
 #include "TF1.h"
-#include "TFile.h"
 #include "TGraphErrors.h"
 #include "TFormula.h"
 #include "TH1.h"
-#include "TH2.h"
 #include "TObject.h"
 #include "Functions.hxx"
 #include "RootFunctions.hxx"  // ROOT-style source shapes S(x, p), e.g. SourceGauss
@@ -40,15 +38,6 @@
         }                                                    \
     } while (0)
 
-// Path to the yaffa repo, from $YAFFA (set by ext/yaffa/.env). Resolved once, at
-// load time, like the rest of the repo relies on it.
-const std::string YAFFA = [] {
-    const char* env = std::getenv("YAFFA");
-    if (!env || !*env)
-        throw std::runtime_error("SuperFitter: environment variable $YAFFA is not set");
-    return std::string(env);
-}();
-
 // Definition of constants ---------------------------------------------------------------------------------------------
 #define TINY std::numeric_limits<double>::min()
 const double FmToNu(5.067731237e-3);
@@ -60,43 +49,6 @@ int colors[12] = {kBlue + 2,   kRed + 1,   kGreen + 3, kMagenta + 2, kCyan + 3, 
 namespace sf {
 using parameter = std::tuple<std::string, double, double, double>;
 using func = std::function<double(double*, double*)>;
-}
-
-const WaveFunction gWfAv18(YAFFA + "/secrets/theory/wf/pp_av18.wf");
-
-std::vector<std::vector<double>> LoadWaveFunction(const std::string& filename) {
-    std::ifstream file(filename);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open file: " + filename);
-    }
-
-    std::vector<std::vector<double>> data;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        // Skip comments / headers
-        if (line.empty() || line[0] == '#') {
-            continue;
-        }
-
-        std::istringstream iss(line);
-        std::vector<double> row;
-        double value;
-
-        while (iss >> value) {
-            row.push_back(value);
-        }
-
-        if (!row.empty()) {
-            data.push_back(std::move(row));
-        }
-    }
-
-    if (data.size() == 0) {
-        throw std::runtime_error("Data is empty: " + filename);
-    }
-    return data;
 }
 
 // Definition of variables ---------------------------------------------------------------------------------------------
@@ -349,17 +301,13 @@ double Lednicky(double* x, double* par) {
 
 
 
-// Koonin-Pratt fold of the tabulated AV18 pp |psi(k*, r*)|^2 (gWfAv18) with a
-// radial source S(r*) = src({r*}, srcPar). The RootFunctions.hxx source shapes
-// already carry the 4*pi*r*^2 measure, so this is a plain rectangle-rule average
-// over the wave-function radius grid, linearly interpolated in k* between the two
-// tabulated momentum bins bracketing k*. `srcPar` points at the term's parameter
-// slice (already offset by SetModel). Used by the `av18[:smear]@<source>` fit
-// terms (see SuperFitter::Add).
-// The two gWfAv18 momentum bins bracketing k* [MeV/c] and the interpolation
-// weight t in [0, 1] (clamped, so k* outside the grid is held at the edge value).
-std::tuple<size_t, size_t, double> Av18MomBracket(double kStarMeV) {
-    const std::vector<double>& mom = gWfAv18.Momentum();
+// Koonin-Pratt fold of a tabulated |psi(k*, r*)|^2 with a radial source S(r*) = src({r*}, srcPar).Using a plain
+// rectangle-rule average over the wave-function radius grid, linearly interpolated in k* between the two tabulated
+// momentum rows bracketing k*.
+// The two momentum rows of `wf` bracketing k* [MeV/c] and the interpolation weight t in [0, 1] (clamped, so k*
+// outside the grid is held at the edge value).
+std::tuple<size_t, size_t, double> MomBracket(const WaveFunction& wf, double kStarMeV) {
+    const std::vector<double>& mom = wf.Momentum();
     size_t iHi = std::lower_bound(mom.begin(), mom.end(), kStarMeV) - mom.begin();
     if (iHi == 0) iHi = 1;
     if (iHi == mom.size()) iHi = mom.size() - 1;
@@ -368,9 +316,9 @@ std::tuple<size_t, size_t, double> Av18MomBracket(double kStarMeV) {
     return {iLo, iHi, std::max(0., std::min(1., t))};
 }
 
-double Argonnev18(const sf::func& src, double kStarMeV, double* srcPar) {
-    const auto [iLo, iHi, t] = Av18MomBracket(kStarMeV);
-    const std::vector<double>& rad = gWfAv18.Radius();           // r* grid [fm]
+double KooninPratt(const WaveFunction& wf, const sf::func& src, double kStarMeV, double* srcPar) {
+    const auto [iLo, iHi, t] = MomBracket(wf, kStarMeV);
+    const std::vector<double>& rad = wf.Radius();  // r* grid [fm]
 
     double cf = 0;
     double sourceInt = 0;
@@ -378,82 +326,7 @@ double Argonnev18(const sf::func& src, double kStarMeV, double* srcPar) {
         double rStar = rad[iRad];
         double source = src(&rStar, srcPar);
         sourceInt += source;
-        cf += ((1 - t) * gWfAv18.At(iLo, iRad) + t * gWfAv18.At(iHi, iRad)) * source;
-    }
-
-    return cf / sourceInt;
-}
-
-// pp momentum resolution, pre-folded into the wave function at load time.
-//
-// The source S(r*) does not depend on k*, so the Koonin-Pratt fold and the
-// resolution convolution commute:
-//   C_reco(kReco) = sum_i w_i [ sum_r psi_i(r) S(r) ] / sum_r S(r)
-//                 = sum_r [ sum_i w_i psi_i(r) ] S(r) / sum_r S(r)
-// The inner bracket depends only on the resolution matrix and the tabulated wave
-// function -- never on the fit parameters -- so we build it once here. psi[j] is
-// that pre-smeared |psi|^2 on the radius grid for reco bin j, which makes a
-// smeared evaluation exactly as cheap as an unsmeared one (one pass over r*)
-// instead of one pass per contributing true bin.
-//
-// The reco axis lives in the SAME global as psi on purpose: cling does not
-// initialise separate globals in declaration order, so a standalone TAxis
-// assigned from here got clobbered by its own default constructor.
-struct Av18Smearing {
-    TAxis reco;                             // reco (y) binning of the matrix [MeV/c]
-    std::vector<std::vector<double>> psi;   // [reco bin] -> pre-smeared |psi|^2 vs r*
-};
-const Av18Smearing gAv18Smear = [] {
-    const std::string path = YAFFA + "/secrets/resolution/ResolutionMatrix_pp_HMpp13TeV_v1.root";
-    TFile f(path.c_str());
-    if (f.IsZombie()) throw std::runtime_error("Cannot open " + path);
-    TH2* R = dynamic_cast<TH2*>(f.Get("hResolutionMatrixME"));
-    if (!R) throw std::runtime_error("No TH2 'hResolutionMatrixME' in " + path);
-
-    Av18Smearing s;
-    s.reco = *R->GetYaxis();
-    s.reco.SetParent(nullptr);  // R dies with the TFile
-    s.psi.resize(R->GetNbinsY() + 2);  // indexed by reco bin (1-based)
-
-    const size_t nRad = gWfAv18.Radius().size();
-    for (int j = 1; j <= R->GetNbinsY(); j++) {
-        TH1* p = R->ProjectionX(Form("av18SmearProj_%d", j), j, j);  // P(k*_true | reco bin j)
-        p->SetDirectory(nullptr);
-        const double norm = p->Integral();
-        if (norm > 0) {
-            std::vector<double> psi(nRad, 0.);
-            for (int i = 1; i <= p->GetNbinsX(); i++) {
-                const double w = p->GetBinContent(i) / norm;
-                if (w <= 0) continue;
-                const auto [iLo, iHi, t] = Av18MomBracket(p->GetBinCenter(i));
-                for (size_t iRad = 0; iRad < nRad; iRad++)
-                    psi[iRad] += w * ((1 - t) * gWfAv18.At(iLo, iRad) + t * gWfAv18.At(iHi, iRad));
-            }
-            s.psi[j] = std::move(psi);
-        }
-        delete p;  // only the folded result is kept
-    }
-    return s;
-}();
-
-// Argonnev18 with the pp momentum resolution folded in. Same cost as Argonnev18:
-// the resolution is already baked into gAv18Smear.psi. k* outside the matrix
-// coverage falls back to the unsmeared value.
-double Argonnev18Smeared(const sf::func& src, double kRecoGeV, double* srcPar) {
-    const int j = gAv18Smear.reco.FindBin(kRecoGeV);
-    if (j < 1 || j >= static_cast<int>(gAv18Smear.psi.size()) || gAv18Smear.psi[j].empty())
-        return Argonnev18(src, kRecoGeV, srcPar);
-
-    const std::vector<double>& psi = gAv18Smear.psi[j];
-    const std::vector<double>& rad = gWfAv18.Radius();
-
-    double cf = 0;
-    double sourceInt = 0;
-    for (size_t iRad = 0; iRad < rad.size(); iRad++) {
-        double rStar = rad[iRad];
-        double source = src(&rStar, srcPar);
-        sourceInt += source;
-        cf += psi[iRad] * source;
+        cf += ((1 - t) * wf.At(iLo, iRad) + t * wf.At(iHi, iRad)) * source;
     }
 
     return cf / sourceInt;
@@ -491,6 +364,9 @@ class SuperFitter : public TObject {
 
     // Add fit component
     void Add(int idx, std::string name, std::string func, std::vector<sf::parameter> pars);
+
+    // Add wave function (.wf) folded with a source
+    void Add(int idx, std::string name, std::string wf, std::string source, std::vector<sf::parameter> pars);
 
     // Add template function
     void Add(int idx, std::string name, TH1* hTemplate, std::vector<sf::parameter> pars);
@@ -610,36 +486,6 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         functions[idx].push_back({name, BreitWigner, 3});
     } else if (func == "lednicky") {
         functions[idx].push_back({name, Lednicky, 7});
-    } else if (func.rfind("av18@", 0) == 0 || func.rfind("av18:smear@", 0) == 0) {
-        // av18[:smear]@<source>: AV18 pp |psi(k*,r*)|^2 folded with a radial source
-        // S(r*); with ":smear" the result is also folded with the pp momentum
-        // resolution. The source `norm` of the "*Counts*" shapes is fixed to 1
-        // here: it cancels in the KP normalisation (sum S / sum S), so it is not
-        // exposed as a (degenerate) fit parameter.
-        using FoldFn = double (*)(const sf::func&, double, double*);
-        const bool smear = func.rfind("av18:smear@", 0) == 0;
-        const FoldFn fold = smear ? &Argonnev18Smeared : &Argonnev18;
-        const std::string src = func.substr(smear ? 11 : 5);
-        sf::func term;
-        int nSrcPar;
-        if (src == "gauss") {
-            // params: r0 [fm]
-            term = [fold](double* x, double* p) { return fold(SourceGauss, x[0], p); };
-            nSrcPar = 1;
-        } else if (src == "gauss_resonances") {
-            // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
-            term = [fold](double* x, double* p) {
-                double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
-                return fold(SourceCountsGaussResonances, x[0], pp);
-            };
-            nSrcPar = 3;
-        } else {
-            throw std::runtime_error("Unknown av18 source '" + src + "'");
-        }
-        if (static_cast<int>(pars.size()) != nSrcPar) {
-            throw std::runtime_error("av18@" + src + " needs " + std::to_string(nSrcPar) + " parameters");
-        }
-        functions[idx].push_back({name, term, nSrcPar});
     } else {
         throw std::runtime_error("Function " + func + " with name " + name + " is not implemented");
     }
@@ -654,6 +500,59 @@ void SuperFitter::Add(int idx, std::string name, std::string func, std::vector<s
         }
     }
 };
+
+// Add a wave function (.wf) folded with a radial source via the Koonin-Pratt formula
+void SuperFitter::Add(int idx, std::string name, std::string wf, std::string source, std::vector<sf::parameter> pars) {
+    if (idx > functions.size()) {
+        throw std::invalid_argument("Index is larger than current length of the function list.");
+    }
+
+    if (idx > fPars.size()) {
+        throw std::invalid_argument("Index is larger than current length of the parameter list.");
+    }
+
+    if (idx == functions.size()) {
+        functions.push_back({});
+    }
+
+    if (idx == fPars.size()) {
+        fPars.push_back({});
+    }
+
+    // The source `norm` of the "*Counts*" shapes is fixed to 1 here: it cancels in the KP normalisation
+    // (sum S / sum S), so it is not exposed as a (degenerate) fit parameter.
+    auto wavefunction = std::make_shared<const WaveFunction>(wf);
+    sf::func term;
+    int nSrcPar;
+    if (source == "gauss") {
+        // params: r0 [fm]
+        term = [wavefunction](double* x, double* p) { return KooninPratt(*wavefunction, SourceGauss, x[0], p); };
+        nSrcPar = 1;
+    } else if (source == "gauss_resonances") {
+        // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
+        term = [wavefunction](double* x, double* p) {
+            double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
+            return KooninPratt(*wavefunction, SourceCountsGaussResonances, x[0], pp);
+        };
+        nSrcPar = 3;
+    } else {
+        throw std::runtime_error("Unknown source '" + source + "'");
+    }
+    if (static_cast<int>(pars.size()) != nSrcPar) {
+        throw std::runtime_error("Source '" + source + "' needs " + std::to_string(nSrcPar) + " parameters");
+    }
+    functions[idx].push_back({name, term, nSrcPar});
+
+    // Save fit settings
+    printf("Adding '%s' wave function %s with parameters:\n", name.data(), wf.data());
+    for (const auto& par : pars) {
+        auto [name, centr, min, max] = par;
+        printf("    name: %s   init: %.3f   min: %.3f   max: %.3f\n", name.data(), centr, min, max);
+        if (!IsParameterPresent(name)) {
+            this->fPars[idx].push_back(par);
+        }
+    }
+}
 
 // Process operator token
 void ProcessOperatorToken(std::stack<double> &stack, std::string token) {
