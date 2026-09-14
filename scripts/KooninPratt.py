@@ -53,7 +53,16 @@ def main(ofile, wf, source=None):
         log.error(f'File "{wf}" does not exist.')
         return
 
-    if '.root' in wf:
+    if wf.endswith('.wf'):
+        # The sources above already include the Jacobian, so only the tabulated |psi|^2 is taken from the file
+        gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/WaveFunction.cpp"')
+        from ROOT import WaveFunction
+
+        wfTable = WaveFunction(wf)
+        radii = list(wfTable.Radius())
+        momenta = np.array(wfTable.Momentum())
+        wf = np.array(wfTable.Values()).reshape(len(momenta), len(radii))
+    elif '.root' in wf:
         inFile = TFile(wf)
         hWF = inFile.Get('hWF')
         hWF.SetDirectory(0)
