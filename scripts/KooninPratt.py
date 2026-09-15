@@ -20,7 +20,7 @@ if not YAFFA_PATH:
 
 from ROOT import gInterpreter, TFile
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import _SourcePdfAAAHypRad, _SourcePdfGauss
+from ROOT import _SourcePdfAAAHypRad, _SourcePdfAAAGaussResonancesHypRad, _SourcePdfGauss
 
 utils.style.SetStyle()
 from yaffa.utils.analysis import Convert
@@ -32,6 +32,9 @@ def ComputeSource(source, radii):
         source = [_SourcePdfAAAHypRad(radius, float(second)) for radius in radii]
     elif first == 'gauss2b':
         source = [_SourcePdfGauss(radius, float(second)) for radius in radii]    
+    elif first == 'gaussAAAreso':
+        f, rp, rs = (float(v) for v in second.split(','))  # e.g. gaussAAAreso:0.3578,1.4,2.3
+        source = [_SourcePdfAAAGaussResonancesHypRad(radius, f, rp, rs) for radius in radii]
     elif '.root' in first:
         inFile = TFile(first)
         hSource = inFile.Get(second)
