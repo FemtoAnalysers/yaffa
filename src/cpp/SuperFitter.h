@@ -340,6 +340,7 @@ class SuperFitter : public TObject {
     std::vector<TF1*> fFit;                            // Total fit function
     std::vector<std::vector<sf::parameter>> fPars;     // List of fit pars: (name, init, min, max)
     std::vector<TF1*> fTerms;                          // Each function to be drawn
+    std::map<int, std::vector<std::pair<std::string, TF1*>>> fSources;  // Source of each wave-function term, per fit
     std::vector<std::pair<double, double>> fFitRange;  // Fit range as the union of different intervals
     std::map<std::string, int> fParIndeces;            // Indeces of parameters for combined fit
     double fDrawRangeMin;                              // Draw range minimum
@@ -410,6 +411,7 @@ class SuperFitter : public TObject {
     TF1* GetFitFunction(int idx = 0) { return this->fFit[idx]; }
     TGraphErrors* GetGenuineCF(int idx, std::string recipe);
     std::vector<TF1*> GetTerms() { return this->fTerms; }
+    std::vector<TF1*> GetSources(int idx);
 
     ClassDef(SuperFitter, 2)
 };
@@ -522,17 +524,17 @@ void SuperFitter::Add(int idx, std::string name, std::string wf, std::string sou
     // The source `norm` of the "*Counts*" shapes is fixed to 1 here: it cancels in the KP normalisation
     // (sum S / sum S), so it is not exposed as a (degenerate) fit parameter.
     auto wavefunction = std::make_shared<const WaveFunction>(wf);
-    sf::func term;
+    sf::func src;
     int nSrcPar;
     if (source == "gauss") {
         // params: r0 [fm]
-        term = [wavefunction](double* x, double* p) { return KooninPratt(*wavefunction, SourceGauss, x[0], p); };
+        src = SourceGauss;
         nSrcPar = 1;
     } else if (source == "gauss_resonances") {
         // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
-        term = [wavefunction](double* x, double* p) {
+        src = [](double* x, double* p) {
             double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
-            return KooninPratt(*wavefunction, SourceCountsGaussResonances, x[0], pp);
+            return SourceCountsGaussResonances(x, pp);
         };
         nSrcPar = 3;
     } else {
@@ -541,7 +543,15 @@ void SuperFitter::Add(int idx, std::string name, std::string wf, std::string sou
     if (static_cast<int>(pars.size()) != nSrcPar) {
         throw std::runtime_error("Source '" + source + "' needs " + std::to_string(nSrcPar) + " parameters");
     }
+    auto term = [wavefunction, src](double* x, double* p) { return KooninPratt(*wavefunction, src, x[0], p); };
     functions[idx].push_back({name, term, nSrcPar});
+
+    // Source function over the radius range of the wave function. Its parameters are taken from the fit in GetSources
+    const std::vector<double>& rad = wavefunction->Radius();
+    TF1* fSource = new TF1(Form("fSource%d_%s", idx, name.data()), src, rad.front(), rad.back(), nSrcPar);
+    fSource->SetTitle(";#it{r}* (fm);#it{S}(#it{r}*)");
+    fSource->SetNpx(100000);
+    this->fSources[idx].push_back({name, fSource});
 
     // Save fit settings
     printf("Adding '%s' wave function %s with parameters:\n", name.data(), wf.data());
@@ -593,6 +603,21 @@ int ComputeOffset(std::vector<std::tuple<std::string, sf::func, int>> funcs, int
         offset += std::get<2>(funcs[iFunc]);
     }
     return offset;
+}
+
+// Source functions of the wave-function terms of the fit `idx`, with the parameters of the fit
+std::vector<TF1*> SuperFitter::GetSources(int idx) {
+    std::vector<TF1*> sources = {};
+    for (const auto& [name, fSource] : this->fSources[idx]) {
+        int offset = ComputeOffset(functions[idx], GetIndex(functions[idx], name));
+        for (int iPar = 0; iPar < fSource->GetNpar(); iPar++) {
+            fSource->SetParName(iPar, this->fFit[idx]->GetParName(offset + iPar));
+            fSource->SetParameter(iPar, this->fFit[idx]->GetParameter(offset + iPar));
+            fSource->SetParError(iPar, this->fFit[idx]->GetParError(offset + iPar));
+        }
+        sources.push_back(fSource);
+    }
+    return sources;
 }
 
 // SetModel
