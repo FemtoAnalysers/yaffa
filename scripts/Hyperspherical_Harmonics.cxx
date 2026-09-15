@@ -2020,7 +2020,7 @@ double SandwitchSource(double hypRad, int l12, int l312, int nu, int L, int M, i
 
                         double measure = sin(theta12) * sin(theta312) * pow(cos(phi), 2) * pow(sin(phi), 2) * std::pow(hypRad, 5);
 
-                        sum += conj(hh1) * hh2 * measure * dOmega * _SourceAAAppr(hypRad, phi, rp, rs) * pow(numbers::pi, 3);
+                        sum += conj(hh1) * hh2 * measure * dOmega * _SourceProfileAAAppr(hypRad, phi, rp, rs) * pow(numbers::pi, 3);
                     }
                 }
             }
@@ -2091,11 +2091,11 @@ void Hyperspherical_Harmonics() {
     
     TGraph *gCF = new TGraph(nRho, rhos, cf);
     
-    TF1 *fSourceAAAppp = new TF1("fSourceAAAppp", SourceCountsAAA, 0, maxRho, 2);
+    TF1 *fSourceAAAppp = new TF1("fSourceAAAppp", SourceCountsAAAHypRad, 0, maxRho, 2);
     fSourceAAAppp->SetParameter(0, 1);
     fSourceAAAppp->SetParameter(1, 2 * rp);
 
-    TF1 *fSourceAAAppr = new TF1("fSourceAAAppr", SourceCountsAAApprAvg, 0, maxRho, 3);
+    TF1 *fSourceAAAppr = new TF1("fSourceAAAppr", SourceCountsAAApprHypRad, 0, maxRho, 3);
     fSourceAAAppr->SetParameter(0, 1);
     fSourceAAAppr->SetParameter(1, rp);
     fSourceAAAppr->SetParameter(2, rs);

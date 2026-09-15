@@ -5,196 +5,194 @@
 
 #include "Functions.hxx"
 
-// Source function for 3 identical particles
-double SourceAAA(double* x, double* p) {
+/*
+Source functions are of type:
+    SourcePdf<X>     -> normalized to one by construction
+    SourceCounts<X>  -> p[0] is arbitrary normalization
+*/
+
+// 2-body source functions ---------------------------------------------------------------------------------------------
+
+// Gaussian source for 2 particles
+double SourcePdfGauss(double* x, double* p) {
     // Variables
-    double hyperRadius = x[0];
+    double rStar = x[0];
+
+    // Parameters
+    double r0 = p[0];
+
+    return _SourcePdfGauss(rStar, r0);
+}
+
+// Gaussian source for 2 identical particles including the effect of resonances
+double SourcePdfGaussResonances(double* x, double* p) {
+    // Variables
+    double rStar = x[0];
+
+    // Parameters
+    double f = p[0];
+    double rp = p[1];
+    double delta = p[2];  // Delta radius: rs = rp + delta. p[2] must be limited > 0
+
+    double rs = rp + delta;
+
+    double source_pp = f * f * _SourcePdfGauss(rStar, rp);
+    double source_ps = 2 * f * (1 - f) * _SourcePdfGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
+    double source_ss = (1 - f) * (1 - f) * _SourcePdfGauss(rStar, rs);
+
+    return source_pp + source_ps + source_ss;
+}
+
+// 3-body source functions ---------------------------------------------------------------------------------------------
+
+// Gaussian source for 3 identical particles, in the hyper-radius
+double SourcePdfAAAHypRad(double* x, double* p) {
+    // Variables
+    double hypRad = x[0];
 
     // Parameters
     double rho0 = p[0];
 
-    return _SourceAAA(hyperRadius, rho0);
+    return _SourcePdfAAAHypRad(hypRad, rho0);
 }
 
-// Source function for 3 identical particles
-double SourceCountsAAA(double* x, double* p) {
+// Source for 3 identical particles where 2 are primary and the 3rd one originates from a resonance, in the hyper-radius
+double SourcePdfAAApprHypRad(double* x, double* p) {
     // Variables
-    double hyperRadius = x[0];
+    double hypRad = x[0];
 
     // Parameters
-    double norm = p[0];
-    double rho0 = p[1];
+    double rp = p[0];
+    double rs = p[1];
 
-    return norm * _SourceAAA(hyperRadius, rho0);
+    return _SourcePdfAAApprHypRad(hypRad, rp, rs);
 }
 
-
-// Source function for 2 particles
-double SourceGauss(double* x, double* p) {
+// Source for 3 identical particles where 1 is primary and 2 originate from a resonance, in the hyper-radius
+double SourcePdfAAAprrHypRad(double* x, double* p) {
     // Variables
-    double rStar = x[0];
-    
-    // Parameters
-    double r0 = p[0];
-
-    return _SourceGauss(rStar, r0);
-}
-
-// Source function for 2 particles
-double SourceCountsGauss(double* x, double* p) {
-    // Variables
-    double rStar = x[0];
-    
-    // Parameters
-    double norm = p[0];
-    double r0 = p[1];
-
-    return norm * _SourceGauss(rStar, r0);
-}
-
-// Source function for 2 identical particles including the effect of resonances
-double SourceCountsGaussResonances(double* x, double* p) {
-    // Variables
-    double rStar = x[0];
+    double hypRad = x[0];
 
     // Parameters
-    double norm = p[0];
-    double f = p[1];
-    double rp = p[2];
-    double delta = p[3]; // Delta radius: rs = rp + drs. p[3] must be limited > 0
+    double rp = p[0];
+    double rs = p[1];
 
-    double rs = rp + delta;
-
-    double source_pp = f * f * _SourceGauss(rStar, rp);
-    double source_ps = 2 * f * (1 - f) * _SourceGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
-    double source_ss = (1 - f) * (1 - f) * _SourceGauss(rStar, rs);
-
-    return norm * (source_pp + source_ps + source_ss);
+    // The same as primary-primary-resonances but with r_prim and r_reso switched
+    return _SourcePdfAAApprHypRad(hypRad, rs, rp);
 }
 
-// Source function for 3 identical particles including the effect of resonances
-double SourceCountsAAAGaussResonances(double* x, double* p) {
+// Source for 3 identical particles including the effect of resonances, in the hyper-radius
+double SourcePdfAAAGaussResonancesHypRad(double* x, double* p) {
     // Variables
-    double hyperRadius = x[0];
+    double hypRad = x[0];
 
     // Parameters
-    double norm = p[0];
-    double f = p[1]; // Fraction of primordinal particles
-    double rp = p[2]; // Single-particle radius of primordial particles
-    double rs = p[3]; // Single-particle radius of secondary particles
+    double f = p[0];   // Fraction of primordial particles
+    double rp = p[1];  // Single-particle radius of primordial particles
+    double rs = p[2];  // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourceAAA(hyperRadius, 2 * rp);
-    double source_pps = 3 * f * f * (1 - f) * _SourceAAApprAvg(hyperRadius, rp, rs);
-    double source_pss = 3 * f * pow(1 - f, 2) * _SourceAAApprAvg(hyperRadius, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourceAAA(hyperRadius, 2 * rs);
+    double source_ppp = pow(f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rp);
+    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypRad(hypRad, rp, rs);
+    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypRad(hypRad, rs, rp); // Same as ppr with rp <--> rs
+    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rs);
 
-    return norm * (source_ppp + source_pps + source_pss + source_sss);
-}
-
-double SourceCountsAAAppr(double *x, double *p) {
-    double hyperRadius = x[0];
-    double hyperAngle = x[1];
-
-    double norm = p[0];
-    double rp = p[1];
-    double rs = p[2];
-
-    return norm * _SourcePdfAAAppr(hyperRadius, hyperAngle, rp, rs);
+    return source_ppp + source_pps + source_pss + source_sss;
 }
 
 // Hyper-angle distribution for 3 identical particles of the same kind. Since the source in this case is hypercentral,
-// only the Jacobian survives
-double SourceCountsAAAHypAngle(double *x, double *p) {
-    double hyperAngle = x[0];
+// only the Jacobian survives. No parameters
+double SourcePdfAAAHypAngle(double* x, double* p) {
+    // Variables
+    double hypAngle = x[0];
 
-    double norm = p[0];
-
-    return norm * _SourcePdfAAAHypAngle(hyperAngle);
+    return _SourcePdfAAAHypAngle(hypAngle);
 }
 
-double SourceCountsAAApprHypAngle(double *x, double *p) {
-    double hyperAngle = x[0];
+// Hyper-angle distribution for 3 identical particles where 2 are primary and the 3rd one originates from a resonance
+double SourcePdfAAApprHypAngle(double* x, double* p) {
+    // Variables
+    double hypAngle = x[0];
 
-    double norm = p[0];
-    double rp = p[1];
-    double rs = p[2];
+    // Parameters
+    double rp = p[0];
+    double rs = p[1];
 
-    return norm * _SourcePdfAAApprHypAngle(hyperAngle, rp, rs);
+    return _SourcePdfAAApprHypAngle(hypAngle, rp, rs);
 }
 
-double SourceCountsAAAprrHypAngle(double *x, double *p) {
-    double hyperAngle = x[0];
+// Hyper-angle distribution for 3 identical particles where 1 is primary and 2 originate from a resonance
+double SourcePdfAAAprrHypAngle(double* x, double* p) {
+    // Variables
+    double hypAngle = x[0];
 
-    double norm = p[0];
-    double rp = p[1];
-    double rs = p[2];
+    // Parameters
+    double rp = p[0];
+    double rs = p[1];
 
     // The same as primary-primary-resonances but with r_prim and r_reso switched
-    return norm * _SourcePdfAAApprHypAngle(hyperAngle, rs, rp);
+    return _SourcePdfAAApprHypAngle(hypAngle, rs, rp);
 }
 
 // Hyper-angle distribution for 3 identical particles including the effect of resonances
-double SourceCountsAAAGaussResonancesHypAngle(double* x, double* p) {
+double SourcePdfAAAGaussResonancesHypAngle(double* x, double* p) {
     // Variables
-    double hyperAngle = x[0];
+    double hypAngle = x[0];
 
     // Parameters
-    double norm = p[0];
-    double f = p[1]; // Fraction of primordinal particles
-    double rp = p[2]; // Single-particle radius of primordial particles
-    double rs = p[3]; // Single-particle radius of secondary particles
+    double f = p[0];   // Fraction of primordial particles
+    double rp = p[1];  // Single-particle radius of primordial particles
+    double rs = p[2];  // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourcePdfAAAHypAngle(hyperAngle);
-    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypAngle(hyperAngle, rp, rs);
-    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypAngle(hyperAngle, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypAngle(hyperAngle);
+    double source_ppp = pow(f, 3) * _SourcePdfAAAHypAngle(hypAngle);
+    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypAngle(hypAngle, rp, rs);
+    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypAngle(hypAngle, rs, rp); // Same as ppr with rp <--> rs
+    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypAngle(hypAngle);
 
-    return norm * (source_ppp + source_pps + source_pss + source_sss);
+    return source_ppp + source_pps + source_pss + source_sss;
 }
 
-double SourceCountsAAApprAvg(double *x, double *p) {
-    double hyperRadius = x[0];
-
-    double norm = p[0];
-    double rp = p[1];
-    double rs = p[2];
-
-    return norm * _SourceAAApprAvg(hyperRadius, rp, rs);
-}
-
-double SourceCountsAAAprrAvg(double *x, double *p) {
-    double hyperRadius = x[0];
-
-    double norm = p[0];
-    double rp = p[1];
-    double rs = p[2];
-
-    // The same as primary-primary-resonances but with r_prim and r_reso switched
-    return norm * _SourceAAApprAvg(hyperRadius, rs, rp);
-}
-
-// Source function for 2 particles
-double SourceAAAJC(double* x, double* p) {
+// Gaussian source for 3 identical particles in Jacobi coordinates (r12, r3,12)
+double SourcePdfAAAJC(double* x, double* p) {
     // Variables
     double r12 = x[0];
     double r312 = x[1];
-    
+
     // Parameters
     double r0 = p[0];
 
-    return _SourceAAAJC(r12, r312, r0);
+    return _SourcePdfAAAJC(r12, r312, r0);
 }
 
-// Source function for 2 particles
-double SourceCountsAAAJC(double* x, double* p) {
+// Source for 3 identical particles where 2 are primary and the 3rd one originates from a resonance, in
+// (hyper-radius, hyper-angle)
+double SourcePdfAAAppr(double* x, double* p) {
     // Variables
-    double r12 = x[0];
-    double r312 = x[1];
-    
-    // Parameters
-    double norm = p[0];
-    double r0 = p[1];
+    double hypRad = x[0];
+    double hypAngle = x[1];
 
-    return norm * _SourceAAAJC(r12, r312, r0);
+    // Parameters
+    double rp = p[0];
+    double rs = p[1];
+
+    return _SourcePdfAAAppr(hypRad, hypAngle, rp, rs);
 }
+
+// Counts source functions ---------------------------------------------------------------------------------------------
+
+double SourceCountsGauss(double* x, double* p) { return p[0] * SourcePdfGauss(x, p + 1); }
+double SourceCountsGaussResonances(double* x, double* p) { return p[0] * SourcePdfGaussResonances(x, p + 1); }
+double SourceCountsAAAHypRad(double* x, double* p) { return p[0] * SourcePdfAAAHypRad(x, p + 1); }
+double SourceCountsAAApprHypRad(double* x, double* p) { return p[0] * SourcePdfAAApprHypRad(x, p + 1); }
+double SourceCountsAAAprrHypRad(double* x, double* p) { return p[0] * SourcePdfAAAprrHypRad(x, p + 1); }
+double SourceCountsAAAGaussResonancesHypRad(double* x, double* p) {
+    return p[0] * SourcePdfAAAGaussResonancesHypRad(x, p + 1);
+}
+double SourceCountsAAAHypAngle(double* x, double* p) { return p[0] * SourcePdfAAAHypAngle(x, p + 1); }
+double SourceCountsAAApprHypAngle(double* x, double* p) { return p[0] * SourcePdfAAApprHypAngle(x, p + 1); }
+double SourceCountsAAAprrHypAngle(double* x, double* p) { return p[0] * SourcePdfAAAprrHypAngle(x, p + 1); }
+double SourceCountsAAAGaussResonancesHypAngle(double* x, double* p) {
+    return p[0] * SourcePdfAAAGaussResonancesHypAngle(x, p + 1);
+}
+double SourceCountsAAAJC(double* x, double* p) { return p[0] * SourcePdfAAAJC(x, p + 1); }
+double SourceCountsAAAppr(double* x, double* p) { return p[0] * SourcePdfAAAppr(x, p + 1); }
 #endif

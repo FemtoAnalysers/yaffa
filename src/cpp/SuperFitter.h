@@ -20,7 +20,7 @@
 #include "TH1.h"
 #include "TObject.h"
 #include "Functions.hxx"
-#include "RootFunctions.hxx"  // ROOT-style source shapes S(x, p), e.g. SourceGauss
+#include "RootFunctions.hxx"
 #include "gsl/gsl_sf_dawson.h"
 // Include the .cpp, not just the header: SuperFitter.h is loaded through cling
 // (FitCF.py does `#include "SuperFitter.h"`), and there is no compiled libyaffa,
@@ -521,21 +521,17 @@ void SuperFitter::Add(int idx, std::string name, std::string wf, std::string sou
         fPars.push_back({});
     }
 
-    // The source `norm` of the "*Counts*" shapes is fixed to 1 here: it cancels in the KP normalisation
-    // (sum S / sum S), so it is not exposed as a (degenerate) fit parameter.
+    // The sources are pdfs
     auto wavefunction = std::make_shared<const WaveFunction>(wf);
     sf::func src;
     int nSrcPar;
     if (source == "gauss") {
         // params: r0 [fm]
-        src = SourceGauss;
+        src = SourcePdfGauss;
         nSrcPar = 1;
     } else if (source == "gauss_resonances") {
         // params: f (primary fraction), rp [fm], delta [fm] (rs = rp + delta)
-        src = [](double* x, double* p) {
-            double pp[4] = {1.0, p[0], p[1], p[2]};  // norm=1, f, rp, delta
-            return SourceCountsGaussResonances(x, pp);
-        };
+        src = SourcePdfGaussResonances;
         nSrcPar = 3;
     } else {
         throw std::runtime_error("Unknown source '" + source + "'");

@@ -1,4 +1,8 @@
-/* Various mathematical functions to be used in fits etc. */
+/* Various mathematical functions to be used in fits etc.
+Source functions are of type:
+    _SourcePdf<X>      ->  normalized to 1 by construction
+    _SourceProfile<X>  -> source without the Jacobian
+*/
 #include "gsl/gsl_sf_gamma.h"
 #include "gsl/gsl_sf_hyperg.h"
 
@@ -7,29 +11,7 @@
 
 #include <cmath>
 
-// Source function for 3 identical particles
-// Ref.: PRC 109, 034006 (2024) (Eq. 40, 41)
-// DOI: https://doi.org/10.1103/PhysRevC.109.034006
-double _SourceAAA(double hyperRadius,  // Hyper-radius defined as in 3B NOTES
-                  double rho0          // source size
-) {
-    return exp(-hyperRadius * hyperRadius / rho0 / rho0) / pow(rho0, 6) * pow(hyperRadius, 5);
-}
-
-// Gaussian source for 2B
-double _SourceGauss(double rStar, double r0) {
-    return 4 * M_PI * rStar * rStar * exp(-rStar * rStar / 4 / r0 / r0) / pow(4 * M_PI * r0 * r0, 1.5);
-}
-
-// Gaussian source for 3 identical particles expressed in Jacobi coordinates. Based on Mathematica calculation
-double _SourceAAAJC(double r12, double r312, double r0) {
-    double arg = - (3 * r12 * r12 + 4 * r312 * r312) / 12 / r0 / r0;
-    double norm = pow(2 * sqrt(3) * M_PI * r0 * r0, -3);
-    double jacobianr12 = 4 * M_PI * r12 * r12;
-    double jacobianr312 = 4 * M_PI * r312 * r312;
-
-    return jacobianr12 * jacobianr312 * norm * exp(arg);
-}
+// Helpers -------------------------------------------------------------------------------------------------------------
 
 /*
 Regularized confluent hypergeometric function = 0F1(a, z) / Gamma(a).
@@ -39,8 +21,27 @@ double Hypergeometric0F1Regularized(double a, double z) {
     return gsl_sf_hyperg_0F1(a, z) / gsl_sf_gamma(a);
 }
 
-// Source function for 3 identical particles where 2 are primary and the 3rd one originates from a resonance
-double _SourceAAApprAvg(double hypRad, double rp, double rs) {
+// 2-body source functions ---------------------------------------------------------------------------------------------
+
+// Gaussian source for 2 particles, as a pdf in r*
+double _SourcePdfGauss(double rStar, double r0) {
+    return 4 * M_PI * rStar * rStar * exp(-rStar * rStar / 4 / r0 / r0) / pow(4 * M_PI * r0 * r0, 1.5);
+}
+
+// 3-body source functions ---------------------------------------------------------------------------------------------
+
+// Gaussian source for 3 identical particles, as a pdf in the hyper-radius
+// Ref.: PRC 109, 034006 (2024) (Eq. 40, 41)
+// DOI: https://doi.org/10.1103/PhysRevC.109.034006
+double _SourcePdfAAAHypRad(double hypRad,  // Hyper-radius defined as in 3B NOTES
+                           double rho0     // source size
+) {
+    return exp(-hypRad * hypRad / rho0 / rho0) / pow(rho0, 6) * pow(hypRad, 5);
+}
+
+// Source for 3 identical particles where 2 are primary and the 3rd one originates from a resonance, as a pdf in the
+// hyper-radius (i.e. _SourcePdfAAAppr marginalized over the hyper-angle)
+double _SourcePdfAAApprHypRad(double hypRad, double rp, double rs) {
     double rp2 = rp * rp;
     double rs2 = rs * rs;
 
@@ -51,25 +52,6 @@ double _SourceAAApprAvg(double hypRad, double rp, double rs) {
     double norm = 3 * std::sqrt(3) / (64 * pow(rp, 3) * pow(rp2 + 2 * rs2, 3. / 2));
 
     return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
-}
-
-double _SourceAAAppr(double hypRad, double hypAngle, double rp, double rs) {
-    double cp2 = std::pow(std::cos(hypAngle), 2);
-    double sp2 = std::pow(std::sin(hypAngle), 2);
-
-    double norm = 3 * sqrt(3) / (pow(4 * std::numbers::pi * rp, 3) * std::pow(rp * rp + 2 * rs * rs, 3. / 2));
-    double arg = -1. / 4 * hypRad * hypRad * (cp2 / (rp * rp) + 3 * sp2 / (rp * rp + 2 * rs * rs));
-
-    return norm * std::exp(arg);
-}
-
-double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
-    double cp2 = std::pow(std::cos(hypAngle), 2);
-    double sp2 = std::pow(std::sin(hypAngle), 2);
-
-    double jac = std::pow(hypRad, 5) * cp2 * sp2 * pow(4 * std::numbers::pi, 2);
-
-    return jac * _SourceAAAppr(hypRad, hypAngle, rp, rs);
 }
 
 // Hyper-angle distribution for 3 identical particles all of the same kind (ppp or sss):
@@ -83,7 +65,7 @@ double _SourcePdfAAAHypAngle(double hypAngle) {
 }
 
 // Hyper-angle distribution for 3 identical particles where 2 are primary and the 3rd
-// one originates from a resonance (i.e. _SourcePdfAAAppr marginalized over hypRad)
+// one originates from a resonance (i.e. _SourcePdfAAAppr marginalized over the hyper-radius)
 double _SourcePdfAAApprHypAngle(double hypAngle, double rp, double rs) {
     double rp2 = rp * rp;
     double rs2 = rs * rs;
@@ -95,5 +77,38 @@ double _SourcePdfAAApprHypAngle(double hypAngle, double rp, double rs) {
     double den = M_PI * std::pow((rp2 + 2 * rs2) * cp2 + 3 * rp2 * sp2, 3);
 
     return num / den;
+}
+
+// Gaussian source for 3 identical particles in Jacobi coordinates (r12, r3,12), as a pdf. Based on Mathematica
+// calculation
+double _SourcePdfAAAJC(double r12, double r312, double r0) {
+    double arg = - (3 * r12 * r12 + 4 * r312 * r312) / 12 / r0 / r0;
+    double norm = pow(2 * sqrt(3) * M_PI * r0 * r0, -3);
+    double jacobianr12 = 4 * M_PI * r12 * r12;
+    double jacobianr312 = 4 * M_PI * r312 * r312;
+
+    return jacobianr12 * jacobianr312 * norm * exp(arg);
+}
+
+// Source for 3 identical particles where 2 are primary and the 3rd one originates from a resonance, as a function of
+// the hyper-radius and the hyper-angle, without the Jacobian
+double _SourceProfileAAAppr(double hypRad, double hypAngle, double rp, double rs) {
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+
+    double norm = 3 * sqrt(3) / (pow(4 * std::numbers::pi * rp, 3) * std::pow(rp * rp + 2 * rs * rs, 3. / 2));
+    double arg = -1. / 4 * hypRad * hypRad * (cp2 / (rp * rp) + 3 * sp2 / (rp * rp + 2 * rs * rs));
+
+    return norm * std::exp(arg);
+}
+
+// _SourceProfileAAAppr including the Jacobian, as a pdf in (hyper-radius, hyper-angle)
+double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
+    double cp2 = std::pow(std::cos(hypAngle), 2);
+    double sp2 = std::pow(std::sin(hypAngle), 2);
+
+    double jac = std::pow(hypRad, 5) * cp2 * sp2 * pow(4 * std::numbers::pi, 2);
+
+    return jac * _SourceProfileAAAppr(hypRad, hypAngle, rp, rs);
 }
 #endif
