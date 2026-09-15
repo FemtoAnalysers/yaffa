@@ -28,6 +28,18 @@ double _SourcePdfGauss(double rStar, double r0) {
     return 4 * M_PI * rStar * rStar * exp(-rStar * rStar / 4 / r0 / r0) / pow(4 * M_PI * r0 * r0, 1.5);
 }
 
+// Gaussian source for 2 identical particles including the effect of resonances, as a pdf in r*.
+// f: fraction of primordial particles, rp: radius of primordial particles, delta: rs - rp (must be limited > 0)
+double _SourcePdfGaussResonances(double rStar, double f, double rp, double delta) {
+    double rs = rp + delta;
+
+    double source_pp = f * f * _SourcePdfGauss(rStar, rp);
+    double source_ps = 2 * f * (1 - f) * _SourcePdfGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
+    double source_ss = (1 - f) * (1 - f) * _SourcePdfGauss(rStar, rs);
+
+    return source_pp + source_ps + source_ss;
+}
+
 // 3-body source functions ---------------------------------------------------------------------------------------------
 
 // Gaussian source for 3 identical particles, as a pdf in the hyper-radius
@@ -54,6 +66,17 @@ double _SourcePdfAAApprHypRad(double hypRad, double rp, double rs) {
     return norm * std::exp(arg) * std::pow(hypRad, 5) * chgr;
 }
 
+// Source for 3 identical particles including the effect of resonances, as a pdf in the hyper-radius.
+// f: fraction of primordial particles, rp (rs): single-particle radius of primordial (secondary) particles
+double _SourcePdfAAAGaussResonancesHypRad(double hypRad, double f, double rp, double rs) {
+    double source_ppp = pow(f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rp);
+    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypRad(hypRad, rp, rs);
+    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypRad(hypRad, rs, rp); // Same as ppr with rp <--> rs
+    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rs);
+
+    return source_ppp + source_pps + source_pss + source_sss;
+}
+
 // Hyper-angle distribution for 3 identical particles all of the same kind (ppp or sss):
 // the source does not depend on the hyper-angle, so only the Jacobian survives, normalized
 // on [0, pi/2]
@@ -77,6 +100,17 @@ double _SourcePdfAAApprHypAngle(double hypAngle, double rp, double rs) {
     double den = M_PI * std::pow((rp2 + 2 * rs2) * cp2 + 3 * rp2 * sp2, 3);
 
     return num / den;
+}
+
+// Hyper-angle distribution for 3 identical particles including the effect of resonances, as a pdf.
+// f: fraction of primordial particles, rp (rs): single-particle radius of primordial (secondary) particles
+double _SourcePdfAAAGaussResonancesHypAngle(double hypAngle, double f, double rp, double rs) {
+    double source_ppp = pow(f, 3) * _SourcePdfAAAHypAngle(hypAngle);
+    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypAngle(hypAngle, rp, rs);
+    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypAngle(hypAngle, rs, rp); // Same as ppr with rp <--> rs
+    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypAngle(hypAngle);
+
+    return source_ppp + source_pps + source_pss + source_sss;
 }
 
 // Gaussian source for 3 identical particles in Jacobi coordinates (r12, r3,12), as a pdf. Based on Mathematica

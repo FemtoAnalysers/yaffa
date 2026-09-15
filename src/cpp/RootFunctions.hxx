@@ -34,13 +34,7 @@ double SourcePdfGaussResonances(double* x, double* p) {
     double rp = p[1];
     double delta = p[2];  // Delta radius: rs = rp + delta. p[2] must be limited > 0
 
-    double rs = rp + delta;
-
-    double source_pp = f * f * _SourcePdfGauss(rStar, rp);
-    double source_ps = 2 * f * (1 - f) * _SourcePdfGauss(rStar, std::sqrt((rp * rp + rs * rs) / 2));
-    double source_ss = (1 - f) * (1 - f) * _SourcePdfGauss(rStar, rs);
-
-    return source_pp + source_ps + source_ss;
+    return _SourcePdfGaussResonances(rStar, f, rp, delta);
 }
 
 // 3-body source functions ---------------------------------------------------------------------------------------------
@@ -91,12 +85,7 @@ double SourcePdfAAAGaussResonancesHypRad(double* x, double* p) {
     double rp = p[1];  // Single-particle radius of primordial particles
     double rs = p[2];  // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rp);
-    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypRad(hypRad, rp, rs);
-    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypRad(hypRad, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypRad(hypRad, 2 * rs);
-
-    return source_ppp + source_pps + source_pss + source_sss;
+    return _SourcePdfAAAGaussResonancesHypRad(hypRad, f, rp, rs);
 }
 
 // Hyper-angle distribution for 3 identical particles of the same kind. Since the source in this case is hypercentral,
@@ -143,12 +132,7 @@ double SourcePdfAAAGaussResonancesHypAngle(double* x, double* p) {
     double rp = p[1];  // Single-particle radius of primordial particles
     double rs = p[2];  // Single-particle radius of secondary particles
 
-    double source_ppp = pow(f, 3) * _SourcePdfAAAHypAngle(hypAngle);
-    double source_pps = 3 * f * f * (1 - f) * _SourcePdfAAApprHypAngle(hypAngle, rp, rs);
-    double source_pss = 3 * f * pow(1 - f, 2) * _SourcePdfAAApprHypAngle(hypAngle, rs, rp); // Same as ppr with rp <--> rs
-    double source_sss = pow(1 - f, 3) * _SourcePdfAAAHypAngle(hypAngle);
-
-    return source_ppp + source_pps + source_pss + source_sss;
+    return _SourcePdfAAAGaussResonancesHypAngle(hypAngle, f, rp, rs);
 }
 
 // Gaussian source for 3 identical particles in Jacobi coordinates (r12, r3,12)
