@@ -70,6 +70,11 @@ def make_plot(plot):
             legends.append(inputCfg['legend'])
             continue
 
+        if (unitMult := float(numexpr.evaluate(str(inputCfg.get('unit_mult', 1))))) != 1:
+            inObj = utils.analysis.ChangeUnits(inObj, unitMult, name=inObj.GetName())
+            if isinstance(inObj, TH1):
+                inObj.SetDirectory(0)
+
         if isinstance(inObj, TH1):
             inObj.Rebin(inputCfg.get('rebin', 1))
 

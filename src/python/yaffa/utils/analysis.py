@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TF1  # pylint: disable=import-error
+from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TGraphAsymmErrors, TGraphMultiErrors, TF1  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -165,10 +165,27 @@ def GetSpread(objects):
 
 def ChangeUnits(obj, multiplier, name=None, title=''):
     '''
-    Only for objogram with constant binwidth!
+    Change the units of the x axis of a 1D histogram (constant bin width only) or of a graph. For graphs, the x errors
+    are scaled too.
+
+    Parameters
+    ----------
+    obj : TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TGraphMultiErrors
+        The object to be converted
+    multiplier : float
+        The multiplier to be applied to the x axis
+    name : str, optional
+        The name of the converted object. By default: `<old_name>_new` for histograms, `<old_name>_stretch` for graphs
+    title : str, optional
+        The title of the converted histogram. By default: `''`. Graphs keep their title
+
+    Returns
+    -------
+    TH1F or graph of the same type as `obj`
+        The object in the new units
     '''
 
-    if isinstance(obj, TH1):
+    if isinstance(obj, TH1) and not isinstance(obj, TH2):
         nbins = obj.GetNbinsX()
         lowEdge = obj.GetBinLowEdge(1)
         upEdge = obj.GetBinLowEdge(nbins+1)
@@ -180,23 +197,22 @@ def ChangeUnits(obj, multiplier, name=None, title=''):
             hNew.SetBinError(i, obj.GetBinError(i))
         return hNew
 
-    if isinstance(obj, TGraphErrors):
-        nPoints = obj.GetN()
-        gNew = TGraphErrors(nPoints)
-        gNew.SetName(name if name else f'{obj.GetName()}_stretch')
+    if isinstance(obj, TGraph):
+        gNew = obj.Clone(name if name else f'{obj.GetName()}_stretch')
 
-        for iPoint in range(nPoints):
-            x = obj.GetPointX(iPoint)
-            y = obj.GetPointY(iPoint)
-            gNew.SetPoint(iPoint, x * multiplier, y)
-
-            xUnc = obj.GetErrorX(iPoint)
-            yUnc = obj.GetErrorY(iPoint)
-            gNew.SetPointError(iPoint, xUnc, yUnc)
+        for iPoint in range(gNew.GetN()):
+            gNew.SetPointX(iPoint, gNew.GetPointX(iPoint) * multiplier)
+            if isinstance(gNew, TGraphErrors):
+                gNew.SetPointError(iPoint, gNew.GetErrorX(iPoint) * multiplier, gNew.GetErrorY(iPoint))
+            elif isinstance(gNew, TGraphAsymmErrors):
+                gNew.SetPointError(iPoint, gNew.GetErrorXlow(iPoint) * multiplier, gNew.GetErrorXhigh(iPoint) * multiplier,
+                                   gNew.GetErrorYlow(iPoint), gNew.GetErrorYhigh(iPoint))
+            elif isinstance(gNew, TGraphMultiErrors):
+                gNew.SetPointEX(iPoint, gNew.GetErrorXlow(iPoint) * multiplier, gNew.GetErrorXhigh(iPoint) * multiplier)
 
         return gNew
 
-    raise NotImplementedError()
+    raise NotImplementedError(f'Changing units is not implemented for {type(obj)}')
 
 def ChangeUnits2D(hist, multiplier, name=None, title=''):
     '''

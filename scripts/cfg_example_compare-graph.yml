@@ -8,6 +8,7 @@
         color: auto # kRed, kBlue + 2, etc. If auto, a colorblind and printing-friendly color palette is used
         rebin: 1
         scale: 1
+        unit_mult: 1  # multiplier of the x axis (and x errors), e.g. 1000 for GeV -> MeV. Histograms and graphs only
         fillalpha: 1
         thickness: 1
         markerstyle: 1
@@ -19,6 +20,7 @@
         color: auto # kRed, kBlue + 2, etc. If auto, a colorblind and printing-friendly color palette is used
         rebin: 1
         scale: 1
+        unit_mult: 1  # multiplier of the x axis (and x errors), e.g. 1000 for GeV -> MeV. Histograms and graphs only
         fillalpha: 1
         thickness: 1
         markerstyle: 1
