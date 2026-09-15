@@ -67,7 +67,7 @@ double _SourcePdfAAAppr(double hypRad, double hypAngle, double rp, double rs) {
     double cp2 = std::pow(std::cos(hypAngle), 2);
     double sp2 = std::pow(std::sin(hypAngle), 2);
 
-    double jac = std::pow(hypRad, 5) * cp2 * sp2 * pow(4 * std::numbers::pi * rp, 2);
+    double jac = std::pow(hypRad, 5) * cp2 * sp2 * pow(4 * std::numbers::pi, 2);
 
     return jac * _SourceAAAppr(hypRad, hypAngle, rp, rs);
 }
