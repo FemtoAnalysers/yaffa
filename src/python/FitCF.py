@@ -163,6 +163,8 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
         gGenCF = fitter.GetGenuineCF(idx, cfg['fits'][idx]['gencf']) # explicit cast to int for some reason
         gGenCF.SetName(f'gGenCF{idx}')
         gGenCF.Write()
+        for fSource in fitter.GetSources(idx):
+            fSource.Write()
     cFit.Write()
 
     for iTerm, termlist in terms.items():
