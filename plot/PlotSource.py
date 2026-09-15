@@ -4,7 +4,7 @@ import argparse
 
 from ROOT import TF2, TCanvas, TFile, TF1, gInterpreter, gROOT
 gInterpreter.Declare('#include "../src/cpp/RootFunctions.hxx"')
-from ROOT import SourceAAAJC, SourceGauss, SourceAAA
+from ROOT import SourcePdfAAAJC, SourcePdfGauss, SourcePdfAAAHypRad
 
 
 from yaffa import utils
@@ -27,13 +27,13 @@ if __name__ == '__main__':
 
     # Plot source function
     if args.system == 'aa':
-        fSource = TF1('fSource', SourceGauss, 0, 8, 1)
+        fSource = TF1('fSource', SourcePdfGauss, 0, 8, 1)
         fSource.SetParameter(0, args.r0)
         fSource.SetNpx(1000)
         fSource.SetTitle(';r* (fm); 4#pi r*^{2} S(r*)')
     elif args.system == 'aaa' and args.jc:
         cSource.SetRightMargin(0.22)
-        fSource = TF2('fSource', SourceAAAJC, 0, 8, 0, 8, 1)
+        fSource = TF2('fSource', SourcePdfAAAJC, 0, 8, 0, 8, 1)
         fSource.SetParameter(0, args.r0)
         fSource.SetNpx(100)
         fSource.SetNpy(100)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
         fSource.GetZaxis().SetTitleOffset(1.7)
         fSource.Draw('colz')
     elif args.system == 'aaa':
-        fSource = TF1('fSource', SourceAAA, 0, 8, 1)
+        fSource = TF1('fSource', SourcePdfAAAHypRad, 0, 8, 1)
         fSource.SetParameter(0, args.r0)
         fSource.SetNpx(1000)
         fSource.SetTitle(';#rho (fm); #pi^{3} #rho^{5} S(#rho)')

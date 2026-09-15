@@ -21,14 +21,14 @@ gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
 from ROOT import (
     SourceCountsGauss,
     SourceCountsGaussResonances,
-    SourceCountsAAAprrAvg,
-    SourceCountsAAApprAvg,
+    SourceCountsAAAprrHypRad,
+    SourceCountsAAApprHypRad,
     SourceCountsAAAHypAngle,
     SourceCountsAAApprHypAngle,
     SourceCountsAAAprrHypAngle,
-    SourceCountsAAAGaussResonances,
+    SourceCountsAAAGaussResonancesHypRad,
     SourceCountsAAAGaussResonancesHypAngle,
-    SourceCountsAAA,
+    SourceCountsAAAHypRad,
 )
 
 utils.style.SetStyle()
@@ -117,34 +117,34 @@ def main(args):
     # 3B
     hHypRad = inFile.Get("triplet/hHypRad")
 
-    fSource3B = TF1("fSource3B", SourceCountsAAAGaussResonances, 0, 20, 4)
+    fSource3B = TF1("fSource3B", SourceCountsAAAGaussResonancesHypRad, 0, 20, 4)
     fSource3B.SetNpx(100000)
     fSource3B.SetParameter(0, hHypRad.GetEntries() / 10)
     fSource3B.FixParameter(1, fPrim)
     fSource3B.SetParameter(2, rPrim)
     fSource3B.SetParameter(3, rSec)
 
-    fSource3B_ppp = TF1("fSource3B_ppp", SourceCountsAAA, 0, 20, 2)
+    fSource3B_ppp = TF1("fSource3B_ppp", SourceCountsAAAHypRad, 0, 20, 2)
     fSource3B_ppp.SetNpx(100000)
     fSource3B_ppp.SetParameter(0, fPrim**3 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_ppp.SetParameter(1, 2 * rPrim)
     fSource3B_ppp.SetLineStyle(7)
 
-    fSource3B_pps = TF1("fSource3B_pps", SourceCountsAAApprAvg, 0, 20, 3)
+    fSource3B_pps = TF1("fSource3B_pps", SourceCountsAAApprHypRad, 0, 20, 3)
     fSource3B_pps.SetNpx(100000)
     fSource3B_pps.SetParameter(0, 3 * fPrim**2 * (1 - fPrim) * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_pps.SetParameter(1, rPrim)
     fSource3B_pps.SetParameter(2, rSec)
     fSource3B_pps.SetLineStyle(8)
 
-    fSource3B_pss = TF1("fSource3B_pss", SourceCountsAAAprrAvg, 0, 20, 3)
+    fSource3B_pss = TF1("fSource3B_pss", SourceCountsAAAprrHypRad, 0, 20, 3)
     fSource3B_pss.SetNpx(100000)
     fSource3B_pss.SetParameter(0, 3 * fPrim * (1 - fPrim) ** 2 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_pss.SetParameter(1, rPrim)
     fSource3B_pss.SetParameter(2, rSec)
     fSource3B_pss.SetLineStyle(9)
 
-    fSource3B_sss = TF1("fSource3B_sss", SourceCountsAAA, 0, 20, 2)
+    fSource3B_sss = TF1("fSource3B_sss", SourceCountsAAAHypRad, 0, 20, 2)
     fSource3B_sss.SetNpx(100000)
     fSource3B_sss.SetParameter(0, (1 - fPrim) ** 3 * hHypRad.GetEntries() * hHypRad.GetBinWidth(1))
     fSource3B_sss.SetParameter(1, 2 * rSec)

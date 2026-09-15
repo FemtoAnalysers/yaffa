@@ -21,7 +21,7 @@ if not YAFFA_PATH:
 
 from ROOT import gInterpreter, TFile
 gInterpreter.Declare(f'#include "{YAFFA_PATH}/src/cpp/RootFunctions.hxx"')
-from ROOT import _SourceAAA
+from ROOT import _SourcePdfAAAHypRad
 
 
 utils.style.SetStyle()
@@ -76,7 +76,7 @@ def main(ofile, source=None, radius=2.6):
         hRadius = inFile.Get(source.split(':')[1])
         source = [hRadius.GetBinContent(hRadius.FindBin(rho, radius)) for rho in hyp_rad]    
     else:
-        source = [_SourceAAA(rho, radius) for rho in hyp_rad]    
+        source = [_SourcePdfAAAHypRad(rho, radius) for rho in hyp_rad]    
 
     cf = []
     color = 1
