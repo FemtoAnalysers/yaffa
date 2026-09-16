@@ -1108,7 +1108,7 @@ void SuperFitter::Draw(int iFit, std::vector<std::pair<std::string, std::string>
     
     // Draw the fitted observable
     this->fObsOrig[iFit]->Draw("p");
-    leg->AddEntry(this->fObsOrig[iFit], dataLabel.data(), "pe");
+    leg->AddEntry(this->fObsOrig[iFit]->GetGraph(), dataLabel.data(), "pe");
 
     // Draw the final fit function
     this->fFit[iFit]->Draw("same");
