@@ -138,6 +138,11 @@ def GetDistributions(file:str, system:str, bw:float=None) -> dict:
                 distr[system][event] = {}
 
                 hTriplets = inFile.Get(f'femto-triplet-track-track-track_{system}/TrackTrackTrack/{event.upper()}/Analysis/hQ3VsMtVsMultVsCent')
+                if not hTriplets:
+                    log.error(f'Triplet histogram is None for system {system}')
+                    log.error('Input file contains:')
+                    inFile.ls()
+                    break
 
                 distr[system][event]['q3vsmult'] = hTriplets.Projection(0, 2)
                 distr[system][event]['q3vsmult'].SetName('hQ3VsMult')
