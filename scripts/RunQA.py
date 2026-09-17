@@ -240,8 +240,10 @@ def do_triplet_qa(directory, header=''):
         return hist
 
     draw_objects('Q3', {'SE': proj(se, 0, 'SE'), 'ME': proj(me, 0, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
-    draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
-    draw_objects('Mult', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
+    draw_objects('Mt', {'SE': proj(se, 1, 'SE'), 'ME': proj(me, 1, 'ME')}, drawopt='hist', normalize=True, header=header,
+                 subdir=SUBDIR)
+    draw_objects('Mult', {'SE': proj(se, 2, 'SE'), 'ME': proj(me, 2, 'ME')}, drawopt='hist', normalize=True, header=header,
+                 subdir=SUBDIR)
     draw_objects('Cent', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
     draw_objects('Q3VsMult', {None: proj(se, (0, 2), 'SE')}, drawopt='colz', normalize=True, header=header, subdir=SUBDIR)
 
