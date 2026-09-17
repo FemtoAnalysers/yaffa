@@ -35,7 +35,9 @@ def make_plot(plot):
     if plot.get('relunc', {}).get('enable'):
         panels['relunc'] = len(panels)+1
     if plot.get('pulls', {}).get('enable'):
-        panels['pulls'] = len(panels)+1  
+        panels['pulls'] = len(panels)+1
+    if plot.get('testz', {}).get('enable'):
+        panels['testz'] = len(panels)+1
 
     # Load the objects to draw
     inObjs = []
@@ -415,7 +417,61 @@ def make_plot(plot):
                     hPulls.Draw('same l')
         else:
             log.error('Pulls not implemented for a reference of type %s', type(refObj))
-        
+
+        break
+
+    # Compute the Z test wrt the first obj: Z = (hi - h1) / sqrt(unci^2 + unc1^2)
+    zGraphs = []  # keep the graphs alive until the canvas is saved
+    while plot.get('testz', {}).get('enable'):
+        if len(inObjs) < 2:
+            log.error('Not enough objects for computing the Z test. Skipping Z test plot')
+            break
+
+        refObj = inObjs[0]
+        if not isinstance(refObj, TH1):
+            log.error('Z test not implemented for a reference of type %s', type(refObj))
+            break
+
+        pad = cPlot.cd(panels['testz'])
+        pad.SetGridx(plot['testz'].get('gridx', False))
+        pad.SetGridy(plot['testz'].get('gridy', True))
+        pad.SetLogx(plot['testz'].get('logx', False))
+        y1 = plot['testz']['rangey'][0]
+        y2 = plot['testz']['rangey'][1]
+        pad.SetLeftMargin(0.16)
+        frame = pad.DrawFrame(fx1, y1, fx2, y2, plot['opt']['title'])
+        frame.GetYaxis().SetTitle('Z = (h_{i} - h_{1}) / #sqrt{#sigma_{i}^{2} + #sigma_{1}^{2}}')
+
+        for iObj, inObj in enumerate(inObjs[1:]):
+            if not isinstance(inObj, TH1) or inObj.GetNbinsX() != refObj.GetNbinsX():
+                log.error('Z test requires histograms with the same binning. Skipping this object')
+                continue
+
+            # Use a graph so that bins with no uncertainty are not drawn
+            gZ = TGraph()
+            gZ.SetName(f'gZ_{iObj}')
+            for iBin in range(1, refObj.GetNbinsX() + 1):
+                unc = np.hypot(refObj.GetBinError(iBin), inObj.GetBinError(iBin))
+                if unc == 0:
+                    continue
+                z = (inObj.GetBinContent(iBin) - refObj.GetBinContent(iBin)) / unc
+                gZ.AddPoint(refObj.GetBinCenter(iBin), z)
+
+            gZ.SetLineColor(inObj.GetLineColor())
+            gZ.SetMarkerColor(inObj.GetMarkerColor())
+            gZ.SetMarkerStyle(inObj.GetMarkerStyle())
+            gZ.Draw('same p')
+            zGraphs.append(gZ)
+
+            if 'root' in plot["opt"]["ext"]:
+                gZ.Write()
+
+        line = TLine(fx1, 0, fx2, 0)
+        line.SetLineColor(13)
+        line.SetLineStyle(7)
+        line.Draw('same')
+        zGraphs.append(line)
+
         break
 
     cPlot.Modified()
