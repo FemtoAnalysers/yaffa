@@ -16,11 +16,10 @@ utils.style.SetStyle()
 # Print the bin contents drawn with the 'text' option as integers
 gStyle.SetPaintTextFormat('.0f')
 
+# Labels of the particle species, shared by particles and antiparticles
 PARTICLES_LABELS = {
     2212: "p",
-    -2212: "ap",
-    321: "Kplus",
-    -321: "Kminus",
+    321: "K",
 }
 
 PARTICLES_LATEX = {
@@ -133,52 +132,37 @@ def draw_legend(objects, header):
 
     return legend
 
-def get_particle_label(directory):
-    '''Identify the particle analyzed in a combination directory from its charge and mass.'''
+def get_particle_pdg(directory):
+    '''Identify the particle analyzed in a track directory from its charge and mass and return its PDG code.'''
 
     hSign = directory.Get(f'Analysis/hSign')
     hMass = directory.Get(f'Analysis/hMass')
 
     if not hSign or not hMass:
-        log.critical(f'hSign or hMass are missing in {directory.GetName()}/{tracks[0]}. '
-                     'Cannot determine the analyzed system')
+        log.critical(f'hSign or hMass are missing in {directory.GetName()}. Cannot determine the analyzed system')
 
     charge = round(hSign.GetMean())
     mass = hMass.GetMean()
 
     database = TDatabasePDG.Instance()
 
-    for pdg in [2212, 321]:
+    for pdg in PARTICLES_LABELS:
         if abs(database.GetParticle(pdg).Mass() - mass) < MASS_TOLERANCE:
-            return PARTICLES_LABELS[charge * pdg]
+            return charge * pdg
 
     raise ValueError("Mass and charge combination not implemented")
-
 
 def get_particle_latex(directory):
-    '''Identify the particle analyzed in a combination directory from its charge and mass.'''
+    '''Identify the particle analyzed in a track directory from its charge and mass.'''
+    return PARTICLES_LATEX[get_particle_pdg(directory)]
 
-    hSign = directory.Get(f'Analysis/hSign')
-    hMass = directory.Get(f'Analysis/hMass')
-
-    if not hSign or not hMass:
-        log.critical(f'hSign or hMass are missing in {directory.GetName()}/{tracks[0]}. '
-                     'Cannot determine the analyzed system')
-
-    charge = round(hSign.GetMean())
-    mass = hMass.GetMean()
-
-    database = TDatabasePDG.Instance()
-
-    for pdg in [2212, 321]:
-        if abs(database.GetParticle(pdg).Mass() - mass) < MASS_TOLERANCE:
-            return PARTICLES_LATEX[charge * pdg]
-
-    raise ValueError("Mass and charge combination not implemented")
+def get_track_dirs(directory):
+    '''Track directories of a combination directory.'''
+    return [directory.Get(key.GetName()) for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())]
 
 def get_particles_latex(directory):
     '''Identify the three particles of the triplet analyzed in a combination directory.'''
-    track_dirs = [directory.Get(key.GetName()) for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())]
+    track_dirs = get_track_dirs(directory)
 
     if len(track_dirs) == 1:
         return [get_particle_latex(track_dirs[0])] * 3 # identical particles
@@ -193,19 +177,33 @@ def get_system_latex(directory):
     '''Name of the system analyzed in a combination directory, obtained by chaining its three particles.'''
     return ''.join(get_particles_latex(directory))
 
-def do_track_qa(directory, header=''):
-    '''Draw the QA of the tracks of one of the particle species of the combination.'''
+def get_pdgs(directory):
+    '''PDG codes of the particles of the track directories of a combination directory.'''
+    return [get_particle_pdg(track) for track in get_track_dirs(directory)]
+
+def find_conjugate(directory, directories):
+    '''Combination directory in which all the particles are replaced by their antiparticles.'''
+    conjugate_pdgs = [-pdg for pdg in get_pdgs(directory)]
+
+    for other in directories:
+        if get_pdgs(other) == conjugate_pdgs:
+            return other
+
+    log.critical(f'The charge conjugate of {directory.GetName()} is missing')
+
+def do_track_qa(tracks, header=''):
+    '''Draw the QA of the tracks of a particle species. Particle and antiparticle tracks are drawn in the same plots.'''
     # Subdirectory of qa where the track plots are saved
-    SUBDIR = 'triplet/track_' + get_particle_label(directory)
+    SUBDIR = 'triplet/track_' + PARTICLES_LABELS[abs(get_particle_pdg(tracks[0]))]
 
     for name in ['hPt', 'hEta', 'hPhi', 'hSign', 'hMass']:
-        hist = directory.Get(f'Analysis/{name}')
+        hists = {get_particle_latex(track): track.Get(f'Analysis/{name}') for track in tracks}
 
-        if not hist:
+        if not all(hists.values()):
             log.error(f'Analysis/{name} is missing. Skipping it')
             continue
 
-        draw_objects(name.removeprefix('h'), {None: hist}, header=header, subdir=SUBDIR)
+        draw_objects(name.removeprefix('h'), hists, drawopt='hist', header=header, subdir=SUBDIR)
 
 def do_collision_qa(directory):
     '''Draw the event-level QA of the collisions.'''
@@ -300,8 +298,7 @@ def process_combination(directory, particle):
         elif key == 'Collisions':
             do_collision_qa(directory.Get(key))
         elif re.fullmatch(r'Track\d+', key):
-            track = directory.Get(key)
-            do_track_qa(track, f'{get_particle_latex(track)} ({directory.GetName()})')
+            pass  # Done in do_track_qa, together with the conjugate combination
         else:
             log.warning(f'QA not implemented for directory {key}')
 
@@ -323,6 +320,17 @@ def main(in_file : str):
     for directory, particle in zip(directories, particles):
         for system, counts in process_combination(directory, particle).items():
             yields[system] = yields.get(system, 0) + counts
+
+    for directory in directories:
+        # Combinations of antiparticles are drawn together with their charge conjugate
+        if get_pdgs(directory) < [-pdg for pdg in get_pdgs(directory)]:
+            continue
+
+        conjugate = find_conjugate(directory, directories)
+        header = ''
+
+        for track, antitrack in zip(get_track_dirs(directory), get_track_dirs(conjugate)):
+            do_track_qa([track, antitrack], header)
 
     draw_yields(yields)
 
