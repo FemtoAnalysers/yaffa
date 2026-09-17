@@ -13,16 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Momentum smearing of CFs via resolution matrix or phase space (`Smear.py`)
 - `SuperFitter`: support for `TGraph`/`TGraphMultiErrors`, x-axis rescaling and unit conversion
 - 3-body source functions with resonances
+- QA script (`RunQA.py`) for collisions, tracks and triplets with automatic particle-system detection
+- Z test panel in `CompareGraphs.py`
 
 ### Changed
 - Massive refactoring of the code: merging several branches and renaming many files
 - Started consistent use of tests in pre-commit hooks
 - Renamed source functions consistently
 - Units switched from GeV to MeV
+- `ComputeRawCF.py` rewritten for the Run 3 femto framework (3-body)
 
 ### Fixed
 - application of smearing matrix as transposed
 - Normalization of the ppr source function
+- Wrong axes/binning in `ChangeUnits2D`
 
 ## 0.1.0
 ### Added
