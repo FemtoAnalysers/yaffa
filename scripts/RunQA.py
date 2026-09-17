@@ -6,12 +6,15 @@ import os
 import re
 import argparse
 
-from ROOT import TFile, TCanvas, TDatabasePDG, TLatex, TLegend, SetOwnership, gPad, gROOT, kRed
+from ROOT import TFile, TCanvas, TDatabasePDG, TH2F, TLatex, TLegend, SetOwnership, gPad, gROOT, gStyle, kRed
 
 from yaffa import utils
 from yaffa import logger as log
 
 utils.style.SetStyle()
+
+# Print the bin contents drawn with the 'text' option as integers
+gStyle.SetPaintTextFormat('.0f')
 
 PARTICLES_LABELS = {
     2212: "p",
@@ -30,6 +33,9 @@ PARTICLES_LATEX = {
 
 # Maximum distance between the measured and the expected mass to consider a particle as identified
 MASS_TOLERANCE = 0.001
+
+# Maximum Q3 (GeV/c) of the triplets counted in the summary plot of the yields
+Q3_THRESHOLD = 0.6
 
 # Size of the legend text. Set explicitly so that a long header can be shrunk to fit in one line
 LEGEND_TEXT_SIZE = 0.04
@@ -58,12 +64,12 @@ def close_pdfs():
 
     openPDFs.clear()
 
-def draw_objects(name, objects, drawopt='pe', normalize=False, header='', subdir=''):
+def draw_objects(name, objects, drawopt='pe', normalize=False, header='', title='', subdir=''):
     c = TCanvas('c', '', 600, 600)
 
     empty = []
     for i, (leg, obj) in enumerate(objects.items()):
-        obj.SetTitle(leg if leg else '')
+        obj.SetTitle(leg if leg else title)
         obj.SetLineColor(i + 1)
         obj.SetLineWidth(2)
 
@@ -170,17 +176,22 @@ def get_particle_latex(directory):
 
     raise ValueError("Mass and charge combination not implemented")
 
-def get_system_latex(directory):
+def get_particles_latex(directory):
+    '''Identify the three particles of the triplet analyzed in a combination directory.'''
     track_dirs = [directory.Get(key.GetName()) for key in directory.GetListOfKeys() if re.fullmatch(r'Track\d+', key.GetName())]
 
     if len(track_dirs) == 1:
-        return get_particle_latex(track_dirs[0]) * 3 # identical particles
+        return [get_particle_latex(track_dirs[0])] * 3 # identical particles
     if len(track_dirs) == 2:
-        return get_particle_latex(track_dirs[0]) * 2 + get_particle_latex(track_dirs[1]) # 2 identical particles, 1 different
+        return [get_particle_latex(track_dirs[0])] * 2 + [get_particle_latex(track_dirs[1])] # 2 identical, 1 different
     if len(track_dirs) == 3:
-        return get_particle_latex(track_dirs[0]) + get_particle_latex(track_dirs[1]) + get_particle_latex(track_dirs[2])
+        return [get_particle_latex(track_dir) for track_dir in track_dirs]
 
     raise ValueError("Wrong number of particles")
+
+def get_system_latex(directory):
+    '''Name of the system analyzed in a combination directory, obtained by chaining its three particles.'''
+    return ''.join(get_particles_latex(directory))
 
 def do_track_qa(directory, header=''):
     '''Draw the QA of the tracks of one of the particle species of the combination.'''
@@ -219,7 +230,7 @@ def do_triplet_qa(directory, header=''):
 
     if not se or not me:
         log.error('SE or ME THnSparse are not properly defined. Skipping triplet QA')
-        return
+        return 0
 
     # Use a helper function to project THnSparse with name to avoid replacing existing histograms
     def proj(thn, axis, name):
@@ -236,11 +247,56 @@ def do_triplet_qa(directory, header=''):
     draw_objects('Cent', {'SE': proj(se, 3, 'SE'), 'ME': proj(me, 3, 'ME')}, normalize=True, header=header, subdir=SUBDIR)
     draw_objects('Q3VsMult', {None: proj(se, (0, 2), 'SE')}, drawopt='colz', normalize=True, header=header, subdir=SUBDIR)
 
+    # Count the triplets in a dedicated projection, the one drawn above is normalized. The bin containing the threshold
+    # is excluded so that only the triplets certainly below it are counted
+    hQ3 = proj(se, 0, 'Q3Yield')
+    return hQ3.Integral(1, hQ3.FindBin(Q3_THRESHOLD) - 1)
+
+def draw_yields(yields):
+    '''Draw the number of triplets below the Q3 threshold, one bin per system.'''
+    # Subdirectory of qa where the triplet plots are saved
+    SUBDIR = 'triplet'
+
+    if not yields:
+        log.warning('No triplet was analyzed. Skipping the plot of the yields')
+        return
+
+    # The first two particles of each system are on the y axis, the third one on the x axis
+    pairs = sorted({pair for pair, _ in yields})
+    singles = sorted({single for _, single in yields})
+
+    hYields = TH2F('hYields', '', len(singles), 0, len(singles), len(pairs), 0, len(pairs))
+    for iSingle, single in enumerate(singles):
+        hYields.GetXaxis().SetBinLabel(iSingle + 1, single)
+    for iPair, pair in enumerate(pairs):
+        hYields.GetYaxis().SetBinLabel(iPair + 1, pair)
+
+    for (pair, single), counts in yields.items():
+        hYields.SetBinContent(singles.index(single) + 1, pairs.index(pair) + 1, counts)
+
+    # Enlarge the text with the number of triplets, otherwise it is barely readable
+    hYields.SetMarkerSize(1.5)
+
+    gStyle.SetOptTitle(1)
+    gStyle.SetPadTopMargin(0.1)
+
+    title = f'Triplets with #it{{Q}}_{{3}} < {Q3_THRESHOLD * 1000:.0f} MeV/#it{{c}}'
+    draw_objects('CountTriplets', {None: hYields}, drawopt='col text', title=title, subdir=SUBDIR)
+
+    # Restore the style, so that the other canvases are not affected
+    gStyle.SetOptTitle(0)
+    gStyle.SetPadTopMargin(0.05)
+
 def process_combination(directory, particle):
+    '''Do the QA of a combination directory and return the triplets below the Q3 threshold of its system.'''
+    yields = {}
+
     for key in [k.GetName() for k in directory.GetListOfKeys()]:
         if key == 'TrackTrackTrack':
-            system = get_system_latex(directory)
-            do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
+            particles = get_particles_latex(directory)
+            system = ''.join(particles)
+            counts = do_triplet_qa(directory.Get(key), f'{system} ({directory.GetName()})')
+            yields[(''.join(particles[:2]), particles[2])] = counts
         elif key == 'Collisions':
             do_collision_qa(directory.Get(key))
         elif re.fullmatch(r'Track\d+', key):
@@ -248,6 +304,8 @@ def process_combination(directory, particle):
             do_track_qa(track, f'{get_particle_latex(track)} ({directory.GetName()})')
         else:
             log.warning(f'QA not implemented for directory {key}')
+
+    return yields
 
 def main(in_file : str):
     os.makedirs('qa', exist_ok=True)
@@ -261,8 +319,12 @@ def main(in_file : str):
     # Identify all the systems before drawing anything, so that an unknown one is reported before producing any plot
     particles = [get_system_latex(directory) for directory in directories]
 
+    yields = {}
     for directory, particle in zip(directories, particles):
-        process_combination(directory, particle)
+        for system, counts in process_combination(directory, particle).items():
+            yields[system] = yields.get(system, 0) + counts
+
+    draw_yields(yields)
 
     close_pdfs()
 
