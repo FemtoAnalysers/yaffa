@@ -217,7 +217,7 @@ def do_collision_qa(directory):
             log.error(f'Analysis/{name} is missing. Skipping it')
             continue
 
-        draw_objects(name.removeprefix('h'), {None: hist}, subdir=SUBDIR)
+        draw_objects(name.removeprefix('h'), {None: hist}, drawopt='hist', subdir=SUBDIR)
 
 def do_triplet_qa(directory, header=''):
     # Subdirectory of qa where the triplet plots are saved
