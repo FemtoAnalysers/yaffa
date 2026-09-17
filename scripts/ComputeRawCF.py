@@ -7,6 +7,7 @@ from rich import print
 
 from ROOT import TFile, TH1, TDirectory
 
+from yaffa import utils
 from yaffa import logger as log
 
 EVENT_TYPES = ['se', 'me']
@@ -64,8 +65,8 @@ def ComputeNormalization(hSE:TH1, hME:TH1, norm_region:list[float]=None) -> floa
     Args:
         hSE (TH1): same-event distribution
         hME (TH1): mixed-event distribution
-        norm_region (list[float], optional): normalization region. If none, the normalization is computed via yields,
-        i.e. the normalization region is [0, infinity]. Defaults to None.
+        norm_region (list[float], optional): normalization region in MeV/c. If none, the normalization is computed via
+        yields, i.e. the normalization region is [0, infinity]. Defaults to None.
 
     Returns:
         float: the normalization
@@ -84,7 +85,8 @@ def ProcessTriplets(distr:dict, dir:TDirectory, norm:list[float]=None) -> None:
     Args:
         distr (dict): the same- and mixed-event distributions
         dir (TDirectory): the output file or directory where to save the results
-        norm (list[float], optional): normalization region. If None, the CF is normalized via yields. Defaults to None.
+        norm (list[float], optional): normalization region in MeV/c. If None, the CF is normalized via yields.
+         Defaults to None.
     """    
     for system in distr:
         subdir = dir.mkdir(system)    
@@ -121,11 +123,11 @@ def GetDistributions(file:str, system:str, bw:float=None) -> dict:
     Args:
         file (str): input file (AnalysisResults.root)
         system (str): the system to be studied
-        bw (float, optional): bin width of the correlation function. The units must be the same as the SE and ME
-         distributions in the input file. If None, the original binning is preserved. Defaults to None.
+        bw (float, optional): bin width of the correlation function in MeV/c. If None, the original binning is
+         preserved. Defaults to None.
 
     Returns:
-        dict: the distributions to be used for femto
+        dict: the distributions to be used for femto, with Q3 in MeV/c
     """    
     inFile = TFile.Open(file)
 
@@ -144,9 +146,11 @@ def GetDistributions(file:str, system:str, bw:float=None) -> dict:
                     inFile.ls()
                     break
 
-                distr[system][event]['q3vsmult'] = hTriplets.Projection(0, 2)
-                distr[system][event]['q3vsmult'].SetName('hQ3VsMult')
-                distr[system][event]['q3vsmult'].SetDirectory(0)
+                # Q3 (y axis) is in GeV/c in the input file
+                hQ3VsMult = utils.analysis.ChangeUnits2D(hTriplets.Projection(0, 2), (1, 1000), name='hQ3VsMult')
+                hQ3VsMult.SetDirectory(0)
+                distr[system][event]['q3vsmult'] = hQ3VsMult
+
                 if bw is not None:
                     rebin = round(bw / distr[system][event]['q3vsmult'].GetYaxis().GetBinWidth(1))
 
@@ -179,8 +183,8 @@ if __name__ == '__main__':
     parser.add_argument('infile', nargs='?', default='AnalysisResults.root')
     parser.add_argument('ofile', nargs='?', default='RawCF.root')
     parser.add_argument('--system', choices=SYSTEM_QUEUE.keys())
-    parser.add_argument('--norm', nargs=2, type=float, default=None)
-    parser.add_argument('--bw', nargs='?', type=float, default=None, help='k* bin width of the CF')
+    parser.add_argument('--norm', nargs=2, type=float, default=None, help='Normalization region in MeV/c')
+    parser.add_argument('--bw', nargs='?', type=float, default=None, help='Bin width in MeV/c')
     args = parser.parse_args()
 
     main(args.infile, args.ofile, args.system, args.norm, args.bw)

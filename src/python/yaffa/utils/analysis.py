@@ -240,8 +240,8 @@ def ChangeUnits2D(hist, multiplier, name=None, title=''):
     nbinsX = hist.GetNbinsX()
     nbinsY = hist.GetNbinsY()
     lowEdgeX = hist.GetXaxis().GetBinLowEdge(1)
-    lowEdgeY = hist.GetXaxis().GetBinLowEdge(1)
-    upEdgeX = hist.GetYaxis().GetBinLowEdge(nbinsX+1)
+    lowEdgeY = hist.GetYaxis().GetBinLowEdge(1)
+    upEdgeX = hist.GetXaxis().GetBinLowEdge(nbinsX+1)
     upEdgeY = hist.GetYaxis().GetBinLowEdge(nbinsY+1)
 
     if name is None:
@@ -252,10 +252,10 @@ def ChangeUnits2D(hist, multiplier, name=None, title=''):
     else:
         multX, multY = multiplier
 
-    hNew = TH2D(name, title, nbinsX, lowEdgeX * multX, upEdgeX * multX, nbinsX, lowEdgeY * multY, upEdgeY * multY)
+    hNew = TH2D(name, title, nbinsX, lowEdgeX * multX, upEdgeX * multX, nbinsY, lowEdgeY * multY, upEdgeY * multY)
 
     for iBinX in range(0, nbinsX+2):
-        for iBinY in range(0, nbinsX+2):
+        for iBinY in range(0, nbinsY+2):
             hNew.SetBinContent(iBinX, iBinY, hist.GetBinContent(iBinX, iBinY))
             hNew.SetBinError(iBinX, iBinY, hist.GetBinError(iBinX, iBinY))
     return hNew
