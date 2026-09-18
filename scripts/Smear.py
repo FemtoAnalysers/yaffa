@@ -101,7 +101,7 @@ def SmearWaveFunction(wf, matrix, description=''):
 
     smeared = weights @ valuesIn
     return WaveFunction(kOut[keep].tolist(), radius.tolist(), smeared.ravel().tolist(), wf.GetNBody(), wf.System(),
-                        description)
+                        wf.Potential(), wf.Waves(), description)
 
 
 def main():
