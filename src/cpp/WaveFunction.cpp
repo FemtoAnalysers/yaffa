@@ -18,6 +18,8 @@
 //   #     passed as `description`, so the file is self-explanatory. Ignored on read.
 //   #
 //   # system = pp                    <- parsed: free-form system label
+//   # potential = AV18               <- parsed: interaction potential
+//   # waves = spd                    <- parsed: partial waves included
 //   # nbody = 2                      <- parsed: 2 or 3 (sets axis meaning + KP Jacobian)
 //   #
 //   mom\radius  <rad_0> <rad_1> ... <rad_{N-1}>   <- radius axis; the corner label
@@ -26,8 +28,8 @@
 //   <mom_1>  v10 v11 ... v1{N-1}
 //   ...
 //
-// Every '#' line is skipped on read except the keys 'system' and 'nbody', so
-// those two lines must carry the bare value only (no trailing text); all other
+// Every '#' line is skipped on read except the keys 'system', 'potential',
+// 'waves' and 'nbody', so those lines must carry the bare value only (no trailing text); all other
 // comments are for the human reader. Blank lines are skipped. Everything is
 // whitespace-separated; axes may be non-uniform. Values are row-major:
 // values[iMom * nRadius + iRad].
@@ -45,12 +47,15 @@ std::string Trim(const std::string& s) {
 
 WaveFunction::WaveFunction(std::vector<double> momentum, std::vector<double> radius,
                            std::vector<double> values, int nBody, std::string system,
+                           std::string potential, std::string waves,
                            std::string description)
     : fMomentum(std::move(momentum)),
       fRadius(std::move(radius)),
       fValues(std::move(values)),
       fNBody(nBody),
       fSystem(std::move(system)),
+      fPotential(std::move(potential)),
+      fWaves(std::move(waves)),
       fDescription(std::move(description)) {
     if (fNBody != 2 && fNBody != 3)
         throw std::runtime_error("WaveFunction: nBody must be 2 or 3");
@@ -78,6 +83,10 @@ WaveFunction::WaveFunction(const std::string& filename) : fNBody(0) {
             const std::string val = Trim(body.substr(eq + 1));
             if (key == "system") {
                 fSystem = val;
+            } else if (key == "potential") {
+                fPotential = val;
+            } else if (key == "waves") {
+                fWaves = val;
             } else if (key == "nbody") {
                 fNBody = std::atoi(val.c_str());
                 if (fNBody != 2 && fNBody != 3)
@@ -172,6 +181,8 @@ void WaveFunction::Save(const std::string& filename) const {
         out << "#\n";
     }
     out << "# system = " << fSystem << "\n";
+    out << "# potential = " << fPotential << "\n";
+    out << "# waves = " << fWaves << "\n";
     out << "# nbody = " << static_cast<int>(fNBody) << "\n";
     out << "#\n";
 

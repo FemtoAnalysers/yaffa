@@ -22,11 +22,14 @@ class WaveFunction {
     // values   : row-major, values[iMom * radius.size() + iRad]
     // nBody    : number of particles (2 or 3); sets the Koonin-Pratt Jacobian
     // system      : free-form label ("pp", "ppp", ...)
+    // potential   : interaction potential ("AV18", "NLO13_600", ...)
+    // waves       : partial waves included ("s", "sp", "sd", "spd", ...)
     // description : free-form notes (reference, assumptions, ...); may be
     //               multi-line. Written into the file header as comment lines for
     //               the human reader; not parsed back when a file is loaded.
     WaveFunction(std::vector<double> momentum, std::vector<double> radius,
                  std::vector<double> values, int nBody, std::string system = "",
+                 std::string potential = "", std::string waves = "",
                  std::string description = "");
 
     // Read the standardized text format written by Save().
@@ -40,6 +43,8 @@ class WaveFunction {
     const std::vector<double>& Values() const { return fValues; }  // row-major, see At()
     int GetNBody() const { return fNBody; }
     const std::string& System() const { return fSystem; }
+    const std::string& Potential() const { return fPotential; }
+    const std::string& Waves() const { return fWaves; }
     const std::string& Description() const { return fDescription; }
 
     // |psi|^2 at grid node (iMom, iRad).
@@ -70,6 +75,8 @@ class WaveFunction {
     std::vector<double> fValues;    // row-major, size fMomentum.size() * fRadius.size()
     int fNBody;
     std::string fSystem;  // free-form label: "pp", "ppp", ...
+    std::string fPotential;  // interaction potential: "AV18", "NLO13_600", ...
+    std::string fWaves;  // partial waves included: "s", "sp", "sd", "spd", ...
     std::string fDescription;  // free-form notes; may be multi-line
 };
 

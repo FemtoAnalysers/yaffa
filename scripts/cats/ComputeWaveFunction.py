@@ -90,6 +90,8 @@ def compute_wave_function(system, oFile):
 
         header = 'Wave function of proton-proton with Argonne v18 potential computed with CATS\n'
         title = 'pp, AV18, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+        pot_name = 'AV18'
+        waves = 'spd'
         cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
         cats.SetQ1Q2(1)
         cats.SetQuantumStatistics(True)
@@ -106,11 +108,15 @@ def compute_wave_function(system, oFile):
                       'including only the S-wave channels, computed with CATS\n')
             title = 'p#Lambda, #chiEFT NLO13(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
             pot_var = 0
+            pot_name = 'NLO13_600'
+            waves = 's'
         elif potential == 'NLO19_600_SD':
             header = ('Wave function of proton-lambda with the chiral EFT NLO19(600) potential '
                       'including the coupled S and D channels, computed with CATS\n')
             title = 'p#Lambda, #chiEFT NLO19(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
             pot_var = 11600
+            pot_name = 'NLO19_600'
+            waves = 'sd'
         else:
             raise RuntimeError(f'Potential {potential} not implemented for pL')
 
@@ -183,6 +189,8 @@ def compute_wave_function(system, oFile):
         wf.ravel().tolist(),   # row-major values, iMom slow / iRad fast
         2,                     # nBody
         system,                # free-form system label, e.g. "pp"
+        pot_name,              # interaction potential
+        waves,                 # partial waves included
     )
     wff.Save(wf_path)
     print(f'WaveFunction (.wf) written to {wf_path}')
