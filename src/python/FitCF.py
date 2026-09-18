@@ -154,7 +154,7 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
     gScatLen.Write()
 
     table = tabulate.tabulate(pars, headers=colNames, tablefmt='pipe', floatfmt=".5e")  # "grid" is one of many styles
-    with open(f'{oFileName}_parameters.txt', "w") as file:
+    with open(f'{oFileName}_parameters.md', "w") as file:
         file.write(table)
 
     for hObs in hObsList:
