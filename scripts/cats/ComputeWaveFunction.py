@@ -74,6 +74,7 @@ def reduced_mass(m1, m2):
     return m1 * m2 / (m1 + m2)
 
 def compute_wave_function(system, oFile):
+    system, _, potential = system.partition(':')
     n_kstar_bins = round(KSTAR_MAX / KSTAR_STEP)
     radius_max = RADIUS_MAX[system]
     pdg = TDatabasePDG.Instance()
@@ -81,6 +82,9 @@ def compute_wave_function(system, oFile):
     cats = CATS()
 
     if system == 'pp':
+        if potential not in ('', 'AV18'):
+            raise RuntimeError(f'Potential {potential} not implemented for pp')
+
         m1 = 1000. * pdg.GetParticle(2212).Mass()
         m2 = 1000. * pdg.GetParticle(2212).Mass()
 
@@ -97,9 +101,19 @@ def compute_wave_function(system, oFile):
         m1 = 1000. * pdg.GetParticle(2212).Mass()
         m2 = 1000. * pdg.GetParticle(3122).Mass()
 
-        header = ('Wave function of proton-lambda with the chiral EFT NLO13(600) potential '
-                  'including the coupled S, P and D channels, computed with CATS\n')
-        title = 'p#Lambda, #chiEFT NLO13(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+        if potential == 'NLO13_600_S':
+            header = ('Wave function of proton-lambda with the chiral EFT NLO13(600) potential '
+                      'including only the S-wave channels, computed with CATS\n')
+            title = 'p#Lambda, #chiEFT NLO13(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+            pot_var = 0
+        elif potential == 'NLO19_600_SD':
+            header = ('Wave function of proton-lambda with the chiral EFT NLO19(600) potential '
+                      'including the coupled S and D channels, computed with CATS\n')
+            title = 'p#Lambda, #chiEFT NLO19(600), |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+            pot_var = 11600
+        else:
+            raise RuntimeError(f'Potential {potential} not implemented for pL')
+
         cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
         cats.SetQ1Q2(0)  # the lambda is neutral: no Coulomb
         cats.SetQuantumStatistics(False)
@@ -113,7 +127,7 @@ def compute_wave_function(system, oFile):
 
         can = DLM_CommonAnaFunctions()
         can.SetCatsFilesFolder(CATS_FILES_PATH)
-        can.SetUpCats_pL(cats, 'Chiral_Coupled_SPD', 'Gauss', 0, 0)
+        can.SetUpCats_pL(cats, 'Chiral_Coupled_SPD', 'Gauss', pot_var, 0)
 
         # Scale down the SigmaN -> LambdaN channels, which drive the cusp
         cusp_weight = 0.33
@@ -193,7 +207,7 @@ def compute_wave_function(system, oFile):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('system', choices=('pp', 'pL'))
+    parser.add_argument('system', help='pp[:AV18], pL:NLO13_600_S, pL:NLO19_600_SD')
     parser.add_argument('oFile')
     args = parser.parse_args()
     
