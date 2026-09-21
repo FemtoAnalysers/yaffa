@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 3-body source functions with resonances
 - QA script (`RunQA.py`) for collisions, tracks and triplets with automatic particle-system detection
 - Z test panel in `CompareGraphs.py`
+- `utils.analysis.Divide`: division of `TGraph`s by histograms, graphs and functions, and of histograms by histograms and graphs
 
 ### Changed
 - Massive refactoring of the code: merging several branches and renaming many files
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ComputeRawCF.py` rewritten for the Run 3 femto framework (3-body)
 
 ### Fixed
+- Ratio panel of `CompareGraphs.py`: works with `TGraph`s and no longer crashes on 2D objects
 - application of smearing matrix as transposed
 - Normalization of the ppr source function
 - Wrong axes/binning in `ChangeUnits2D`

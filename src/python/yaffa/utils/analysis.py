@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TGraphAsymmErrors, TGraphMultiErrors, TF1  # pylint: disable=import-error
+from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphErrors, TGraphAsymmErrors, TGraphMultiErrors, TF1, TF2  # pylint: disable=import-error
 
 from yaffa import logger as log
 
@@ -429,13 +429,19 @@ def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
     Divide two quantities.
     Implemented types:
 
-    +---------------+-----+-------------+
-    | den \\ num    | TH1 | TGraphErrors |
-    +=========+=======+=================+
-    | TH1          |  ✘  | ✔            |
-    +---------+-------+-----------------+
-    | TGraphErrors |  ✘  | ✘            |
-    +---------+-------+-----------------+
+    +--------+-----+--------+-----+-----+-----+
+    | num \\ den | TH1 | TGraph | TF1 | TH2 | TF2 |
+    +========+=====+========+=====+=====+=====+
+    | TH1    |  ✔  |   ✔    |  ✔  |  ✘  |  ✘  |
+    +--------+-----+--------+-----+-----+-----+
+    | TGraph |  ✔  |   ✔    |  ✔  |  ✘  |  ✘  |
+    +--------+-----+--------+-----+-----+-----+
+    | TH2    |  ✘  |   ✘    |  ✘  |  ✔  |  ✔  |
+    +--------+-----+--------+-----+-----+-----+
+
+    The denominator is evaluated at the x of the numerator and its uncertainty is propagated to
+    the ratio. A TF1 denominator is exact, and so is a graph denominator that must be interpolated
+    because x does not coincide with any of its points.
 
     Parameters
     ----------
@@ -446,65 +452,90 @@ def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
 
     Returns
     -------
-    TH1
-        the division between num and den.
+    TH1 or TGraphErrors
+        the division between num and den. Graph numerators give a TGraphErrors, histograms a TH1.
     '''
 
     if not name:
         name = f'{num.GetName()}_ratio'
 
-    if isinstance(den, TH1):
-        if isinstance(num, TGraphErrors):
-            nBins = den.GetNbinsX()
-            ratio = den.Clone(name)
-            ratio.Reset()
+    def Evaluate(obj, x):
+        '''
+        Value and uncertainty of obj at x. Graphs carry an uncertainty only at their own points:
+        when x falls between two of them the value is interpolated and taken as exact, as for TF1.
+        '''
+        if isinstance(obj, TH1):
+            iBin = obj.FindBin(x)
+            return obj.GetBinContent(iBin), obj.GetBinError(iBin)
 
-            if nBins != num.GetN():
-                log.warning("You you are trying to divide two objects with different number of bins/points.")
+        if isinstance(obj, TGraph):
+            iPoint = next((i for i in range(obj.GetN()) if math.isclose(obj.GetPointX(i), x)), None)
+            if iPoint is not None:
+                return obj.GetPointY(iPoint), max(obj.GetErrorY(iPoint), 0)  # -1 without uncertainties
 
-                for iBin in range(nBins):
-                    x = den.GetBinCenter(iBin + 1)
-                    y = num.Eval(x)
-                    ey = 0
+        return obj.Eval(x), 0
 
-                    binContent = den.GetBinContent(iBin + 1)
-                    binError = den.GetBinError(iBin + 1)
+    if isinstance(num, TGraph) and isinstance(den, (TH1, TGraph, TF1)) and not isinstance(den, (TH2, TF2)):
+        gRatio = TGraphErrors(1)
+        gRatio.SetName(name)
 
-                    if binContent > 0 and y > 0:
-                        r = y / binContent
-                        ratioUnc = r * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+        iRatioPoint = 0
+        for iPoint in range(num.GetN()):
+            x = num.GetPointX(iPoint)
+            y = num.GetPointY(iPoint)
+            yUnc = max(num.GetErrorY(iPoint), 0)  # graphs without uncertainties return -1
+            d, dUnc = Evaluate(den, x)
 
-                        ratio.SetBinContent(iBin + 1, r)
-                        ratio.SetBinError(iBin + 1, ratioUnc)
-                    else:
-                        ratio.SetBinContent(iBin + 1, 0)
-                        ratio.SetBinError(iBin + 1, 0)
+            if d == 0:
+                continue
 
-                return ratio
+            gRatio.SetPoint(iRatioPoint, x, y / d)
+            gRatio.SetPointError(iRatioPoint, max(num.GetErrorX(iPoint), 0), math.hypot(yUnc, y * dUnc / d) / d)
+            iRatioPoint += 1
 
-            if den.FindBin(num.GetPointX(1)) != 1 or den.FindBin(num.GetN()) != den.GetNBins():
-                log.critical("The binnings are not aligned.")
+        return gRatio
 
-            for iBin in range(nBins):
-                x = num.GetPointX(iBin)
-                y = num.GetPointY(iBin)
-                ey = num.GetErrorY(iBin)
+    if isinstance(num, TH1) and not isinstance(num, TH2) and isinstance(den, TGraph):
+        hRatio = num.Clone(name)
+        hRatio.Reset()
 
-                bin_idx = den.FindBin(x)
-                binContent = den.GetBinContent(bin_idx)
-                binError = den.GetBinError(bin_idx)
+        for iBin in range(num.GetNbinsX()):
+            y = num.GetBinContent(iBin + 1)
+            d, dUnc = Evaluate(den, num.GetBinCenter(iBin + 1))
+            if d == 0:
+                continue
 
-                if binContent > 0 and y > 0:
-                    ratio = y / binContent
-                    ratioUnc = ratio * math.sqrt((ey / y) ** 2 + (binError / binContent) ** 2)
+            hRatio.SetBinContent(iBin + 1, y / d)
+            hRatio.SetBinError(iBin + 1, math.hypot(num.GetBinError(iBin + 1), y * dUnc / d) / d)
 
-                    ratio.SetBinContent(iBin + 1, ratio)
-                    ratio.SetBinError(iBin + 1, ratioUnc)
-                else:
-                    ratio.SetBinContent(iBin + 1, 0)
-                    ratio.SetBinError(iBin + 1, 0)
+        return hRatio
 
-            return ratio
+    if isinstance(num, TH1) and isinstance(den, TH1) and not isinstance(num, TH2) and not isinstance(den, TH2):
+        hRatio = num.Clone(name)
+        if not hRatio.Divide(den):
+            log.error('The division of %s by %s failed. Check that the binnings match', num.GetName(), den.GetName())
+            return None
+
+        return hRatio
+
+    if isinstance(den, TF2):
+        if isinstance(num, TH2):
+            hRatio = num.Clone(name)
+            hRatio.Reset()
+            hRatio.GetZaxis().SetTitle('Ratio')
+
+            for iBinX in range(num.GetNbinsX()):
+                for iBinY in range(num.GetNbinsY()):
+                    x = num.GetXaxis().GetBinCenter(iBinX + 1)
+                    y = num.GetYaxis().GetBinCenter(iBinY + 1)
+                    d = den.Eval(x, y)
+                    if d == 0:
+                        continue
+
+                    hRatio.SetBinContent(iBinX + 1, iBinY + 1, num.GetBinContent(iBinX + 1, iBinY + 1) / d)
+
+            return hRatio
+
     elif isinstance(den, TF1):
         if isinstance(num, TH1):
             ratio = num.Clone(name)
@@ -518,24 +549,19 @@ def Divide(num, den, name=None): #pylint: disable=inconsistent-return-statements
 
     elif isinstance(den, TH2):
         if isinstance(num, TH2):
-            ratio = num.Clone(name)
-            ratio.Reset()
-            ratio.GetZaxis().SetTitle('Ratio')
+            hRatio = num.Clone(name)
+            hRatio.Reset()
+            hRatio.GetZaxis().SetTitle('Ratio')
             for iBinX in range(num.GetNbinsX()):
                 for iBinY in range(num.GetNbinsY()):
-                    x = num.GetXaxis().GetBinCenter(iBinX + 1)
-                    y = num.GetYaxis().GetBinCenter(iBinY + 1)
-                    bc = num.GetBinContent(iBinX + 1, iBinY + 1)
-                    den = den.Eval(x, y)
-                    if den.Eval(x, y) > 0:
-                        ratio = bc / den
-                    else:
-                        ratio = 0
-                        
-                    ratio.SetBinContent(iBinX + 1, iBinY + 1,  ratio)
-            return ratio
+                    bcDen = den.GetBinContent(iBinX + 1, iBinY + 1)
+                    if bcDen == 0:
+                        continue
 
-    log.error("Division of %s by %s is not implemented aaaa.", num.ClassName(), den.ClassName())
+                    hRatio.SetBinContent(iBinX + 1, iBinY + 1, num.GetBinContent(iBinX + 1, iBinY + 1) / bcDen)
+            return hRatio
+
+    log.error("Division of %s by %s is not implemented.", num.ClassName(), den.ClassName())
     return None
 
 def Bootstrap(obj):

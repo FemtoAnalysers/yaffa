@@ -229,30 +229,43 @@ def make_plot(plot):
         y1 = plot['ratio']['rangey'][0]
         y2 = plot['ratio']['rangey'][1]
        
-        den = inObjs[0].Clone()
-        if isinstance(den, TH1):
-            den.Rebin(plot['ratio']['rebin'])
-            den.Sumw2()
+        if isinstance(inObjs[0], (TF2, TH2)):
+            frame = pad.DrawFrame(fx1, fy1, fx2, fy2, plot['opt']['title'])
+            frame.GetZaxis().SetTitle('Ratio')
+        else:
+            frame = pad.DrawFrame(fx1, y1, fx2, y2, plot['opt']['title'])
+            frame.GetYaxis().SetTitle('Ratio')
 
-        for inObj in inObjs[1:]:
-            hRatio = inObj.Clone(f'{inObj.GetName()}_ratio')
-            hRatio.Rebin(plot['ratio']['rebin'])
-            hRatio = utils.analysis.Divide(hRatio, den)
-            if not hRatio:
+        for inObj, drawOpt in zip(inObjs[1:], drawOpts[1:]):
+            if not inObj:  # placeholder entries used to pad the legend
                 continue
 
-            if isinstance(den, TF2) and isinstance(hRatio, TH2):
-                frame = pad.DrawFrame(fx1, fy1, fx2, fy2, plot['opt']['title'])
-                hRatio.GetZaxis().SetRangeUser(y1, y2)
-                frame.GetZaxis().SetTitle('Ratio')
-                hRatio.DrawCopy('same colz')      
-            else:
-                frame = pad.DrawFrame(fx1, y1, fx2, y2, plot['opt']['title'])
-                frame.GetYaxis().SetTitle('Ratio')
-                hRatio.DrawClone('same pe')
+            num = inObj.Clone()
+            den = inObjs[0].Clone()
+            if isinstance(num, TH1) and isinstance(den, TH1):  # rebin only when it cancels in the ratio
+                num.Rebin(plot['ratio'].get('rebin') or 1)
+                den.Rebin(plot['ratio'].get('rebin') or 1)
+                if den.GetSumw2N() == 0:
+                    den.Sumw2()
+            ratio = utils.analysis.Divide(num, den, f'{inObj.GetName()}_ratio')
+            if not ratio:
+                continue
 
-        if 'root' in plot["opt"]["ext"]:
-            hRatio.Write()
+            ratio.SetLineColor(inObj.GetLineColor())
+            ratio.SetLineWidth(inObj.GetLineWidth())
+            ratio.SetMarkerColor(inObj.GetMarkerColor())
+            ratio.SetMarkerStyle(inObj.GetMarkerStyle())
+
+            if isinstance(ratio, TH2):
+                ratio.GetZaxis().SetRangeUser(y1, y2)
+                ratio.DrawCopy('same colz')
+            elif isinstance(ratio, TH1):
+                ratio.DrawClone('same pe')
+            else:
+                ratio.DrawClone(f'same {drawOpt}')
+
+            if 'root' in plot["opt"]["ext"]:
+                ratio.Write()
 
         line = TLine(fx1, 1, fx2, 1)
         line.SetLineColor(13)
