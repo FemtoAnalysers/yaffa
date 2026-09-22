@@ -6,19 +6,29 @@
 git config --local core.hooksPath .githooks/
 
 # Install the executables
-# mkdir -p ~/.local/bin/
+mkdir -p ~/.local/bin
 
-# cp yaffa/bin/yaffa-lint.sh ~/.local/bin/yaffa-lint
-# chmod +x ~/.local/bin/yaffa-lint
+# name:path relative to $YAFFA/scripts
+SCRIPTS=(
+    "CompareGraphs:CompareGraphs.py"
+    "ComputeSource:sim/ceca/ComputeSource.py"
+    "FitSource:sim/ceca/FitSource.py"
+    "FitCF:FitCF.py"
+    "ComputeRawCF:ComputeRawCF.py"
+    "ComputeWaveFunction:cats/ComputeWaveFunction.py"
+    "KooninPratt:KooninPratt.py"
+    "RunQA:RunQA.py"
+    "BreakUpMomentum:BreakUpMomentum.py"
+    "Smear:Smear.py"
+    "rootdiff:rootdiff.py"
+)
 
-# cp yaffa/bin/yaffa-dr.py ~/.local/bin/yaffa-dr
-# chmod +x ~/.local/bin/yaffa-dr
-
-# cp yaffa/bin/yaffa-farm-perf.py ~/.local/bin/yaffa-farm-perf
-# chmod +x ~/.local/bin/yaffa-farm-perf
-
-# cp yaffa/bin/yaffa-farm-tui.py ~/.local/bin/yaffa-farm-tui
-# chmod +x ~/.local/bin/yaffa-farm-tui
+for entry in "${SCRIPTS[@]}"; do
+    name=${entry%%:*}
+    path=$YAFFA/scripts/${entry#*:}
+    chmod +x "$path"
+    ln -sf "$path" ~/.local/bin/"$name"
+done
 
 # Install yaffa
 pushd $YAFFA
