@@ -16,14 +16,19 @@ EVENT_TYPES = ['se', 'me']
 
 # Which sub-systems should be analyzed for each analysis
 SYSTEM_QUEUE = {
-    'ppp' : ['ppp', 'apapap']
+    'ppp' : ['ppp', 'apapap'],
+    'ppK' : ['ppKplus', 'apapKminus', 'ppKminus', 'apapKplus'],
 }
 
 # How pairs/triplets should be combined with anti-pairs and anti-triplets
 SUM_RECIPE = {
     'ppp' : {
         'ppp_apapap' : ['ppp', 'apapap']
-    }
+    },
+    'ppK' : {
+        'ppKplus_apapKminus' : ['ppKplus', 'apapKminus'],
+        'ppKminus_apapKplus' : ['ppKminus', 'apapKplus'],
+    },
 }
 
 def SumHistograms(hists:list[TH1]) -> TH1:
