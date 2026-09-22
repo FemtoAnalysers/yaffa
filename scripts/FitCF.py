@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # pylint: skip-file
 '''
 Script to fit femtoscopic correlation functions.
@@ -15,7 +17,7 @@ from yaffa import logger as log
 from dotenv import load_dotenv
 from pathlib import Path
 
-env_path = Path(__file__).resolve().parents[2] / ".env"
+env_path = Path(__file__).resolve().parents[1] / ".env"
 print(f'Loading env from {env_path}')
 if not load_dotenv(dotenv_path=env_path, verbose=True, override=True):
     print("Environment variables in .env not loaded")

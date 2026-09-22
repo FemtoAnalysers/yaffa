@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 '''
 Script to smear a TGraph or a wave function with a matrix, e.g. a momentum resolution matrix or a phase-space decay
 matrix.

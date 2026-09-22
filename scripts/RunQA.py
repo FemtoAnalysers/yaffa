@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 '''
 Script to produce the QA plots.
 '''
