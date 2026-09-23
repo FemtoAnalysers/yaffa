@@ -14,6 +14,9 @@ source gives the same correlation function as smearing the correlation function 
 Usage:
     python3 Smear.py input.root:gCF output.root:gCF_smeared --matrix matrix.root:hPhaseSpace
     python3 Smear.py input.wf output.wf --matrix matrix.root:hResolutionMatrixME
+    python3 Smear.py input.wf output.wf --matrix matrix.root:hResolution --phase-space ps.root:hPhaseSpace
+
+The optional phase space (TH1 in the input variable) weights each column of the matrix, as in DLM_CkDecomp::Smear.
 '''
 
 import argparse
@@ -21,9 +24,9 @@ from pathlib import Path
 
 import numpy as np
 
-from ROOT import TFile, TGraph, TH2, gInterpreter  # pylint: disable=import-error,no-name-in-module
+from ROOT import TFile, TGraph, TH1, TH2, gInterpreter  # pylint: disable=import-error,no-name-in-module
 from yaffa.utils.io import Load
-from yaffa.utils.analysis import SmearGraph
+from yaffa.utils.analysis import SmearGraph, EnforceMeV
 from yaffa import logger as log
 
 
@@ -115,11 +118,27 @@ def main():
     parser.add_argument('output', help='where to save the smeared graph, as <file.root>:<name>, or <file.wf>')
     parser.add_argument('--matrix', required=True,
                         help='smearing matrix (x: input, y: output), as <file.root>:<path/to/TH2>')
+    parser.add_argument('--phase-space', default=None,
+                        help='phase space in the input variable, as <file.root>:<path/to/TH1>')
     args = parser.parse_args()
 
     matrix = LoadObject(args.matrix)
     if not isinstance(matrix, TH2):
         log.critical('The smearing matrix must be a TH2, got %s', type(matrix))
+
+    # Weight each column (input momentum) of the matrix with the phase space, keeping the total number of counts
+    if args.phase_space:
+        hPhaseSpace = LoadObject(args.phase_space)
+        if not isinstance(hPhaseSpace, TH1) or isinstance(hPhaseSpace, TH2):
+            log.critical('The phase space must be a TH1, got %s', type(hPhaseSpace))
+        hPhaseSpace = EnforceMeV(hPhaseSpace)
+            
+        integral = matrix.Integral()
+        for iX in range(1, matrix.GetNbinsX() + 1):
+            ps = hPhaseSpace.Interpolate(matrix.GetXaxis().GetBinCenter(iX))
+            for iY in range(1, matrix.GetNbinsY() + 1):
+                matrix.SetBinContent(iX, iY, matrix.GetBinContent(iX, iY) * ps)
+        matrix.Scale(integral / matrix.Integral())
 
     if args.input.endswith('.wf'):
         if not args.output.endswith('.wf'):
