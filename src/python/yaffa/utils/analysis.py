@@ -9,6 +9,23 @@ from ROOT import TH1, TH1D, TH1F, TH1I, TH2D, TSpline3, TGraph, TH2, TGraphError
 
 from yaffa import logger as log
 
+def EnforceMeV(obj):
+    '''
+    Detect if the axes of the object extend beyond 10. If so nothing happens, otherwise the object is assumed to be in 
+    GeV and the axes is rescaled by a factor 1000 automatically.
+    '''
+    if isinstance(obj, TH1):
+        xmax = obj.GetXaxis().GetXmax()
+        if xmax < 10:
+            log.warning('The object %s seems to be in GeV but MeV are required. Changing automatically to MeV. Provide ' \
+            'a histogram in MeV to suppress this warning', obj.GetName())
+        obj = ChangeUnits(obj, 1000, f'{obj.GetName()}_MeV')
+
+        return obj
+
+    log.critical('Unit check not implemented for objects of type %s', type(obj))
+
+
 def Convert(object, target_type):
     if type(object).__name__ == 'TH2D':
         if target_type == 'numpy_array':
