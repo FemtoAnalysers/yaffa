@@ -447,20 +447,6 @@ int main(int argc, const char** argv) {
     hPhiVsRho->ResetStats();
     hPhiVsRho->SetTitle(";#rho (fm);#varphi (rad); Counts");
 
-    // TODO genralize to AAB and ABC systems
-    auto dlmKStarInTriplets = ceca.GetKStarInTriplets();
-    dlmKStarInTriplets->ComputeError();
-    TH1F* hKStarInTriplets = Convert_DlmHisto_TH1F(dlmKStarInTriplets, "hKStarInTriplets");
-    hKStarInTriplets->ResetStats();
-    hKStarInTriplets->SetTitle(";k* (MeV/c); Counts");
-
-    // TODO genralize to AAB and ABC systems
-    auto dlmRStarInTriplets = ceca.GetRStarInTriplets();
-    dlmRStarInTriplets->ComputeError();
-    TH1F* hRStarInTriplets = Convert_DlmHisto_TH1F(dlmRStarInTriplets, "hRStarInTriplets");
-    hRStarInTriplets->ResetStats();
-    hRStarInTriplets->SetTitle(";r* (fm); Counts");
-
     auto dlmFemtoR12R312 = ceca.GetFemtoR12R312();
     dlmFemtoR12R312->ComputeError();
     TH2F* hFemtoR12R312 = Convert_DlmHisto_TH2F(dlmFemtoR12R312, "hFemtoR12R312");
@@ -485,18 +471,6 @@ int main(int argc, const char** argv) {
     hFemtoRhoVsMt->ResetStats();
     hFemtoRhoVsMt->SetTitle(";m_{T} (GeV);#rho* (fm)");
 
-    auto dlmFemtoRStarInTriplets = ceca.GetFemtoRStarInTriplets();
-    dlmFemtoRStarInTriplets->ComputeError();
-    TH1F* hFemtoRStarInTriplets = Convert_DlmHisto_TH1F(dlmFemtoRStarInTriplets, "hFemtoRStarInTriplets");
-    hFemtoRStarInTriplets->ResetStats();
-    hFemtoRStarInTriplets->SetTitle(";r* (fm); Counts");
-
-    auto dlmFemtoRStarFemtoPairsInTripletsVsMt = ceca.GetFemtoRStarFemtoPairsInTripletsVsMt();
-    dlmFemtoRStarFemtoPairsInTripletsVsMt->ComputeError();
-    TH2F* hFemtoRStarFemtoPairsInTripletsVsMt = Convert_DlmHisto_TH2F(dlmFemtoRStarFemtoPairsInTripletsVsMt, "hFemtoRStarFemtoPairsInTripletsVsMt");
-    hFemtoRStarFemtoPairsInTripletsVsMt->ResetStats();
-    hFemtoRStarFemtoPairsInTripletsVsMt->SetTitle(";m_{T}* (MeV); r* (fm); Counts");
-
     auto dlmFemtoPairsMt = ceca.GetFemtoPairsMt();
     for (auto& [pairIndex, dlmMt] : dlmFemtoPairsMt) {
         dlmMt->ComputeError();
@@ -510,12 +484,8 @@ int main(int argc, const char** argv) {
     hR12R312->Write();
     hMtSimpleVs4VectorAverage->Write();
     hPhiVsRho->Write();
-    hKStarInTriplets->Write();
-    hRStarInTriplets->Write();
 
     hFemtoPhiVsRho->Write();
-    hFemtoRStarInTriplets->Write();
-    hFemtoRStarFemtoPairsInTripletsVsMt->Write();
     hFemtoR12R312->Write();
     hFemtoMtSimpleVs4VectorAverage->Write();
     hFemtoRhoVsMt->Write();
