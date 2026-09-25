@@ -52,6 +52,13 @@ def FitCF(cfg): # pylint disable:missing-function-docstring
             for iPoint in range(obs.GetN()):
                 hObs.SetPoint(iPoint, obs.GetPointX(iPoint) * fitCfg.get('unit_mult', 1), obs.GetPointY(iPoint))
                 hObs.SetPointError(iPoint, 0, obs.GetErrorY(iPoint, 0))
+        elif isinstance(obs, TGraphAsymmErrors):
+            # The fit needs symmetric errors: GetErrorY returns sqrt((low^2 + high^2) / 2). The x errors are dropped as above
+            hObs = TGraphErrors(obs.GetN())
+            hObs.SetName(obs.GetName())
+            for iPoint in range(obs.GetN()):
+                hObs.SetPoint(iPoint, obs.GetPointX(iPoint) * fitCfg.get('unit_mult', 1), obs.GetPointY(iPoint))
+                hObs.SetPointError(iPoint, 0, obs.GetErrorY(iPoint))
         else:
             hObs = utils.analysis.ChangeUnits(obs, fitCfg.get('unit_mult', 1))
             hObs.SetDirectory(0)
@@ -185,7 +192,7 @@ if __name__ == '__main__':
     parser.add_argument('-x', default=False, action='store_true', help='plot the canvas')
     args = parser.parse_args()
 
-    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraph, TGraphErrors, TGraphMultiErrors
+    from ROOT import TF1, TFile, TCanvas, gInterpreter, gROOT, TH1, TGraph, TGraphErrors, TGraphAsymmErrors, TGraphMultiErrors
     gInterpreter.ProcessLine(f'#undef DEBUG_LEVEL')
     gInterpreter.ProcessLine(f'#define DEBUG_LEVEL {args.debug}')
     gInterpreter.ProcessLine(f'#include "{os.environ.get("YAFFA")}/src/cpp/Observable.h"')
