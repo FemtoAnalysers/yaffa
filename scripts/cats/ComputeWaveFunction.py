@@ -40,7 +40,7 @@ from ROOT import CATS
 from ROOT import DLM_CommonAnaFunctions
 
 RADIUS_STEP = 0.01
-RADIUS_MAX = {'pp': 20, 'pL': 10}
+RADIUS_MAX = {'pp': 20, 'pL': 10, 'pipi': 100}
 KSTAR_STEP = 1
 KSTAR_MAX = 500
 
@@ -144,6 +144,32 @@ def compute_wave_function(system, oFile):
         cats.SetChannelWeight(10, 3/4 * cusp_weight)    # 3S1 SN(d) -> LN(s)
         cats.SetChannelWeight(13, 3/20 * cusp_weight)   # 3D1 SN(d) -> LN(d)
         cats.SetChannelWeight(15, 3/20 * cusp_weight)   # 3D1 SN(s) -> LN(d)
+    elif system == 'pipi':
+        m1 = 1000. * pdg.GetParticle(211).Mass()
+        m2 = 1000. * pdg.GetParticle(211).Mass()
+
+        if potential == 'qs_coulomb_sc':
+            header = 'Wave function of same-charge pion-pion with Coulomb and quantum statistics computed with CATS\n'
+            title = '#pi^{#pm}#pi^{#pm}, Coulomb + quantum-statistics, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+            q1q2 = 1
+            quantum_statistics = True
+        elif potential == 'coulomb_oc':
+            header = 'Wave function of opposite-charge pion-pion with Coulomb computed with CATS\n'
+            title = '#pi^{#pm}#pi^{#mp}, Coulomb, |#psi|^{2};r (fm);k* (MeV/c);|#psi|^{2}'
+            q1q2 = -1
+            quantum_statistics = False
+        else:
+            raise RuntimeError(f'Potential {potential} not implemented for pipi')
+
+        pot_name = potential
+        # No strong interaction: CATS uses the full analytic Coulomb wave (all partial waves)
+        waves = 'all'
+        cats.SetMomBins(n_kstar_bins, 0, KSTAR_MAX)
+        can = DLM_CommonAnaFunctions()
+        can.SetUpCats_pipi(cats, 'Gauss', 0)
+        cats.SetQ1Q2(q1q2)
+        cats.SetQuantumStatistics(quantum_statistics)
+        cats.SetRedMass(reduced_mass(m1, m2))
     else:
         raise RuntimeError('System not implemented')
 
@@ -217,7 +243,7 @@ def compute_wave_function(system, oFile):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('system', help='pp[:AV18], pL:NLO13_600_S, pL:NLO19_600_SD')
+    parser.add_argument('system', help='pp[:AV18], pL:NLO13_600_S, pL:NLO19_600_SD, pipi:qs_coulomb_sc, pipi:coulomb_oc')
     parser.add_argument('oFile')
     args = parser.parse_args()
     
