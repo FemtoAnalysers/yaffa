@@ -20,6 +20,7 @@ SCRIPTS=(
     "RunQA:RunQA.py"
     "BreakUpMomentum:BreakUpMomentum.py"
     "Smear:Smear.py"
+    "PlotWaveFunction:PlotWaveFunction.py"
     "rootdiff:rootdiff.py"
 )
 
